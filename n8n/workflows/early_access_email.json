@@ -1,0 +1,341 @@
+{
+  "updatedAt": "2026-10-04T13:21:27.257Z",
+  "createdAt": "2026-10-04T13:21:27.257Z",
+  "id": "wl3AdHHZWKBCONcq",
+  "name": "MyPaltan - Early Access Email",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "3ebf55ac-47f2-4eab-aac7-c49340d25682",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "44fa18a9-0f98-4443-880b-7b39c79ff8e3",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "waitlist",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
+        }
+      }
+    },
+    {
+      "id": "a8d1eaa3-b6e1-4d42-a6ee-5b6202e5348c",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst name = String(b.name || '').trim().slice(0, 100);\nconst phone = String(b.phone || '').replace(/\\D/g, '');\nconst city = String(b.city || '').trim().slice(0, 100);\nconst role = String(b.role || '').trim();\nconst ROLES = ['Player', 'Captain', 'Organizer', 'League / corporate'];\n// Where the signup came from: the landing page, or a tournament invite page (\"invite:ABC123\").\nconst rawSource = String(b.source || 'website').trim();\nconst source = /^(website|invite:[A-Z0-9]{6})$/.test(rawSource) ? rawSource : 'website';\n\nlet error = '';\nif (name.length < 2) error = 'Please enter your name.';\nelse if (!/^[6-9]\\d{9}$/.test(phone)) error = 'Please enter a valid 10-digit mobile number.';\nelse if (city.length < 2) error = 'Please enter your city.';\nelse if (!ROLES.includes(role)) error = 'Please choose who you are.';\n\nconst submittedAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });\nreturn [{ json: { valid: !error, error, name, phone, city, role, source, submittedAt } }];"
+      }
+    },
+    {
+      "id": "d03eee0e-75ef-48e7-8ad5-e79ebea2f4e9",
+      "name": "Is Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "49a35c12-a43e-4420-8247-d17b62ee798f",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "01ca51ba-fb8d-4ab3-8e8c-222b69e1543c",
+      "name": "Email MyPaltan",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "UiIL3fJeb9BGb87y",
+          "name": "Gmail account"
+        }
+      },
+      "parameters": {
+        "sendTo": "mypaltanofficial@gmail.com",
+        "subject": "=New early access sign-up: {{ $('Validate Input').first().json.name }} ({{ $('Validate Input').first().json.role }}, {{ $('Validate Input').first().json.city }})",
+        "emailType": "text",
+        "message": "=New early access sign-up on mypaltan.com\n\nName: {{ $('Validate Input').first().json.name }}\nMobile: +91 {{ $('Validate Input').first().json.phone }}\nCity: {{ $('Validate Input').first().json.city }}\nRole: {{ $('Validate Input').first().json.role }}\nFrom: {{ $('Validate Input').first().json.source }}\nSubmitted: {{ $('Validate Input').first().json.submittedAt }} IST\n\nWhatsApp: https://wa.me/91{{ $('Validate Input').first().json.phone }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c9615714-18cb-4c66-85a2-591dc4eaff71",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true } }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "e2be8353-a880-475c-b666-5f527fd43096",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        680,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error } }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    },
+    {
+      "id": "d4e52e7c-3e0d-4966-b022-f532862f31c4",
+      "name": "Save Signup",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO waitlist_signups (name, phone, city, role, source) VALUES ($1, $2, $3, $4, $5); SELECT LAST_INSERT_ID() AS id",
+        "options": {
+          "queryReplacement": "={{ [$json.name, $json.phone, $json.city, $json.role, $json.source] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "0ceaf82e-f962-4215-8813-5a3436dbebe1",
+      "name": "Email Sent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ec07bb3a-e8ee-49d2-86b0-8cd2758d6130",
+              "leftValue": "={{ !$json.error && !!$json.id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "83c8c8e2-5067-45dc-b0e5-104eee54c775",
+      "name": "Mark Emailed",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        -200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE waitlist_signups SET email_sent = 1 WHERE id = $1",
+        "options": {
+          "queryReplacement": "={{ [$('Save Signup').first().json.id] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Is Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid?": {
+      "main": [
+        [
+          {
+            "node": "Save Signup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Signup": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Success": {
+      "main": [
+        [
+          {
+            "node": "Email MyPaltan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email MyPaltan": {
+      "main": [
+        [
+          {
+            "node": "Email Sent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Sent?": {
+      "main": [
+        [
+          {
+            "node": "Mark Emailed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "62af6c5d-fe62-4266-880f-ddad9673feb7",
+  "activeVersionId": "62af6c5d-fe62-4266-880f-ddad9673feb7",
+  "versionCounter": 3,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-10-04T13:21:27.261Z",
+      "createdAt": "2026-10-04T13:21:27.261Z",
+      "role": "workflow:owner",
+      "workflowId": "wl3AdHHZWKBCONcq",
+      "projectId": "fRKzmE3Ijn4hJawA",
+      "project": {
+        "updatedAt": "2026-04-09T18:43:11.519Z",
+        "createdAt": "2026-04-09T17:06:30.742Z",
+        "id": "fRKzmE3Ijn4hJawA",
+        "name": "Sippzy Official <sippzy.official@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "2f4439bd-5910-4453-8e08-ddcea83022ba"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "Version 62af6c5d",
+    "description": ""
+  }
+}
