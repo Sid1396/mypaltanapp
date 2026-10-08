@@ -1,98 +1,102 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../config/app_colors.dart';
 import '../../utils/helpers/size_config.dart';
+import '../controllers/home_controller.dart';
+import '../controllers/main_nav_controller.dart';
+import '../widgets/home_widgets.dart';
 import 'home_page.dart';
-import 'mypaltan_page.dart';
+import 'my_teams_page.dart';
 import 'profile_page.dart';
-import 'turf_page.dart';
+import 'tournaments_page.dart';
 
-class MainNavigationPage extends StatefulWidget {
+class MainNavigationPage extends StatelessWidget {
   const MainNavigationPage({super.key});
 
-  @override
-  State<MainNavigationPage> createState() => _MainNavigationPageState();
-}
-
-class _MainNavigationPageState extends State<MainNavigationPage> {
-  int _currentIndex = 0;
-
-  static const _pages = [
-    HomePage(),
-    MyPaltanPage(),
-    TurfPage(),
-    ProfilePage(),
-  ];
+  // Index 2 is the Create button, so its slot holds an empty placeholder.
+  static const _pages = [HomePage(), TournamentsPage(), SizedBox.shrink(), MyTeamsPage(), ProfilePage()];
 
   static const _tabs = [
     (icon: Icons.home_rounded, label: 'Home'),
-    (icon: Icons.groups_rounded, label: 'MyPaltan'),
-    (icon: Icons.grass_rounded, label: 'Turf'),
+    (icon: Icons.emoji_events_rounded, label: 'Tournaments'),
+    (icon: Icons.add_rounded, label: 'Create'),
+    (icon: Icons.shield_rounded, label: 'My Teams'),
     (icon: Icons.person_rounded, label: 'Profile'),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final nav = Get.put(MainNavController());
+    Get.put(HomeController());
+
     return Scaffold(
       backgroundColor: AppColors.secondary,
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      extendBody: true,
+      body: Obx(() => IndexedStack(index: nav.index.value, children: _pages)),
       bottomNavigationBar: SafeArea(
         child: Container(
-          margin: EdgeInsets.fromLTRB(
-            SizeConfig.w(16),
-            0,
-            SizeConfig.w(16),
-            SizeConfig.h(10),
-          ),
-          padding: EdgeInsets.symmetric(vertical: SizeConfig.h(8)),
+          margin: EdgeInsets.fromLTRB(SizeConfig.w(12), 0, SizeConfig.w(12), SizeConfig.h(8)),
+          padding: EdgeInsets.symmetric(vertical: SizeConfig.h(6), horizontal: SizeConfig.w(4)),
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(SizeConfig.r(24)),
-            border: Border.all(color: Colors.white.withAlpha(15), width: 1),
+            border: Border.all(color: Colors.white.withAlpha(15)),
+            boxShadow: [BoxShadow(color: Colors.black.withAlpha(120), blurRadius: 20, offset: const Offset(0, 8))],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_tabs.length, (i) {
-              final tab = _tabs[i];
-              final selected = i == _currentIndex;
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _currentIndex = i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: SizeConfig.w(14),
-                    vertical: SizeConfig.h(8),
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.primary.withAlpha(25)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(SizeConfig.r(16)),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        tab.icon,
-                        size: SizeConfig.r(22),
-                        color: selected ? AppColors.primary : Colors.white.withAlpha(120),
-                      ),
-                      SizedBox(height: SizeConfig.h(4)),
-                      Text(
-                        tab.label,
-                        style: TextStyle(
-                          fontFamily: 'Gilroy',
-                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                          fontSize: SizeConfig.sp(11),
-                          color: selected ? AppColors.primary : Colors.white.withAlpha(120),
+          child: Obx(() => Row(
+                children: List.generate(_tabs.length, (i) {
+                  final tab = _tabs[i];
+                  if (i == 2) {
+                    return Expanded(
+                      child: GestureDetector(
+                        key: const ValueKey('nav-create'),
+                        onTap: showCreateSheet,
+                        child: Center(
+                          heightFactor: 1,
+                          child: Container(
+                            width: SizeConfig.r(50),
+                            height: SizeConfig.r(50),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                              boxShadow: [BoxShadow(color: AppColors.primary.withAlpha(110), blurRadius: 16, offset: const Offset(0, 4))],
+                            ),
+                            child: Icon(Icons.add_rounded, color: Colors.white, size: SizeConfig.r(28)),
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
+                    );
+                  }
+                  final selected = nav.index.value == i;
+                  final color = selected ? AppColors.primary : Colors.white.withAlpha(120);
+                  return Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => nav.go(i),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: SizeConfig.h(6)),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(tab.icon, size: SizeConfig.r(22), color: color),
+                            SizedBox(height: SizeConfig.h(4)),
+                            Text(
+                              tab.label,
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontFamily: 'Gilroy',
+                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                fontSize: SizeConfig.sp(10.5),
+                                color: color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              )),
         ),
       ),
     );

@@ -26,12 +26,8 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _getOtp() async {
     final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
-      AppSnackbar.error('Invalid Number', 'Please enter your mobile number');
-      return;
-    }
-    if (phone.length != 10) {
-      AppSnackbar.error('Invalid Number', 'Enter a valid 10-digit number');
+    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(phone)) {
+      AppSnackbar.error('Invalid number', 'Enter a valid 10-digit mobile number');
       return;
     }
     FocusScope.of(context).unfocus();
@@ -40,13 +36,12 @@ class _LoginPageState extends State<LoginPage> {
       final res = await Get.find<ApiService>().sendOtp(phone);
       if (!mounted) return;
       if (res['success'] == true) {
-        AppSnackbar.info('OTP Sent', 'A 6-digit OTP was sent to +91 $phone');
         Get.toNamed(AppRoutes.otp, arguments: phone);
       } else {
-        AppSnackbar.error('Failed', res['message']?.toString() ?? 'Could not send OTP');
+        AppSnackbar.error('Could not send OTP', res['message']?.toString() ?? 'Please try again.');
       }
-    } catch (e) {
-      if (mounted) AppSnackbar.error('Network Error', 'Check your connection and try again');
+    } on ApiException catch (e) {
+      if (mounted) AppSnackbar.error('Could not send OTP', e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -152,12 +147,6 @@ class _LoginPageState extends State<LoginPage> {
                                     fontWeight: FontWeight.w700,
                                     fontSize: SizeConfig.sp(15),
                                   ),
-                                ),
-                                SizedBox(width: SizeConfig.w(4)),
-                                Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  color: Colors.white.withAlpha(150),
-                                  size: SizeConfig.r(18),
                                 ),
                               ],
                             ),

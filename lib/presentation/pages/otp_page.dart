@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_routes.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/session_service.dart';
 import '../../utils/helpers/size_config.dart';
 import '../../utils/helpers/snackbar_helper.dart';
 
@@ -88,41 +89,43 @@ class _OtpPageState extends State<OtpPage> {
     try {
       final res = await Get.find<ApiService>().verifyOtp(_phone, _otp);
       if (!mounted) return;
-      if (res['success'] == true) {
-        final userExists = res['userExists'] == true;
-        if (userExists) {
-          Get.offAllNamed(AppRoutes.home);
-        } else {
-          Get.toNamed(AppRoutes.signup);
-        }
+      if (res['success'] == true && res['token'] != null) {
+        final session = Get.find<SessionService>();
+        session.saveLogin(res['token'] as String, _phone);
+        session.applyProfileResponse(res);
+        Get.offAllNamed(res['profileComplete'] == true ? AppRoutes.home : AppRoutes.onboarding);
       } else {
-        AppSnackbar.error('Invalid OTP', res['message']?.toString() ?? 'Incorrect OTP');
-        for (final c in _controllers) { c.clear(); }
-        setState(() {});
-        _focusNodes[0].requestFocus();
+        AppSnackbar.error('Wrong code', res['message']?.toString() ?? 'Incorrect code. Please try again.');
+        _clearBoxes();
       }
-    } catch (e) {
-      if (mounted) AppSnackbar.error('Network Error', 'Check your connection and try again');
+    } on ApiException catch (e) {
+      if (mounted) AppSnackbar.error('Could not verify', e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _resend() async {
-    if (_resendSeconds > 0) return;
-    for (final c in _controllers) { c.clear(); }
+  void _clearBoxes() {
+    for (final c in _controllers) {
+      c.clear();
+    }
     setState(() {});
     _focusNodes[0].requestFocus();
+  }
+
+  Future<void> _resend() async {
+    if (_resendSeconds > 0) return;
+    _clearBoxes();
     try {
       final res = await Get.find<ApiService>().sendOtp(_phone);
-      _startTimer();
       if (res['success'] == true) {
-        AppSnackbar.info('OTP Sent', 'A new OTP was sent to +91 $_phone');
+        _startTimer();
+        AppSnackbar.success('Code sent', 'A new code was sent to +91 $_phone');
       } else {
-        AppSnackbar.error('Failed', res['message']?.toString() ?? 'Could not resend OTP');
+        AppSnackbar.error('Could not resend', res['message']?.toString() ?? 'Please try again.');
       }
-    } catch (e) {
-      AppSnackbar.error('Network Error', 'Check your connection and try again');
+    } on ApiException catch (e) {
+      AppSnackbar.error('Could not resend', e.message);
     }
   }
 
@@ -189,14 +192,33 @@ class _OtpPageState extends State<OtpPage> {
 
                     SizedBox(height: SizeConfig.h(6)),
 
-                    Text(
-                      'Enter the 6-digit OTP sent to +91 $_phone',
-                      style: TextStyle(
-                        color: Colors.white.withAlpha(140),
-                        fontFamily: 'Gilroy',
-                        fontWeight: FontWeight.w400,
-                        fontSize: SizeConfig.sp(14),
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Enter the 6-digit code sent to +91 $_phone',
+                            style: TextStyle(
+                              color: Colors.white.withAlpha(140),
+                              fontFamily: 'Gilroy',
+                              fontWeight: FontWeight.w400,
+                              fontSize: SizeConfig.sp(14),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: SizeConfig.w(8)),
+                        GestureDetector(
+                          onTap: Get.back,
+                          child: Text(
+                            'Edit',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontFamily: 'Gilroy',
+                              fontWeight: FontWeight.w700,
+                              fontSize: SizeConfig.sp(14),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
 
                     SizedBox(height: SizeConfig.h(40)),
@@ -220,7 +242,7 @@ class _OtpPageState extends State<OtpPage> {
                     Center(
                       child: _resendSeconds > 0
                           ? Text(
-                              'Resend OTP in 0:${_resendSeconds.toString().padLeft(2, '0')}',
+                              'Resend code in 0:${_resendSeconds.toString().padLeft(2, '0')}',
                               style: TextStyle(
                                 color: Colors.white.withAlpha(110),
                                 fontFamily: 'Gilroy',
@@ -231,7 +253,7 @@ class _OtpPageState extends State<OtpPage> {
                           : GestureDetector(
                               onTap: _resend,
                               child: Text(
-                                'Resend OTP',
+                                'Resend code',
                                 style: TextStyle(
                                   color: AppColors.primary,
                                   fontFamily: 'Gilroy',
@@ -280,7 +302,7 @@ class _OtpPageState extends State<OtpPage> {
                           ),
                         )
                       : Text(
-                          'Verify OTP',
+                          'Verify',
                           style: TextStyle(
                             fontFamily: 'Gilroy',
                             fontWeight: FontWeight.w700,

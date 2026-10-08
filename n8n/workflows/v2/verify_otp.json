@@ -1,0 +1,361 @@
+{
+  "id": "FyxfAEC259IR09cC",
+  "name": "MyPaltan v2 - Verify OTP",
+  "active": false,
+  "nodes": [
+    {
+      "id": "b6d76c96-c3b3-472b-a25b-375a299b66d7",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "v2/auth/verify-otp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "99b523cf-6e37-4156-a800-fdaa65f2089b"
+    },
+    {
+      "id": "07a8885c-c5de-4ccc-bc4a-6458414298ca",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction sha256hex(s){return sha256bytes(s).map(b=>b.toString(16).padStart(2,'0')).join('');}\n\nconst phone = String($in.body?.phone ?? '').replace(/\\D/g, '').slice(-10);\nconst otp = String($in.body?.otp ?? '').trim();\nif (!/^[6-9]\\d{9}$/.test(phone)) return [{ json: { ok: false, status: 422, body: { success: false, message: 'Enter a valid 10-digit mobile number.' } } }];\nif (!/^\\d{6}$/.test(otp)) return [{ json: { ok: false, status: 422, body: { success: false, message: 'Enter the 6-digit code.' } } }];\nreturn [{ json: { ok: true, phone, otpHash: sha256hex(otp + phone) } }];"
+      }
+    },
+    {
+      "id": "38d5e29e-4b12-4f72-a9fc-3dad3e27432f",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4304ade9-4ef6-4dda-b0f1-250d1aa3f9fd",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "dfed1fd3-c1c3-4b49-9eae-d21cbfbf640b",
+      "name": "Get OTP Session",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, otp_hash, attempts, verified, (expires_at < NOW()) AS expired FROM otp_sessions WHERE phone = $1 ORDER BY id DESC LIMIT 1",
+        "options": {
+          "queryReplacement": "={{ [$('Validate Input').first().json.phone] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "6fd4b880-ca9c-4f1e-aa21-d4fc07fada4b",
+      "name": "Check OTP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in;\nconst { phone, otpHash } = $('Validate Input').first().json;\nconst fail = (status, message, sessionId = 0, extra = {}) => [{ json: { ok: false, status, sessionId, body: { success: false, message, ...extra } } }];\nif (!s.id) return fail(404, 'No code found. Tap \"Resend OTP\".');\nif (Number(s.verified) === 1) return fail(409, 'This code was already used. Tap \"Resend OTP\".');\nif (Number(s.attempts) >= 5) return fail(429, 'Too many wrong attempts. Tap \"Resend OTP\".');\nif (Number(s.expired) === 1) return fail(410, 'This code has expired. Tap \"Resend OTP\".');\nif (s.otp_hash !== otpHash) {\n  const left = Math.max(0, 4 - Number(s.attempts));\n  return fail(401, left ? `Incorrect code. ${left} attempt${left === 1 ? '' : 's'} left.` : 'Incorrect code. Tap \"Resend OTP\".', s.id, { attemptsLeft: left });\n}\nreturn [{ json: { ok: true, sessionId: s.id, phone } }];"
+      }
+    },
+    {
+      "id": "a40d56b1-79a5-41ca-9e13-d066caa74bc6",
+      "name": "Correct?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3f5146c8-77b3-4b65-a4c4-d42ff4ef2543",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "119b23fd-8ccf-4274-840a-515b8bc0f46d",
+      "name": "Log In",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        -200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE otp_sessions SET verified = 1 WHERE id = $1; INSERT INTO app_users (phone) VALUES ($2) ON DUPLICATE KEY UPDATE phone = phone; SELECT u.id, u.phone, u.name, DATE_FORMAT(u.birthdate, '%Y-%m-%d') AS birthdate, TIMESTAMPDIFF(YEAR, u.birthdate, CURDATE()) AS age, u.gender, u.jersey_name, u.jersey_number, u.jersey_size, u.photo_key, u.profile_complete, DATE_FORMAT(u.created_at, '%Y-%m-%d') AS member_since, (u.created_at > NOW() - INTERVAL 20 SECOND) AS is_new, COALESCE((SELECT JSON_ARRAYAGG(JSON_OBJECT('sport', s.sport, 'role', s.role, 'batting_hand', s.batting_hand, 'bowling_style', s.bowling_style, 'rank', s.`rank`)) FROM app_user_sports s WHERE s.user_id = u.id), JSON_ARRAY()) AS sports FROM app_users u WHERE u.phone = $3",
+        "options": {
+          "queryReplacement": "={{ [$json.sessionId, $json.phone, $json.phone] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      }
+    },
+    {
+      "id": "8b80fbea-86d1-4e71-8271-5a8fa6a3259f",
+      "name": "Issue Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction hmacSha256(key,msg){\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let kB=toB(key);if(kB.length>64)kB=sha256bytes(kB);\n  const kP=new Array(64).fill(0);kB.forEach((v,i)=>kP[i]=v);\n  const ipad=kP.map(v=>v^0x36);const opad=kP.map(v=>v^0x5c);\n  const mB=toB(msg);\n  return sha256bytes([...opad,...sha256bytes([...ipad,...mB])]);\n}\nfunction b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, ''); }\nfunction signToken(phone) {\n  const now = Math.floor(Date.now() / 1000);\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const body = b64url(Buffer.from(JSON.stringify({ phone, iat: now, exp: now + 30 * 24 * 60 * 60 })));\n  return `${header}.${body}.${b64url(hmacSha256($env.JWT_SECRET, `${header}.${body}`))}`;\n}\nfunction verifyToken(headers) {\n  const auth = String((headers || {}).authorization || '').trim();\n  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\n  if (!token) return { ok: false, error: 'Please log in again.' };\n  const parts = token.split('.');\n  if (parts.length !== 3) return { ok: false, error: 'Please log in again.' };\n  const [h, p, s] = parts;\n  if (b64url(hmacSha256($env.JWT_SECRET, `${h}.${p}`)) !== s) return { ok: false, error: 'Please log in again.' };\n  let claims;\n  try { claims = JSON.parse(Buffer.from(p, 'base64').toString('utf8')); } catch { return { ok: false, error: 'Please log in again.' }; }\n  if (!claims.exp || claims.exp < Math.floor(Date.now() / 1000)) return { ok: false, error: 'Your session expired. Please log in again.' };\n  if (!/^[6-9]\\d{9}$/.test(String(claims.phone || ''))) return { ok: false, error: 'Please log in again.' };\n  return { ok: true, phone: String(claims.phone) };\n}\n\nfunction missingFrom(u) {\n  const sports = parseSports(u.sports);\n  const missing = [];\n  if (!u.name || !u.birthdate || !u.gender) missing.push('about');\n  if (!u.jersey_name || u.jersey_number === null || u.jersey_number === undefined || !u.jersey_size) missing.push('jersey');\n  if (!sports.length) missing.push('sports');\n  if (!u.photo_key) missing.push('photo');\n  return missing;\n}\nfunction parseSports(s) {\n  let list = s;\n  if (typeof list === 'string') { try { list = JSON.parse(list); } catch { list = []; } }\n  return (Array.isArray(list) ? list : []).sort((a, b) => (a.rank || 0) - (b.rank || 0))\n    .map(x => ({ sport: x.sport, role: x.role, batting_hand: x.batting_hand || null, bowling_style: x.bowling_style || null }));\n}\nfunction profileOf(u, photoUrl) {\n  return {\n    phone: u.phone, name: u.name || null, birthdate: u.birthdate || null,\n    age: u.age === null || u.age === undefined ? null : Number(u.age), gender: u.gender || null,\n    jersey_name: u.jersey_name || null, jersey_number: u.jersey_number === null || u.jersey_number === undefined ? null : Number(u.jersey_number),\n    jersey_size: u.jersey_size || null, photo_url: photoUrl || null,\n    sports: parseSports(u.sports), member_since: u.member_since || null,\n    profile_complete: Number(u.profile_complete) === 1,\n  };\n}\n\nconst u = $in;\nconst missing = missingFrom(u);\nreturn [{ json: { status: 200, body: {\n  success: true, token: signToken(u.phone), isNewUser: Number(u.is_new) === 1,\n  profileComplete: Number(u.profile_complete) === 1, missing, phone: u.phone,\n} } }];"
+      }
+    },
+    {
+      "id": "c18f2473-3630-401e-b73a-0f97c75e07fb",
+      "name": "Record Failed Attempt",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE otp_sessions SET attempts = attempts + 1 WHERE id = $1",
+        "options": {
+          "queryReplacement": "={{ [$json.sessionId || 0] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      }
+    },
+    {
+      "id": "3a3e07d0-a002-4114-a9b6-cba3cc2ee573",
+      "name": "Failure Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: $('Check OTP').first().json }];"
+      }
+    },
+    {
+      "id": "bc6a2c9d-c26d-4fcc-a05a-62cc15f6abd1",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Get OTP Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get OTP Session": {
+      "main": [
+        [
+          {
+            "node": "Check OTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check OTP": {
+      "main": [
+        [
+          {
+            "node": "Correct?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Correct?": {
+      "main": [
+        [
+          {
+            "node": "Log In",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Record Failed Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log In": {
+      "main": [
+        [
+          {
+            "node": "Issue Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Issue Token": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Failed Attempt": {
+      "main": [
+        [
+          {
+            "node": "Failure Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure Body": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

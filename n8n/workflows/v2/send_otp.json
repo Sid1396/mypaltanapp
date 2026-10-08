@@ -1,0 +1,302 @@
+{
+  "id": "PxXuEhdrkXoasDwd",
+  "name": "MyPaltan v2 - Send OTP",
+  "active": false,
+  "nodes": [
+    {
+      "id": "888db661-466e-4aa2-8c8a-2c65daf9fdaa",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "v2/auth/send-otp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "3c42f492-a326-4aa6-9c61-db249fa953d0"
+    },
+    {
+      "id": "b9019f68-6e0d-4280-87b5-2ee27727993f",
+      "name": "Validate Phone",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction sha256hex(s){return sha256bytes(s).map(b=>b.toString(16).padStart(2,'0')).join('');}\n\nconst phone = String($in.body?.phone ?? '').replace(/\\D/g, '').slice(-10);\nif (!/^[6-9]\\d{9}$/.test(phone)) {\n  return [{ json: { ok: false, status: 422, body: { success: false, message: 'Enter a valid 10-digit mobile number.' } } }];\n}\nconst otp = '123456'; // fixed until an SMS provider is connected\nreturn [{ json: { ok: true, phone, otpHash: sha256hex(otp + phone) } }];"
+      }
+    },
+    {
+      "id": "778e0f2f-d48b-4154-9124-3ec75d27aa2a",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6f2de8e0-1126-4b82-9ed3-7c46b009c7ff",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a6b2a660-43d6-484f-b3d0-55a6f4033389",
+      "name": "Count Recent OTPs",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) AS cnt FROM otp_sessions WHERE phone = $1 AND created_at > NOW() - INTERVAL 1 HOUR",
+        "options": {
+          "queryReplacement": "={{ [$('Validate Phone').first().json.phone] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      }
+    },
+    {
+      "id": "ba61462e-70ca-46b3-a5b9-e16ffc049ec5",
+      "name": "Rate Limit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst cnt = Number($in.cnt || 0);\nif (cnt >= 3) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many OTP requests. Please try again in an hour.' } } }];\nreturn [{ json: { ok: true, ...$('Validate Phone').first().json } }];"
+      }
+    },
+    {
+      "id": "5e731517-558c-4ec2-8389-6a7450fe8c6c",
+      "name": "Allowed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9a48e1ad-48dc-4212-99cd-c2b892064bb0",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ac852a67-dcaf-4b6a-b06b-67ba24606d0a",
+      "name": "Save OTP",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        -200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO otp_sessions (phone, otp_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL 5 MINUTE)",
+        "options": {
+          "queryReplacement": "={{ [$json.phone, $json.otpHash] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      }
+    },
+    {
+      "id": "aac3843e-749a-400a-b797-038204cbb820",
+      "name": "Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { status: 200, body: { success: true, message: 'OTP sent to +91 ' + $('Validate Phone').first().json.phone } } }];"
+      }
+    },
+    {
+      "id": "ef7ecb63-d951-4dda-a632-2b7343392673",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Phone": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Count Recent OTPs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Recent OTPs": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Save OTP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save OTP": {
+      "main": [
+        [
+          {
+            "node": "Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

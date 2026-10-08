@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_routes.dart';
+import '../../data/services/api_service.dart';
+import '../../data/services/session_service.dart';
+import '../../utils/helpers/snackbar_helper.dart';
 import '../../utils/helpers/size_config.dart';
 
 class SplashPage extends StatefulWidget {
@@ -67,6 +70,20 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     );
 
     _imageTimer = Timer.periodic(const Duration(seconds: 3), (_) => _next());
+    _resumeLogin();
+  }
+
+  /// Skips the splash for players who are already logged in.
+  Future<void> _resumeLogin() async {
+    final session = Get.find<SessionService>();
+    if (!session.isLoggedIn) return;
+    try {
+      final route = await session.resumeSession();
+      if (!mounted) return;
+      if (route != null) Get.offAllNamed(route);
+    } on ApiException catch (e) {
+      if (mounted) AppSnackbar.warning("Couldn't load your profile", e.message);
+    }
   }
 
   void _next() {

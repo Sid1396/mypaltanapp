@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = LocalStorageProvider().readIsDarkMode();
     return GetMaterialApp(
-      title: 'GetX Counter',
+      title: 'MyPaltan',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

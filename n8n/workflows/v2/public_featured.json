@@ -1,0 +1,222 @@
+{
+  "id": "RvWm7tDaJyQ8DdpF",
+  "name": "MyPaltan v2 - Public Featured Tournaments",
+  "active": false,
+  "nodes": [
+    {
+      "id": "03131af4-22b2-45cf-b06d-f6ab9fb0645f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "v2/public/featured-tournaments",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
+        }
+      },
+      "webhookId": "7fd28369-6f22-4bcf-a776-eb5808d981bc"
+    },
+    {
+      "id": "5f19d7fb-7a7c-4f2d-9729-6ba228528938",
+      "name": "Load Tournaments",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 'tournament' AS _set, slug, name, sport, logo_url, logo_key, DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date, area, city, tags, status FROM featured_tournaments WHERE is_active = 1 ORDER BY sort_order, id",
+        "options": {
+          "queryReplacement": ""
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "0f33ccd3-0391-4b13-bdc7-862035b279ee",
+      "name": "B2 Credentials",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nreturn [{ json: { ...{}, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: $input.first().binary }];"
+      }
+    },
+    {
+      "id": "0e8d9012-c9e9-40de-8734-c6220d4897e7",
+      "name": "Authorize B2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.backblazeb2.com/b2api/v4/b2_authorize_account",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.basicAuth }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "8cb5074f-207c-435f-af8c-5415152f0777",
+      "name": "Logo Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_download_authorization",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authorizationToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ bucketId: '57d8ff72a9534e199bf30918', fileNamePrefix: 'league_logos/', validDurationInSeconds: 86400 }) }}"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b3aeb40d-b91a-4dcc-8373-799146887b3d",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst rows = $('Load Tournaments').all().map(i => i.json).filter(r => r && r._set);\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst link = $('Logo Link').isExecuted ? $('Logo Link').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst signed = key => (key && dl && link?.authorizationToken)\n  ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${link.authorizationToken}`\n  : null;\nconst parseTags = t => { if (Array.isArray(t)) return t; try { return JSON.parse(t || '[]'); } catch { return []; } };\nconst tournaments = rows.filter(r => r._set === 'tournament').map(r => ({\n  slug: r.slug, name: r.name, sport: r.sport, logo_url: signed(r.logo_key) || r.logo_url || null, start_date: r.start_date || null,\n  area: r.area || null, city: r.city, tags: parseTags(r.tags), status: r.status,\n}));\nconst banners = rows.filter(r => r._set === 'banner').map(r => ({\n  id: r.id, title: r.title, subtitle: r.subtitle || null, badge: r.badge || null, image_url: signed(r.image_key) || r.image_url || null,\n  theme: r.theme, cta_label: r.cta_label || null, link_type: r.link_type, link_value: r.link_value || null,\n}));\nconst unreadRow = rows.find(r => r._set === 'unread');\n\nreturn [{ json: { status: 200, body: { success: true, featured_tournaments: tournaments } } }];"
+      }
+    },
+    {
+      "id": "fc4bae51-0495-48f0-985a-3f152acc32ac",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Load Tournaments": {
+      "main": [
+        [
+          {
+            "node": "B2 Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Credentials": {
+      "main": [
+        [
+          {
+            "node": "Authorize B2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorize B2": {
+      "main": [
+        [
+          {
+            "node": "Logo Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logo Link": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Load Tournaments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

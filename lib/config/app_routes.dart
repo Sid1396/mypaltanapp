@@ -1,16 +1,19 @@
 import 'package:get/get.dart';
-import '../presentation/bindings/counter_binding.dart';
-import '../presentation/bindings/create_event_binding.dart';
-import '../presentation/bindings/history_binding.dart';
-import '../presentation/bindings/signup_binding.dart';
-import '../presentation/pages/counter_page.dart';
-import '../presentation/pages/create_event_page.dart';
-import '../presentation/pages/history_page.dart';
+import '../presentation/bindings/onboarding_binding.dart';
+import '../presentation/controllers/create_tournament_controller.dart';
+import '../presentation/controllers/tournament_controller.dart';
+import '../presentation/controllers/verify_identity_controller.dart';
+import '../presentation/pages/create_tournament_page.dart';
+import '../presentation/pages/document_viewer_page.dart';
 import '../presentation/pages/login_page.dart';
 import '../presentation/pages/main_navigation_page.dart';
+import '../presentation/pages/notifications_page.dart';
+import '../presentation/pages/onboarding_page.dart';
 import '../presentation/pages/otp_page.dart';
-import '../presentation/pages/signup_page.dart';
 import '../presentation/pages/splash_page.dart';
+import '../presentation/pages/tournament_detail_page.dart';
+import '../presentation/pages/tournament_page.dart';
+import '../presentation/pages/verify_identity_page.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -18,52 +21,53 @@ class AppRoutes {
   static const String splash = '/splash';
   static const String login = '/login';
   static const String otp = '/otp';
-  static const String signup = '/signup';
+  static const String onboarding = '/onboarding';
   static const String home = '/home';
-  static const String createEvent = '/create-event';
-  static const String counter = '/counter';
-  static const String history = '/history';
+  static const String notifications = '/notifications';
+  static const String tournamentDetail = '/featured-tournament';
+  static const String tournament = '/tournament';
+  static const String createTournament = '/tournament/create';
+  static const String verifyIdentity = '/verify-identity';
+  static const String documentViewer = '/document';
 
   static List<GetPage> get pages => [
+        GetPage(name: splash, page: () => const SplashPage()),
+        GetPage(name: login, page: () => const LoginPage(), transition: Transition.rightToLeft),
+        GetPage(name: otp, page: () => const OtpPage(), transition: Transition.rightToLeft),
         GetPage(
-          name: splash,
-          page: () => const SplashPage(),
+          name: onboarding,
+          page: () => const OnboardingPage(),
+          binding: OnboardingBinding(),
+          transition: Transition.rightToLeft,
         ),
+        GetPage(name: home, page: () => const MainNavigationPage()),
+        GetPage(name: notifications, page: () => const NotificationsPage(), transition: Transition.rightToLeft),
+        GetPage(name: tournamentDetail, page: () => const TournamentDetailPage(), transition: Transition.rightToLeft),
         GetPage(
-          name: login,
-          page: () => const LoginPage(),
+          name: tournament,
+          page: () => const TournamentPage(),
+          binding: BindingsBuilder(() {
+            Get.put(TournamentController());
+          }),
           transition: Transition.rightToLeft,
         ),
         GetPage(
-          name: otp,
-          page: () => const OtpPage(),
+          name: createTournament,
+          page: () => const CreateTournamentPage(),
+          binding: BindingsBuilder(() {
+            Get.put(CreateTournamentController());
+          }),
+          transition: Transition.downToUp,
+          popGesture: false,
+        ),
+        GetPage(
+          name: verifyIdentity,
+          page: () => const VerifyIdentityPage(),
+          binding: BindingsBuilder(() {
+            Get.put(VerifyIdentityController());
+          }),
           transition: Transition.rightToLeft,
         ),
-        GetPage(
-          name: signup,
-          page: () => const SignupPage(),
-          binding: SignupBinding(),
-          transition: Transition.rightToLeft,
-        ),
-        GetPage(
-          name: home,
-          page: () => const MainNavigationPage(),
-        ),
-        GetPage(
-          name: createEvent,
-          page: () => const CreateEventPage(),
-          binding: CreateEventBinding(),
-          transition: Transition.rightToLeft,
-        ),
-        GetPage(
-          name: counter,
-          page: () => const CounterPage(),
-          binding: CounterBinding(),
-        ),
-        GetPage(
-          name: history,
-          page: () => const HistoryPage(),
-          binding: HistoryBinding(),
-        ),
+        GetPage(name: documentViewer, page: () => const DocumentViewerPage(), transition: Transition.rightToLeft),
       ];
 }
