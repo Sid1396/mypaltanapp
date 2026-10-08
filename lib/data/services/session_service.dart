@@ -4,6 +4,7 @@ import '../../utils/helpers/snackbar_helper.dart';
 import '../models/app_user.dart';
 import '../providers/local_storage_provider.dart';
 import 'api_service.dart';
+import 'deep_link_service.dart';
 
 /// Holds the logged-in user and decides where the app should go after login or launch.
 class SessionService extends GetxService {
@@ -53,6 +54,7 @@ class SessionService extends GetxService {
     _store.clearUserPhone();
     user.value = null;
     missing.clear();
+    Get.find<DeepLinkService>().reset();
     Get.offAllNamed(AppRoutes.login);
     if (expired) AppSnackbar.warning('Session expired', 'Please log in again.');
   }

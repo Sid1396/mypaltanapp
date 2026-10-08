@@ -47,6 +47,19 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>MyPaltan uses your photos for your profile picture, tournament logos, banners and documents.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.mypaltan.mypaltan</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>mypaltan</string>
+			</array>
+		</dict>
+	</array>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>MyPaltan uses the camera for your profile photo and for identity verification (ID and selfie).</string>
 </dict>

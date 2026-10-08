@@ -12,6 +12,7 @@ import '../widgets/form_widgets.dart';
 import '../widgets/home_widgets.dart';
 import '../widgets/tournament_form_widgets.dart';
 import '../widgets/tournament_media_editors.dart' show fileSizeLabel;
+import '../widgets/tournament_share.dart';
 
 String _l(List<(String, String)> o, String? c) => Sports.labelOf(o, c);
 
@@ -126,6 +127,24 @@ class _Hero extends StatelessWidget {
           ),
         ),
       ),
+      actions: [
+        if (!t.isDraft)
+          Padding(
+            padding: EdgeInsets.only(right: SizeConfig.w(12)),
+            child: Center(
+              child: GestureDetector(
+                key: const ValueKey('tournament-share'),
+                onTap: () => showTournamentShareSheet(t),
+                child: Container(
+                  width: SizeConfig.r(40),
+                  height: SizeConfig.r(40),
+                  decoration: BoxDecoration(color: Colors.black.withAlpha(170), shape: BoxShape.circle, border: Border.all(color: Colors.white.withAlpha(40))),
+                  child: Icon(Icons.ios_share_rounded, color: Colors.white, size: SizeConfig.r(18)),
+                ),
+              ),
+            ),
+          ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
@@ -305,7 +324,7 @@ class _OwnerCard extends GetView<TournamentController> {
     final String body;
     if (t.isDraft) {
       title = 'Draft';
-      body = 'Only you can see this tournament. Publish it to open registration.';
+      body = 'Only you can see this tournament. Publish it to open registration and get a link to share.';
     } else if (t.visibility == 'PUBLIC_PENDING') {
       title = 'Waiting for approval';
       body = 'The MyPaltan team will list it publicly within 24 hours. Captains can already join with the code.';
@@ -708,8 +727,8 @@ class _BottomBar extends GetView<TournamentController> {
       label = 'Publish tournament';
       onTap = controller.showPublishSheet;
     } else if (t.isOwner) {
-      label = 'Share code ${t.code}';
-      onTap = controller.copyCode;
+      label = 'Share tournament';
+      onTap = () => showTournamentShareSheet(t);
     } else if (t.status == 'REGISTRATION_OPEN') {
       label = 'Register my team';
       onTap = () => showComingSoon('Team registration', detail: 'Captains will be able to register for ${t.name} here very soon.');

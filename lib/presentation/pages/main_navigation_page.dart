@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../config/app_colors.dart';
+import '../../data/services/deep_link_service.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/main_nav_controller.dart';
@@ -28,6 +29,8 @@ class MainNavigationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final nav = Get.put(MainNavController());
     Get.put(HomeController());
+    // Home is ready, so a tournament link tapped before login can open now.
+    WidgetsBinding.instance.addPostFrameCallback((_) => Get.find<DeepLinkService>().markReady());
 
     return Scaffold(
       backgroundColor: AppColors.secondary,

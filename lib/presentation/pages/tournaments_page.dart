@@ -4,6 +4,11 @@ import '../../config/app_colors.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/my_tournaments_controller.dart';
+import '../../config/app_routes.dart';
+import '../../utils/helpers/snackbar_helper.dart';
+import '../widgets/form_widgets.dart';
+import '../widgets/tournament_form_widgets.dart';
+import '../widgets/tournament_media_editors.dart' show SmallButtonLarge;
 import '../widgets/home_widgets.dart';
 
 class TournamentsPage extends StatefulWidget {
@@ -67,9 +72,34 @@ class _TournamentsPageState extends State<TournamentsPage> {
                 children: [
                   Padding(
                     padding: EdgeInsets.fromLTRB(SizeConfig.w(20), SizeConfig.h(16), SizeConfig.w(20), SizeConfig.h(16)),
-                    child: Text(
-                      'Tournaments',
-                      style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w900, fontSize: SizeConfig.sp(26), color: Colors.white),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Tournaments',
+                          style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w900, fontSize: SizeConfig.sp(26), color: Colors.white),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          key: const ValueKey('join-with-code'),
+                          onTap: showJoinWithCode,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(12), vertical: SizeConfig.h(8)),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withAlpha(25),
+                              borderRadius: BorderRadius.circular(SizeConfig.r(100)),
+                              border: Border.all(color: AppColors.primary.withAlpha(70)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.qr_code_rounded, size: SizeConfig.r(16), color: AppColors.primary),
+                                SizedBox(width: SizeConfig.w(6)),
+                                Text('Join with code',
+                                    style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(12.5), color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Padding(
@@ -141,4 +171,41 @@ class _Segmented extends StatelessWidget {
       ),
     );
   }
+}
+
+
+/// Opens a tournament from a 6-character code someone shared (e.g. read out at the ground).
+void showJoinWithCode() {
+  final ctrl = TextEditingController();
+  void go() {
+    final code = ctrl.text.trim().toUpperCase();
+    if (!RegExp(r'^[A-Z0-9]{6}$').hasMatch(code)) {
+      AppSnackbar.error('Tournament code', 'Codes have 6 letters and numbers, e.g. CPL27X.');
+      return;
+    }
+    Get.back();
+    Get.toNamed(AppRoutes.tournament, arguments: {'code': code});
+  }
+
+  Get.bottomSheet(
+    SheetFrame(
+      title: 'Join with code',
+      children: [
+        Text('Enter the 6-character code from the organiser.', style: tfStyle(13.5, color: Colors.white.withAlpha(160))),
+        gapH(14),
+        FieldTextInput(
+          key: const ValueKey('join-code-field'),
+          controller: ctrl,
+          hint: 'e.g. CPL27X',
+          maxLength: 6,
+          textCapitalization: TextCapitalization.characters,
+          textInputAction: TextInputAction.go,
+          onSubmitted: (_) => go(),
+        ),
+        gapH(16),
+        SizedBox(width: double.infinity, child: SmallButtonLarge(key: const ValueKey('join-code-go'), label: 'Open tournament', onTap: go)),
+      ],
+    ),
+    isScrollControlled: true,
+  );
 }
