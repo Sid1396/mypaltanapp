@@ -5,12 +5,12 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_routes.dart';
-import '../../config/tournament_options.dart';
 import '../../data/models/tournament.dart';
 import '../../data/services/api_service.dart';
 import '../../utils/helpers/image_prep.dart';
 import '../../utils/helpers/snackbar_helper.dart';
 import '../../utils/mixins/logger_mixin.dart';
+import 'division_draft.dart';
 
 /// A file already stored on the server. [localPath] is kept for an instant preview after upload.
 class UploadedFile {
@@ -77,6 +77,7 @@ class CreateTournamentController extends GetxController with LoggerMixin {
     'sport': 'Sport',
     'basics': 'Basics',
     'venue': 'Where & when',
+    'divisions': 'Divisions',
     'format': 'Format',
     'rules': 'Match rules',
     'points': 'Points',
@@ -118,47 +119,9 @@ class CreateTournamentController extends GetxController with LoggerMixin {
   final matchDays = 'ALL'.obs;
   final matchTiming = 'BOTH'.obs;
 
-  // Format
-  final format = ''.obs;
-  final maxTeams = 8.obs;
-  final groupCount = 2.obs;
-  final qualifyPerGroup = 2.obs;
-  final squadMin = 6.obs;
-  final squadMax = 25.obs;
-
-  // Cricket rules
-  final matchType = 'LIMITED_OVERS'.obs;
-  final ballType = 'TENNIS'.obs;
-  final pitchType = ''.obs;
-  final playersPerSide = 11.obs;
-  final overs = 10.obs;
-  final oversPerBowler = 2.obs;
-  final powerplayOvers = 0.obs;
-  final lastBatter = false.obs;
-  // Football rules
-  final footballPlayers = 7.obs;
-  final halfMinutes = 20.obs;
-  final rollingSubs = true.obs;
-  final extraTime = false.obs;
-  final penalties = true.obs;
-  // Badminton / pickleball rules
-  final racketEvent = 'DOUBLES'.obs;
-  final pointsPerGame = 21.obs;
-  final games = 3.obs;
-  final winByTwo = true.obs;
-  final scoring = 'SIDE_OUT'.obs;
-
-  // Points table
-  final ptsWin = 2.obs;
-  final ptsTie = 1.obs;
-  final ptsNoResult = 1.obs;
-  final ptsLoss = 0.obs;
-  final tiebreaker = ''.obs;
-
-  // Fees & prize
-  final entryFeeCtrl = TextEditingController();
-  final prizeType = 'NONE'.obs;
-  final prizeCtrl = TextEditingController();
+  // Divisions: one "Open" division for a simple tournament, or several (age groups / categories).
+  final divisions = <DivisionDraft>[].obs;
+  final multiDivision = false.obs;
 
   // Payment
   final upiCtrl = TextEditingController();
@@ -184,7 +147,7 @@ class CreateTournamentController extends GetxController with LoggerMixin {
   final docBusy = false.obs;
 
   List<TextEditingController> get _controllers =>
-      [nameCtrl, descCtrl, areaCtrl, cityCtrl, groundCtrl, entryFeeCtrl, prizeCtrl, upiCtrl, upiNameCtrl, payNoteCtrl, jerseyFeeCtrl];
+      [nameCtrl, descCtrl, areaCtrl, cityCtrl, groundCtrl, upiCtrl, upiNameCtrl, payNoteCtrl, jerseyFeeCtrl];
 
   @override
   void onInit() {
@@ -192,6 +155,7 @@ class CreateTournamentController extends GetxController with LoggerMixin {
     for (final c in _controllers) {
       c.addListener(() => _tick.value++);
     }
+    divisions.add(DivisionDraft());
     final args = Get.arguments;
     editCode = args is Map ? args['code'] as String? : null;
     if (isEditing) _loadForEdit();
@@ -202,31 +166,59 @@ class CreateTournamentController extends GetxController with LoggerMixin {
     for (final c in _controllers) {
       c.dispose();
     }
+    for (final d in divisions) {
+      d.dispose();
+    }
     super.onClose();
   }
 
   // ─── Steps ────────────────────────────────────────────────────
 
-  int get entryFee => int.tryParse(entryFeeCtrl.text.trim()) ?? 0;
   int get jerseyFee => int.tryParse(jerseyFeeCtrl.text.trim()) ?? 0;
   bool get hasExtras => foodProvided.value || jerseyProvided.value;
 
+  /// Highest and lowest entry fee across divisions (UPI is needed when any division charges).
+  int get maxEntryFee => divisions.fold(0, (m, d) => d.entryFee > m ? d.entryFee : m);
+  int get minEntryFee => divisions.isEmpty ? 0 : divisions.map((d) => d.entryFee).reduce((a, b) => a < b ? a : b);
+
+  /// Division steps are written as "format@0", "rules@2"...
+  static String kindOf(String step) => step.split('@').first;
+  DivisionDraft? divisionOf(String step) {
+    final parts = step.split('@');
+    if (parts.length < 2) return null;
+    final i = int.tryParse(parts[1]) ?? 0;
+    return i < divisions.length ? divisions[i] : null;
+  }
+
   List<String> get steps {
-    _tick.value; // entry fee lives in a text field
+    _tick.value;
+    for (final d in divisions) {
+      d.tick.value; // fees live in text fields
+    }
     return [
       'sport',
       'basics',
       'venue',
-      'format',
-      'rules',
-      if (format.value != 'KNOCKOUT') 'points',
-      'fees',
-      if (entryFee > 0) 'payment',
+      'divisions',
+      for (var i = 0; i < divisions.length; i++) ...[
+        'format@$i',
+        'rules@$i',
+        if (divisions[i].format.value != 'KNOCKOUT') 'points@$i',
+        'fees@$i',
+      ],
+      if (maxEntryFee > 0) 'payment',
       'extras',
       'registration',
       'media',
       'review',
     ];
+  }
+
+  /// Header title, e.g. "Under 9 · Match rules" when there are several divisions.
+  String titleOf(String step) {
+    final base = stepTitles[kindOf(step)] ?? '';
+    final d = divisionOf(step);
+    return d != null && multiDivision.value ? '${d.name.isEmpty ? 'Division' : d.name} · $base' : base;
   }
 
   int get index => _index.value.clamp(0, steps.length - 1);
@@ -291,37 +283,66 @@ class CreateTournamentController extends GetxController with LoggerMixin {
   void selectSport(String code) {
     if (sport.value == code) return;
     sport.value = code;
-    final (min, max) = TournamentOptions.squadDefaults[code]!;
-    squadMin.value = min;
-    squadMax.value = max;
-    tiebreaker.value = TournamentOptions.tiebreakers[code]!.first.$1;
-    pointsPerGame.value = code == 'PICKLEBALL' ? 11 : 21;
-  }
-
-  void setMatchType(String type) {
-    matchType.value = type;
-    switch (type) {
-      case 'BOX':
-        playersPerSide.value = 8;
-        overs.value = 6;
-      case 'PAIR':
-        playersPerSide.value = 8;
-        overs.value = 8;
-      case 'THE_HUNDRED':
-        playersPerSide.value = 11;
-        overs.value = 17; // 100 balls, rounded up to overs
-      case 'LIMITED_OVERS':
-        playersPerSide.value = 11;
-        overs.value = 10;
+    for (final d in divisions) {
+      d.applySportDefaults(code);
     }
-    oversPerBowler.value = (overs.value / 5).ceil();
-    if (powerplayOvers.value > overs.value) powerplayOvers.value = 0;
   }
 
-  void setOvers(int v) {
-    overs.value = v;
-    if (oversPerBowler.value > v) oversPerBowler.value = v;
-    if (powerplayOvers.value > v) powerplayOvers.value = v;
+  // ─── Divisions ────────────────────────────────────────────────
+
+  void setMultiDivision(bool multi) {
+    if (multi == multiDivision.value) return;
+    multiDivision.value = multi;
+    if (!multi) {
+      // Back to one competition: keep the first division only.
+      for (final d in divisions.skip(1)) {
+        d.dispose();
+      }
+      if (divisions.length > 1) divisions.removeRange(1, divisions.length);
+      divisions.first.nameCtrl.text = 'Open';
+      divisions.first.minAge.value = null;
+      divisions.first.maxAge.value = null;
+    } else if (divisions.length == 1 && divisions.first.name == 'Open' && divisions.first.id == null) {
+      divisions.first.nameCtrl.text = '';
+    }
+  }
+
+  void addDivision([String name = '']) {
+    if (divisions.length >= 8) return AppSnackbar.warning('Divisions', 'You can add up to 8 divisions.');
+    if (name.isNotEmpty && divisions.any((d) => d.name.toLowerCase() == name.toLowerCase())) return;
+    // Reuse an empty first row before adding a new one.
+    final empty = divisions.where((d) => d.name.isEmpty && d.id == null).firstOrNull;
+    if (empty != null && name.isNotEmpty) {
+      empty.nameCtrl.text = name;
+      empty.minAge.value = null;
+      empty.maxAge.value = null;
+      final fresh = DivisionDraft(name: name);
+      empty.minAge.value = fresh.minAge.value;
+      empty.maxAge.value = fresh.maxAge.value;
+      fresh.dispose();
+      divisions.refresh();
+      return;
+    }
+    final d = DivisionDraft(name: name, sport: sport.value);
+    if (divisions.isNotEmpty) {
+      final ages = (d.minAge.value, d.maxAge.value);
+      d.copyFrom(divisions.last);
+      d.minAge.value = ages.$1;
+      d.maxAge.value = ages.$2;
+    }
+    divisions.add(d);
+  }
+
+  void removeDivision(int i) {
+    if (divisions.length <= 1) return;
+    divisions[i].dispose();
+    divisions.removeAt(i);
+  }
+
+  void copyDivisionSettings(int to, int from) {
+    divisions[to].copyFrom(divisions[from]);
+    divisions.refresh();
+    AppSnackbar.success('Copied', 'Settings copied from ${divisions[from].name}. Change anything that is different.');
   }
 
   void setStartDate(DateTime d) {
@@ -361,7 +382,18 @@ class CreateTournamentController extends GetxController with LoggerMixin {
 
   String? validate(String step) {
     _tick.value;
+    final d = divisionOf(step);
+    if (d != null) return d.validate(kindOf(step), sport.value);
     switch (step) {
+      case 'divisions':
+        if (divisions.isEmpty) return 'Add at least one division.';
+        for (final d in divisions) {
+          d.tick.value;
+          if (d.name.isEmpty || d.name.length > 40) return 'Give every division a name (up to 40 characters).';
+        }
+        final names = divisions.map((d) => d.name.toLowerCase()).toList();
+        if (names.toSet().length != names.length) return 'Each division needs a different name.';
+        return null;
       case 'sport':
         return sport.value.isEmpty ? 'Choose a sport.' : null;
       case 'basics':
@@ -383,29 +415,6 @@ class CreateTournamentController extends GetxController with LoggerMixin {
         if (endDate.value!.isBefore(startDate.value!)) return 'End date must be on or after the start date.';
         if (endDate.value!.difference(startDate.value!).inDays > 366) return 'A tournament can last at most a year.';
         return null;
-      case 'format':
-        if (format.value.isEmpty) return 'Choose a format.';
-        if (squadMax.value < squadMin.value) return 'Maximum squad size must be at least the minimum.';
-        if (format.value == 'LEAGUE_KNOCKOUT') {
-          if (maxTeams.value / groupCount.value < 2) return 'Each group needs at least 2 teams.';
-          if (qualifyPerGroup.value >= (maxTeams.value / groupCount.value).ceil()) {
-            return 'Fewer teams must qualify than play in each group.';
-          }
-        }
-        return null;
-      case 'rules':
-        if (sport.value == 'CRICKET' && matchType.value != 'TEST') {
-          if (oversPerBowler.value > overs.value) return 'Overs per bowler cannot exceed overs per innings.';
-          if (powerplayOvers.value > overs.value) return 'Powerplay cannot be longer than the innings.';
-        }
-        return null;
-      case 'fees':
-        final raw = entryFeeCtrl.text.trim();
-        if (raw.isNotEmpty && (int.tryParse(raw) == null || entryFee < 0 || entryFee > 100000)) {
-          return 'Entry fee must be between ₹0 and ₹1,00,000.';
-        }
-        if (prizeCtrl.text.trim().length > 255) return 'Prize details must be under 255 characters.';
-        return null;
       case 'payment':
         if (!_upiRe.hasMatch(upiCtrl.text.trim())) return 'Enter a valid UPI ID, e.g. name@okaxis.';
         final n = upiNameCtrl.text.trim();
@@ -418,7 +427,9 @@ class CreateTournamentController extends GetxController with LoggerMixin {
         if (jerseyProvided.value) {
           final raw = jerseyFeeCtrl.text.trim();
           if (raw.isNotEmpty && int.tryParse(raw) == null) return 'Jersey fee is invalid.';
-          if (jerseyFee > entryFee) return 'Jersey fee must be included in the entry fee.';
+          if (jerseyFee > minEntryFee) {
+            return multiDivision.value ? "Jersey fee must be included in every division's entry fee." : 'Jersey fee must be included in the entry fee.';
+          }
         }
         return null;
       case 'registration':
@@ -585,35 +596,6 @@ class CreateTournamentController extends GetxController with LoggerMixin {
       '${_d(d)} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   static String? _opt(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
 
-  Map<String, dynamic> _matchRules() => switch (sport.value) {
-        'CRICKET' => {
-            'match_type': matchType.value,
-            'ball_type': ballType.value,
-            if (pitchType.value.isNotEmpty) 'pitch_type': pitchType.value,
-            'players_per_side': playersPerSide.value,
-            'last_batter': lastBatter.value,
-            if (matchType.value != 'TEST') ...{
-              'overs': overs.value,
-              'overs_per_bowler': oversPerBowler.value,
-              'powerplay_overs': powerplayOvers.value,
-            },
-          },
-        'FOOTBALL' => {
-            'players_per_side': footballPlayers.value,
-            'half_minutes': halfMinutes.value,
-            'rolling_subs': rollingSubs.value,
-            'extra_time': extraTime.value,
-            'penalties': penalties.value,
-          },
-        _ => {
-            'event': racketEvent.value,
-            'points_per_game': pointsPerGame.value,
-            'games': games.value,
-            'win_by_two': winByTwo.value,
-            if (sport.value == 'PICKLEBALL') 'scoring': scoring.value,
-          },
-      };
-
   Map<String, dynamic> buildPayload() => {
         if (isEditing) 'code': editCode,
         'sport': sport.value,
@@ -629,23 +611,8 @@ class CreateTournamentController extends GetxController with LoggerMixin {
         'end_date': endDate.value == null ? null : _d(endDate.value!),
         'match_days': matchDays.value,
         'match_timing': matchTiming.value,
-        'format': format.value,
-        if (format.value == 'LEAGUE_KNOCKOUT') ...{'group_count': groupCount.value, 'qualify_per_group': qualifyPerGroup.value},
-        'max_teams': maxTeams.value,
-        'squad_min': squadMin.value,
-        'squad_max': squadMax.value,
-        'match_rules': _matchRules(),
-        'points': {
-          'win': ptsWin.value,
-          'tie': ptsTie.value,
-          'no_result': ptsNoResult.value,
-          'loss': ptsLoss.value,
-          'tiebreaker': tiebreaker.value,
-        },
-        'entry_fee': entryFee,
-        'prize_type': prizeType.value,
-        'prize_details': prizeType.value == 'NONE' ? null : _opt(prizeCtrl),
-        if (entryFee > 0)
+        'divisions': [for (final d in divisions) d.toJson(sport.value)],
+        if (maxEntryFee > 0)
           'payment': {
             'upi_id': upiCtrl.text.trim(),
             'upi_name': upiNameCtrl.text.trim(),
@@ -743,49 +710,35 @@ class CreateTournamentController extends GetxController with LoggerMixin {
     endDate.value = t.endDate;
     matchDays.value = t.matchDays;
     matchTiming.value = t.matchTiming;
-    format.value = t.format;
-    maxTeams.value = t.maxTeams;
-    groupCount.value = t.groupCount ?? 2;
-    qualifyPerGroup.value = t.qualifyPerGroup ?? 2;
-    squadMin.value = t.squadMin;
-    squadMax.value = t.squadMax;
-
-    final r = t.matchRules;
-    int ri(String k, int f) => (r[k] as num?)?.toInt() ?? f;
-    bool rb(String k, bool f) => r[k] is bool ? r[k] as bool : f;
-    if (t.sport == 'CRICKET') {
-      matchType.value = r['match_type']?.toString() ?? 'LIMITED_OVERS';
-      ballType.value = r['ball_type']?.toString() ?? 'TENNIS';
-      pitchType.value = r['pitch_type']?.toString() ?? '';
-      playersPerSide.value = ri('players_per_side', 11);
-      overs.value = ri('overs', 10);
-      oversPerBowler.value = ri('overs_per_bowler', 2);
-      powerplayOvers.value = ri('powerplay_overs', 0);
-      lastBatter.value = rb('last_batter', false);
-    } else if (t.sport == 'FOOTBALL') {
-      footballPlayers.value = ri('players_per_side', 7);
-      halfMinutes.value = ri('half_minutes', 20);
-      rollingSubs.value = rb('rolling_subs', true);
-      extraTime.value = rb('extra_time', false);
-      penalties.value = rb('penalties', true);
-    } else {
-      racketEvent.value = r['event']?.toString() ?? 'DOUBLES';
-      pointsPerGame.value = ri('points_per_game', 21);
-      games.value = ri('games', 3);
-      winByTwo.value = rb('win_by_two', true);
-      scoring.value = r['scoring']?.toString() ?? 'SIDE_OUT';
+    for (final d in divisions) {
+      d.dispose();
     }
-
-    final p = t.points;
-    ptsWin.value = (p['win'] as num?)?.toInt() ?? 2;
-    ptsTie.value = (p['tie'] as num?)?.toInt() ?? 1;
-    ptsNoResult.value = (p['no_result'] as num?)?.toInt() ?? 1;
-    ptsLoss.value = (p['loss'] as num?)?.toInt() ?? 0;
-    tiebreaker.value = p['tiebreaker']?.toString() ?? tiebreaker.value;
-
-    entryFeeCtrl.text = t.entryFee > 0 ? '${t.entryFee}' : '';
-    prizeType.value = t.prizeType;
-    prizeCtrl.text = t.prizeDetails ?? '';
+    divisions.clear();
+    if (t.divisions.isEmpty) {
+      // Tournaments saved before divisions existed: one division from the tournament's own settings.
+      divisions.add(DivisionDraft(sport: t.sport)
+        ..fill(
+            TournamentDivision(
+              name: 'Open',
+              format: t.format,
+              groupCount: t.groupCount,
+              qualifyPerGroup: t.qualifyPerGroup,
+              maxTeams: t.maxTeams,
+              squadMin: t.squadMin,
+              squadMax: t.squadMax,
+              entryFee: t.entryFee,
+              prizeType: t.prizeType,
+              prizeDetails: t.prizeDetails,
+              matchRules: t.matchRules,
+              points: t.points,
+            ),
+            t.sport));
+    } else {
+      for (final td in t.divisions) {
+        divisions.add(DivisionDraft(sport: t.sport)..fill(td, t.sport));
+      }
+    }
+    multiDivision.value = divisions.length > 1;
     final pay = t.payment;
     if (pay != null) {
       upiCtrl.text = pay.upiId;

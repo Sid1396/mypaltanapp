@@ -20,9 +20,10 @@ String _l(List<(String, String)> o, String? c) => Sports.labelOf(o, c);
 Widget _imgError(BuildContext context, Object error, StackTrace? stack) =>
     Container(color: const Color(0xFF2A2A2A), child: Icon(Icons.image_not_supported_outlined, color: Colors.white.withAlpha(60), size: SizeConfig.r(18)));
 
-String rulesSummary(Tournament t) {
-  final r = t.matchRules;
-  switch (t.sport) {
+String rulesSummary(Tournament t) => rulesSummaryFor(t.sport, t.matchRules);
+
+String rulesSummaryFor(String sport, Map<String, dynamic> r) {
+  switch (sport) {
     case 'CRICKET':
       final type = _l(TournamentOptions.cricketMatchTypes, r['match_type']?.toString());
       final overs = r['overs'] != null ? ', ${r['overs']} overs' : '';
@@ -492,7 +493,6 @@ class _AboutTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isRacket = t.sport == 'BADMINTON' || t.sport == 'PICKLEBALL';
-    final format = TournamentOptions.formats.where((f) => f.$1 == t.format).firstOrNull?.$2 ?? t.format;
     final dates = t.startDate == t.endDate ? fmtDate(t.startDate) : '${fmtDate(t.startDate)} to ${fmtDate(t.endDate)}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,13 +503,14 @@ class _AboutTab extends StatelessWidget {
         ],
         _InfoRow(Icons.calendar_today_rounded, 'Dates', '$dates\n${_l(TournamentOptions.matchDays, t.matchDays)} · ${_l(TournamentOptions.matchTimings, t.matchTiming)}'),
         _InfoRow(Icons.place_rounded, 'Grounds', '${t.grounds.join(', ')}\n${t.location}'),
-        _InfoRow(Icons.account_tree_rounded, 'Format',
-            '$format${t.format == 'LEAGUE_KNOCKOUT' ? ', ${t.groupCount} groups, top ${t.qualifyPerGroup} qualify' : ''}'),
-        _InfoRow(Icons.groups_rounded, isRacket ? 'Entries' : 'Teams',
-            '${t.approvedTeams} of ${t.maxTeams} confirmed · squads of ${t.squadMin} to ${t.squadMax}'),
-        _InfoRow(Icons.rule_rounded, 'Match rules', rulesSummary(t)),
-        _InfoRow(Icons.currency_rupee_rounded, 'Entry fee', t.entryFee > 0 ? '${rupees(t.entryFee)} per team' : 'Free'),
-        if (t.prizeType != 'NONE') _InfoRow(Icons.emoji_events_rounded, 'Prize', t.prizeDetails ?? _l(TournamentOptions.prizeTypes, t.prizeType)),
+        if (t.hasDivisions) ...[
+          gapH(8),
+          Text('${t.divisions.length} DIVISIONS', style: tfStyle(11, weight: FontWeight.w800, color: AppColors.primary).copyWith(letterSpacing: 0.8)),
+          gapH(8),
+          for (final d in t.divisions) ...[_DivisionCard(d: d, sport: t.sport), gapH(10)],
+          gapH(4),
+        ] else
+          ..._divisionRows(t.divisions.isNotEmpty ? t.divisions.first : null, t, isRacket),
         if (t.foodProvided || t.jerseyProvided)
           _InfoRow(Icons.restaurant_rounded, 'Included', [
             if (t.foodProvided) 'Food (${t.meals.map((m) => _l(TournamentOptions.meals, m).toLowerCase()).join(', ')})',
@@ -518,6 +519,83 @@ class _AboutTab extends StatelessWidget {
         _InfoRow(Icons.schedule_rounded, 'Registration closes', fmtDateTime(t.registrationDeadline)),
         if (t.isOwner && t.payment != null) ...[gapH(12), _PaymentCard(p: t.payment!)],
       ],
+    );
+  }
+}
+
+String _formatLine(String format, int? groups, int? qualify) {
+  final f = TournamentOptions.formats.where((x) => x.$1 == format).firstOrNull?.$2 ?? format;
+  return '$f${format == 'LEAGUE_KNOCKOUT' ? ', $groups ${groups == 1 ? 'group' : 'groups'}, top $qualify qualify' : ''}';
+}
+
+String _pointsLine(String sport, Map<String, dynamic> p) {
+  if (p.isEmpty) return '';
+  final tbs = (p['tiebreakers'] is List ? (p['tiebreakers'] as List) : [if (p['tiebreaker'] != null) p['tiebreaker']])
+      .map((x) => _l(TournamentOptions.tiebreakers[sport] ?? const [], '$x').toLowerCase())
+      .join(', then ');
+  return 'Win ${p['win']} · ${sport == 'FOOTBALL' ? 'Draw' : 'Tie'} ${p['tie']} · Loss ${p['loss']}${tbs.isEmpty ? '' : '\nLevel on points: $tbs'}';
+}
+
+/// Rows for a tournament with a single division (same layout as before divisions existed).
+List<Widget> _divisionRows(TournamentDivision? d, Tournament t, bool isRacket) {
+  final format = d?.format ?? t.format;
+  final points = d?.points ?? t.points;
+  final prizeType = d?.prizeType ?? t.prizeType;
+  final prizeDetails = d?.prizeDetails ?? t.prizeDetails;
+  return [
+    _InfoRow(Icons.account_tree_rounded, 'Format', _formatLine(format, d?.groupCount ?? t.groupCount, d?.qualifyPerGroup ?? t.qualifyPerGroup)),
+    _InfoRow(Icons.groups_rounded, isRacket ? 'Entries' : 'Teams',
+        '${t.approvedTeams} of ${d?.maxTeams ?? t.maxTeams} confirmed · squads of ${d?.squadMin ?? t.squadMin} to ${d?.squadMax ?? t.squadMax}'),
+    if (d?.ageLabel != null) _InfoRow(Icons.cake_rounded, 'Who can play', d!.ageLabel!),
+    _InfoRow(Icons.rule_rounded, 'Match rules', rulesSummaryFor(t.sport, d?.matchRules ?? t.matchRules)),
+    if (format != 'KNOCKOUT' && points.isNotEmpty) _InfoRow(Icons.leaderboard_rounded, 'Points', _pointsLine(t.sport, points)),
+    _InfoRow(Icons.currency_rupee_rounded, 'Entry fee', (d?.entryFee ?? t.entryFee) > 0 ? '${rupees(d?.entryFee ?? t.entryFee)} per team' : 'Free'),
+    if (prizeType != 'NONE') _InfoRow(Icons.emoji_events_rounded, 'Prize', prizeDetails ?? _l(TournamentOptions.prizeTypes, prizeType)),
+  ];
+}
+
+class _DivisionCard extends StatelessWidget {
+  final TournamentDivision d;
+  final String sport;
+  const _DivisionCard({required this.d, required this.sport});
+
+  @override
+  Widget build(BuildContext context) {
+    final isRacket = sport == 'BADMINTON' || sport == 'PICKLEBALL';
+    Widget line(IconData icon, String text) => Padding(
+          padding: EdgeInsets.only(top: SizeConfig.h(6)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: SizeConfig.r(15), color: AppColors.primary),
+              SizedBox(width: SizeConfig.w(8)),
+              Expanded(child: Text(text, style: tfStyle(13, color: Colors.white.withAlpha(210), height: 1.35))),
+            ],
+          ),
+        );
+    return FormCard(
+      padding: EdgeInsets.all(SizeConfig.r(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(d.name, style: tfStyle(17, weight: FontWeight.w900))),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(10), vertical: SizeConfig.h(4)),
+                decoration: BoxDecoration(color: AppColors.primary.withAlpha(30), borderRadius: BorderRadius.circular(SizeConfig.r(100))),
+                child: Text(d.entryFee > 0 ? rupees(d.entryFee) : 'Free', style: tfStyle(12, weight: FontWeight.w800, color: AppColors.primary)),
+              ),
+            ],
+          ),
+          if (d.ageLabel != null && d.ageLabel!.toLowerCase() != d.name.toLowerCase()) line(Icons.cake_rounded, d.ageLabel!),
+          line(Icons.account_tree_rounded, _formatLine(d.format, d.groupCount, d.qualifyPerGroup)),
+          line(Icons.groups_rounded, '${d.approvedTeams} of ${d.maxTeams} ${isRacket ? 'entries' : 'teams'} · squads of ${d.squadMin} to ${d.squadMax}'),
+          line(Icons.rule_rounded, rulesSummaryFor(sport, d.matchRules)),
+          if (d.format != 'KNOCKOUT' && d.points.isNotEmpty) line(Icons.leaderboard_rounded, _pointsLine(sport, d.points)),
+          if (d.prizeType != 'NONE') line(Icons.emoji_events_rounded, d.prizeDetails ?? _l(TournamentOptions.prizeTypes, d.prizeType)),
+        ],
+      ),
     );
   }
 }

@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "9c330976-3672-4014-ad41-53cf2ec5daee",
+      "id": "8128c79e-3a21-4f8d-b58b-99eeeb4addf8",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -18,10 +18,10 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "webhookId": "f9a68f96-4796-4a47-8357-4752a4afb5d0"
+      "webhookId": "c00ca11e-e10f-4484-ab80-ef007f05eb07"
     },
     {
-      "id": "2059a5e7-3b40-43b6-8831-66ffe50c45b4",
+      "id": "c22156e2-ce8b-4d9c-91b6-333f20e6cb92",
       "name": "Check Login",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -34,7 +34,7 @@
       }
     },
     {
-      "id": "5202be5b-6652-4630-9724-df76b7db5600",
+      "id": "4359018a-53ca-469c-b673-77fda246df4d",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -52,7 +52,7 @@
           },
           "conditions": [
             {
-              "id": "39ac86f0-e986-484b-8fa7-a93108a54052",
+              "id": "9b272f8b-26f9-4867-924b-38d4fdf904a3",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -68,7 +68,7 @@
       }
     },
     {
-      "id": "6750624a-fbf5-4ec1-8dea-e1d783e3ba21",
+      "id": "b66eea42-f9f2-4470-9bee-0850a504e20d",
       "name": "Load Tournament",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -78,7 +78,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.id, t.code, t.sport, t.name, t.description, t.logo_key, t.banner_key, t.category, t.city, t.area, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.end_date, '%Y-%m-%d') AS end_date, t.match_days, t.match_timing, t.format, t.group_count, t.qualify_per_group, t.max_teams, t.squad_min, t.squad_max, t.entry_fee, t.jersey_fee, t.prize_type, t.prize_details, t.food_provided, t.meals, t.jersey_provided, t.jersey_print, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS registration_deadline, DATE_FORMAT(t.checklist_deadline, '%Y-%m-%d %H:%i') AS checklist_deadline, t.visibility, t.status, (t.organizer_user_id = viewer.id) AS is_owner, o.name AS organizer_name, o.photo_key AS organizer_photo_key, o.is_verified AS organizer_verified, (SELECT COUNT(*) FROM tournaments x WHERE x.organizer_user_id = o.id AND x.status = 'COMPLETED') AS organizer_completed, r.match_rules, r.points, (SELECT JSON_ARRAYAGG(g.name) FROM tournament_grounds g WHERE g.tournament_id = t.id) AS grounds, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'doc_type', d.doc_type, 'title', d.title, 'file_key', d.file_key, 'mime_type', d.mime_type, 'size_bytes', d.size_bytes, 'sort_order', d.sort_order)) FROM tournament_documents d WHERE d.tournament_id = t.id) AS documents, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', s.id, 'name', s.name, 'label', s.label, 'is_title', s.is_title, 'logo_key', s.logo_key, 'banner_key', s.banner_key, 'link_url', s.link_url, 'tagline', s.tagline, 'sort_order', s.sort_order, 'views', (SELECT IFNULL(SUM(z.views), 0) FROM sponsor_daily_stats z WHERE z.sponsor_id = s.id), 'taps', (SELECT IFNULL(SUM(z.taps), 0) FROM sponsor_daily_stats z WHERE z.sponsor_id = s.id))) FROM tournament_sponsors s WHERE s.tournament_id = t.id) AS sponsors, p.upi_id, p.upi_name, p.qr_key, p.accept_cash, p.note AS payment_note, (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'APPROVED') AS approved_teams FROM tournaments t JOIN app_users o ON o.id = t.organizer_user_id LEFT JOIN tournament_rules r ON r.tournament_id = t.id LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id LEFT JOIN app_users viewer ON viewer.phone = $1 WHERE t.code = $2",
+        "query": "SELECT t.id, t.code, t.sport, t.name, t.description, t.logo_key, t.banner_key, t.category, t.city, t.area, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.end_date, '%Y-%m-%d') AS end_date, t.match_days, t.match_timing, t.format, t.group_count, t.qualify_per_group, t.max_teams, t.squad_min, t.squad_max, t.entry_fee, t.jersey_fee, t.prize_type, t.prize_details, t.food_provided, t.meals, t.jersey_provided, t.jersey_print, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS registration_deadline, DATE_FORMAT(t.checklist_deadline, '%Y-%m-%d %H:%i') AS checklist_deadline, t.visibility, t.status, (t.organizer_user_id = viewer.id) AS is_owner, o.name AS organizer_name, o.photo_key AS organizer_photo_key, o.is_verified AS organizer_verified, (SELECT COUNT(*) FROM tournaments x WHERE x.organizer_user_id = o.id AND x.status = 'COMPLETED') AS organizer_completed, r.match_rules, r.points, (SELECT JSON_ARRAYAGG(g.name) FROM tournament_grounds g WHERE g.tournament_id = t.id) AS grounds, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'doc_type', d.doc_type, 'title', d.title, 'file_key', d.file_key, 'mime_type', d.mime_type, 'size_bytes', d.size_bytes, 'sort_order', d.sort_order)) FROM tournament_documents d WHERE d.tournament_id = t.id) AS documents, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', s.id, 'name', s.name, 'label', s.label, 'is_title', s.is_title, 'logo_key', s.logo_key, 'banner_key', s.banner_key, 'link_url', s.link_url, 'tagline', s.tagline, 'sort_order', s.sort_order, 'views', (SELECT IFNULL(SUM(z.views), 0) FROM sponsor_daily_stats z WHERE z.sponsor_id = s.id), 'taps', (SELECT IFNULL(SUM(z.taps), 0) FROM sponsor_daily_stats z WHERE z.sponsor_id = s.id))) FROM tournament_sponsors s WHERE s.tournament_id = t.id) AS sponsors, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', v.id, 'name', v.name, 'sort_order', v.sort_order, 'min_age', v.min_age, 'max_age', v.max_age, 'format', v.format, 'group_count', v.group_count, 'qualify_per_group', v.qualify_per_group, 'max_teams', v.max_teams, 'squad_min', v.squad_min, 'squad_max', v.squad_max, 'entry_fee', v.entry_fee, 'prize_type', v.prize_type, 'prize_details', v.prize_details, 'match_rules', v.match_rules, 'points', v.points, 'approved_teams', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = v.id AND e.status = 'APPROVED'))) FROM tournament_divisions v WHERE v.tournament_id = t.id) AS divisions, p.upi_id, p.upi_name, p.qr_key, p.accept_cash, p.note AS payment_note, (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'APPROVED') AS approved_teams FROM tournaments t JOIN app_users o ON o.id = t.organizer_user_id LEFT JOIN tournament_rules r ON r.tournament_id = t.id LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id LEFT JOIN app_users viewer ON viewer.phone = $1 WHERE t.code = $2",
         "options": {
           "queryReplacement": "={{ [$json.phone, $json.code] }}"
         }
@@ -92,7 +92,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "3542d775-52e9-4327-92f4-4963f15373f9",
+      "id": "b60f0fb8-46c0-4d78-9724-5772c700b662",
       "name": "Check Found",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -105,7 +105,7 @@
       }
     },
     {
-      "id": "ff1c998b-b12e-4559-9f82-11dba13189d5",
+      "id": "1d0c2e2b-cff8-42f7-bad5-e98736094c31",
       "name": "Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -123,7 +123,7 @@
           },
           "conditions": [
             {
-              "id": "3f39b3e3-5e74-42f4-9c6a-2e8e65ca94e6",
+              "id": "ba9b78b2-c409-41ce-80a7-f0064c4c4eaa",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -139,7 +139,7 @@
       }
     },
     {
-      "id": "1686f445-a384-4bfd-a66e-3937632aaac4",
+      "id": "fa3476f4-e7f2-412f-9f39-8830f6319e52",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -152,7 +152,7 @@
       }
     },
     {
-      "id": "da0553cd-20e4-4606-aea9-34657d0b2e2c",
+      "id": "c73ad508-3fab-474e-baa0-282a3dfac225",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -177,7 +177,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "1b2c898f-1f8d-48f3-a5ac-2294ae219cb3",
+      "id": "b70a44c9-1d77-4694-acc7-c799f619ec8d",
       "name": "Assets Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -209,7 +209,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "b7a3e6df-65a4-4f23-9ce1-e78de161b0c5",
+      "id": "6e5e0ff0-319d-4d5f-b761-33125d7b5332",
       "name": "QR Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -241,7 +241,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "39317116-e734-4221-8f1e-b863bd4acfee",
+      "id": "74ed95ce-8fda-4e7b-b124-21042cfef084",
       "name": "Photo Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -273,7 +273,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "6500846d-1053-4250-9701-0e20315258c8",
+      "id": "1189a8b3-fbca-4ee1-a5fc-6f392ae297f2",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -282,11 +282,11 @@
         -100
       ],
       "parameters": {
-        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst t = $('Check Found').first().json;\nconst owner = Number(t.is_owner) === 1;\nconst A = k => signWith(k, 'Assets Link');\nconst docs = (parseJ(t.documents) || []).sort((a, b) => a.sort_order - b.sort_order).map(d => ({\n  id: d.id, doc_type: d.doc_type, title: d.title, mime_type: d.mime_type, size_bytes: d.size_bytes, url: A(d.file_key), ...(owner ? { file_key: d.file_key } : {}) }));\nconst sponsors = (parseJ(t.sponsors) || []).sort((a, b) => a.sort_order - b.sort_order).map(s => ({\n  id: s.id, name: s.name, label: s.label, is_title: Number(s.is_title) === 1, logo_url: A(s.logo_key), banner_url: A(s.banner_key),\n  link_url: s.link_url || null, tagline: s.tagline || null,\n  ...(owner ? { logo_key: s.logo_key, banner_key: s.banner_key || null, views: Number(s.views || 0), taps: Number(s.taps || 0) } : {}) }));\nconst tournament = {\n  code: t.code, sport: t.sport, name: t.name, description: t.description || null, logo_url: A(t.logo_key), banner_url: A(t.banner_key),\n  category: t.category, city: t.city, area: t.area, start_date: t.start_date, end_date: t.end_date, match_days: t.match_days, match_timing: t.match_timing,\n  format: t.format, group_count: t.group_count, qualify_per_group: t.qualify_per_group, max_teams: t.max_teams, squad_min: t.squad_min, squad_max: t.squad_max,\n  entry_fee: Number(t.entry_fee), jersey_fee: Number(t.jersey_fee), prize_type: t.prize_type, prize_details: t.prize_details || null,\n  food_provided: Number(t.food_provided) === 1, meals: t.meals ? String(t.meals).split(',') : [], jersey_provided: Number(t.jersey_provided) === 1,\n  jersey_print: t.jersey_print || null, registration_deadline: t.registration_deadline, checklist_deadline: t.checklist_deadline || null,\n  visibility: t.visibility, status: t.status, approved_teams: Number(t.approved_teams || 0),\n  match_rules: parseJ(t.match_rules) || {}, points: parseJ(t.points) || {}, grounds: parseJ(t.grounds) || [], documents: docs, sponsors,\n  organizer: { name: t.organizer_name, photo_url: signWith(t.organizer_photo_key, 'Photo Link'), verified: Number(t.organizer_verified) === 1,\n    completed_tournaments: Number(t.organizer_completed || 0) },\n  is_owner: owner,\n  ...(owner ? { logo_key: t.logo_key, banner_key: t.banner_key || null,\n    payment: t.upi_id ? { upi_id: t.upi_id, upi_name: t.upi_name, qr_key: t.qr_key || null, qr_url: signWith(t.qr_key, 'QR Link'),\n      accept_cash: Number(t.accept_cash) === 1, note: t.payment_note || null } : null } : {}),\n};\nreturn [{ json: { status: 200, body: { success: true, tournament } } }];"
+        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst t = $('Check Found').first().json;\nconst owner = Number(t.is_owner) === 1;\nconst A = k => signWith(k, 'Assets Link');\nconst docs = (parseJ(t.documents) || []).sort((a, b) => a.sort_order - b.sort_order).map(d => ({\n  id: d.id, doc_type: d.doc_type, title: d.title, mime_type: d.mime_type, size_bytes: d.size_bytes, url: A(d.file_key), ...(owner ? { file_key: d.file_key } : {}) }));\nconst sponsors = (parseJ(t.sponsors) || []).sort((a, b) => a.sort_order - b.sort_order).map(s => ({\n  id: s.id, name: s.name, label: s.label, is_title: Number(s.is_title) === 1, logo_url: A(s.logo_key), banner_url: A(s.banner_key),\n  link_url: s.link_url || null, tagline: s.tagline || null,\n  ...(owner ? { logo_key: s.logo_key, banner_key: s.banner_key || null, views: Number(s.views || 0), taps: Number(s.taps || 0) } : {}) }));\nconst tournament = {\n  code: t.code, sport: t.sport, name: t.name, description: t.description || null, logo_url: A(t.logo_key), banner_url: A(t.banner_key),\n  category: t.category, city: t.city, area: t.area, start_date: t.start_date, end_date: t.end_date, match_days: t.match_days, match_timing: t.match_timing,\n  format: t.format, group_count: t.group_count, qualify_per_group: t.qualify_per_group, max_teams: t.max_teams, squad_min: t.squad_min, squad_max: t.squad_max,\n  entry_fee: Number(t.entry_fee), jersey_fee: Number(t.jersey_fee), prize_type: t.prize_type, prize_details: t.prize_details || null,\n  food_provided: Number(t.food_provided) === 1, meals: t.meals ? String(t.meals).split(',') : [], jersey_provided: Number(t.jersey_provided) === 1,\n  jersey_print: t.jersey_print || null, registration_deadline: t.registration_deadline, checklist_deadline: t.checklist_deadline || null,\n  visibility: t.visibility, status: t.status, approved_teams: Number(t.approved_teams || 0),\n  match_rules: parseJ(t.match_rules) || {}, points: parseJ(t.points) || {}, grounds: parseJ(t.grounds) || [], documents: docs, sponsors,\n  divisions: (parseJ(t.divisions) || []).sort((a, b) => a.sort_order - b.sort_order).map(d => ({ ...d,\n    entry_fee: Number(d.entry_fee), approved_teams: Number(d.approved_teams || 0), match_rules: parseJ(d.match_rules) || {}, points: parseJ(d.points) || {} })),\n  organizer: { name: t.organizer_name, photo_url: signWith(t.organizer_photo_key, 'Photo Link'), verified: Number(t.organizer_verified) === 1,\n    completed_tournaments: Number(t.organizer_completed || 0) },\n  is_owner: owner,\n  ...(owner ? { logo_key: t.logo_key, banner_key: t.banner_key || null,\n    payment: t.upi_id ? { upi_id: t.upi_id, upi_name: t.upi_name, qr_key: t.qr_key || null, qr_url: signWith(t.qr_key, 'QR Link'),\n      accept_cash: Number(t.accept_cash) === 1, note: t.payment_note || null } : null } : {}),\n};\nreturn [{ json: { status: 200, body: { success: true, tournament } } }];"
       }
     },
     {
-      "id": "cd5f60a1-35a9-45ad-934c-fa6464e43ba1",
+      "id": "749eddc4-c2f2-4872-8c5c-debcd88fafbf",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,

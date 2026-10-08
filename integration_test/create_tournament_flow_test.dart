@@ -186,14 +186,14 @@ void main() {
 
     // 1. Sport
     await pumpUntil(t, find.text('Which sport?'));
-    await t.tap(find.byKey(const ValueKey('sport-CRICKET')));
+    await t.tap(find.byKey(const ValueKey('sport-FOOTBALL')));
     await shot('sport');
     await next();
 
     // 2. Basics
     await pumpUntil(t, find.text('The basics'));
     await shot('basics_empty');
-    await t.enterText(find.byKey(const ValueKey('t-name')), 'Charkop Premier League 2027');
+    await t.enterText(find.byKey(const ValueKey('t-name')), 'Junior Football Fiesta 2027');
     await t.tap(find.byKey(const ValueKey('t-logo')));
     await pumpUntil(t, find.byIcon(Icons.edit_rounded));
     await t.tap(find.text('Add banner'));
@@ -204,61 +204,93 @@ void main() {
     while ((c.logo.busy.value || c.banner.busy.value || !c.banner.isSet) && DateTime.now().isBefore(waitUploads)) {
       await t.pump(const Duration(milliseconds: 250));
     }
-    await t.tap(find.text('Open'));
-    await t.enterText(find.byType(TextField).last, 'Box-style tennis ball tournament for teams across Kandivali. Night matches under lights.');
+    await t.tap(find.text('Community'));
+    await t.enterText(find.byType(TextField).last, 'One-day football festival for kids, one age group at a time.');
     FocusManager.instance.primaryFocus?.unfocus();
     await shot('basics_filled');
     await next();
 
     // 3. Where & when
     await pumpUntil(t, find.text('Where & when'));
-    await t.enterText(find.byKey(const ValueKey('t-area')), 'Charkop, Kandivali');
-    await t.enterText(find.byKey(const ValueKey('t-ground')), 'Nalanda Turf');
+    await t.enterText(find.byKey(const ValueKey('t-area')), 'Borivali West');
+    await t.enterText(find.byKey(const ValueKey('t-ground')), 'Pitch 1');
     await t.testTextInput.receiveAction(TextInputAction.done);
-    await t.enterText(find.byKey(const ValueKey('t-ground')), 'Sai Siddhi Ground');
+    await t.enterText(find.byKey(const ValueKey('t-ground')), 'Pitch 2');
     await t.tap(find.byKey(const ValueKey('t-add-ground')));
     await pumpFor(t, const Duration(milliseconds: 300));
-    expect(c.grounds.toList(), ['Nalanda Turf', 'Sai Siddhi Ground']);
+    expect(c.grounds.toList(), ['Pitch 1', 'Pitch 2']);
     final start = DateTime.now().add(const Duration(days: 30));
     c.setStartDate(DateTime(start.year, start.month, start.day));
-    c.endDate.value = DateTime(start.year, start.month, start.day + 2);
-    c.matchTiming.value = 'NIGHT';
     FocusManager.instance.primaryFocus?.unfocus();
     await shot('venue');
     await next();
 
-    // 4. Format
-    await pumpUntil(t, find.text('Format'));
-    await t.tap(find.byKey(const ValueKey('format-LEAGUE_KNOCKOUT')));
-    c.maxTeams.value = 12;
-    c.groupCount.value = 3;
-    await shot('format');
-    await next();
-
-    // 5. Match rules
-    await pumpUntil(t, find.text('Match rules'));
-    await t.tap(find.text('Box cricket'));
-    await shot('rules');
-    await next();
-
-    // 6. Points
-    await pumpUntil(t, find.text('Points table'));
-    await shot('points');
-    await next();
-
-    // 7. Fees
-    await pumpUntil(t, find.text('Entry fee & prize'));
-    await t.enterText(find.byKey(const ValueKey('t-fee')), '2500');
-    await t.tap(find.text('Cash + trophy'));
+    // 4. Divisions: Under 7 and Under 9
+    await pumpUntil(t, find.text('Divisions'));
+    await shot('divisions_one');
+    await t.tap(find.byKey(const ValueKey('divisions-many')));
     await pumpFor(t, const Duration(milliseconds: 300));
-    await t.enterText(find.byType(TextField).last, 'Winner ₹21,000 + trophy, runner-up ₹11,000');
+    await t.tap(find.byKey(const ValueKey('quick-Under 7')));
+    await pumpFor(t, const Duration(milliseconds: 300));
+    await t.tap(find.byKey(const ValueKey('quick-Under 9')));
+    await pumpFor(t, const Duration(milliseconds: 300));
+    expect(c.divisions.map((d) => d.name).toList(), ['Under 7', 'Under 9']);
+    expect(c.divisions.map((d) => d.maxAge.value).toList(), [6, 8]);
+    await shot('divisions_many');
+    await next();
+
+    // Under 7: groups + final, 4 teams, 3v3, 5-minute halves, ₹500
+    await pumpUntil(t, find.text('Under 7 format'));
+    await t.tap(find.byKey(const ValueKey('format-LEAGUE_KNOCKOUT')));
+    c.divisions[0].maxTeams.value = 4;
+    c.divisions[0].groupCount.value = 1;
+    c.divisions[0].qualifyPerGroup.value = 2;
+    c.divisions[0].squadMin.value = 6;
+    c.divisions[0].squadMax.value = 6;
+    await shot('u7_format');
+    await next();
+    await pumpUntil(t, find.text('Under 7 rules'));
+    c.divisions[0].footballPlayers.value = 3;
+    c.divisions[0].halfMinutes.value = 5;
+    await shot('u7_rules');
+    await next();
+    await pumpUntil(t, find.text('Under 7 points'));
+    expect(c.divisions[0].ptsWin.value, 3);
+    await t.tap(find.text('Penalty shootout'));
+    await shot('u7_points');
+    await next();
+    await pumpUntil(t, find.text('Under 7 fee & prize'));
+    await t.enterText(find.byKey(const ValueKey('t-fee')), '500');
+    await t.tap(find.text('Trophy'));
+    await pumpFor(t, const Duration(milliseconds: 300));
+    await t.enterText(find.byType(TextField).last, 'Medals for every player, trophy for the winners');
     FocusManager.instance.primaryFocus?.unfocus();
-    await shot('fees');
+    await shot('u7_fees');
+    await next();
+
+    // Under 9: copy Under 7, then 5v5 with 8-minute halves and ₹600
+    await pumpUntil(t, find.text('Under 9 format'));
+    await t.tap(find.byKey(const ValueKey('copy-division-1')));
+    await pumpFor(t, const Duration(milliseconds: 500));
+    c.divisions[1].squadMin.value = 8;
+    c.divisions[1].squadMax.value = 8;
+    await shot('u9_format_copied');
+    await next();
+    await pumpUntil(t, find.text('Under 9 rules'));
+    c.divisions[1].footballPlayers.value = 5;
+    c.divisions[1].halfMinutes.value = 8;
+    await next();
+    await pumpUntil(t, find.text('Under 9 points'));
+    await next();
+    await pumpUntil(t, find.text('Under 9 fee & prize'));
+    await t.enterText(find.byKey(const ValueKey('t-fee')), '600');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await shot('u9_fees');
     await next();
 
     // 8. Payment (appears because there is a fee)
     await pumpUntil(t, find.text('How captains pay you'));
-    await t.enterText(find.byKey(const ValueKey('t-upi')), 'charkopleague@okaxis');
+    await t.enterText(find.byKey(const ValueKey('t-upi')), 'fiesta@okaxis');
     await t.enterText(find.byKey(const ValueKey('t-upi-name')), 'Test Organiser');
     FocusManager.instance.primaryFocus?.unfocus();
     await t.tap(find.text('Add QR'));
@@ -379,9 +411,9 @@ Future<void> _publishAndEdit(WidgetTester t, Future<void> Function(String) shot)
   await t.tap(find.text('Tournaments'));
   await pumpFor(t, const Duration(milliseconds: 500));
   await t.tap(find.text('My tournaments'));
-  await pumpUntil(t, find.text('Charkop Premier League 2027'));
+  await pumpUntil(t, find.text('Junior Football Fiesta 2027'));
   await shot('my_tournaments');
-  await t.tap(find.text('Charkop Premier League 2027'));
+  await t.tap(find.text('Junior Football Fiesta 2027'));
   await pumpUntil(t, find.text('Publish tournament'));
   await t.tap(find.byKey(const ValueKey('tournament-cta')));
   await pumpUntil(t, find.byKey(const ValueKey('publish-confirm')));
@@ -395,15 +427,15 @@ Future<void> _publishAndEdit(WidgetTester t, Future<void> Function(String) shot)
   await shot('edit_review');
   await t.tap(find.text('BASICS'));
   await pumpUntil(t, find.text('The basics'));
-  await t.enterText(find.byKey(const ValueKey('t-name')), 'Charkop Premier League 2027 Season 2');
+  await t.enterText(find.byKey(const ValueKey('t-name')), 'Junior Football Fiesta 2027 Edition 2');
   FocusManager.instance.primaryFocus?.unfocus();
   await t.tap(find.text('Review'));
   await pumpUntil(t, find.text('Save changes'));
   await t.tap(find.text('Save changes'));
-  await pumpUntil(t, find.text('Charkop Premier League 2027 Season 2'), timeout: const Duration(seconds: 60));
+  await pumpUntil(t, find.text('Junior Football Fiesta 2027 Edition 2'), timeout: const Duration(seconds: 60));
   await shot('edited');
   await t.tap(find.byKey(const ValueKey('tournament-back')));
-  await pumpUntil(t, find.text('Charkop Premier League 2027 Season 2'));
+  await pumpUntil(t, find.text('Junior Football Fiesta 2027 Edition 2'));
   await shot('my_tournaments_after');
   await pumpFor(t, const Duration(seconds: 5));
 }

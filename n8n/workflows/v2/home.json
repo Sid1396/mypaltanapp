@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "7e911e3e-bb3c-4ac0-b596-a7c2d33562a6",
+      "id": "747dcad0-e345-4313-a279-0c8f4b63615b",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -18,10 +18,10 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "webhookId": "98cc2e5f-5db9-430d-9de3-d3ab79a2855a"
+      "webhookId": "151a50af-4df1-4ebe-b67a-2dd9a88cecef"
     },
     {
-      "id": "b2ce0ab3-bead-4b96-9982-1201c0957222",
+      "id": "877b1d77-1625-4d85-b1f6-d38e5c46b038",
       "name": "Check Login",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -34,7 +34,7 @@
       }
     },
     {
-      "id": "03f68db9-17a6-48e2-8008-ee37e94adfc3",
+      "id": "f33ed8fc-cf67-438d-a73d-0002f2da9787",
       "name": "Logged In?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -52,7 +52,7 @@
           },
           "conditions": [
             {
-              "id": "3bd9b3fc-58d4-4242-93f4-507b507620f2",
+              "id": "c13a8f0e-ee43-4a94-a34d-a400468abdcc",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -68,7 +68,7 @@
       }
     },
     {
-      "id": "3e278049-700d-4c0c-b1e3-2343153b2f5c",
+      "id": "6e071b92-bc77-4b3e-b08d-77ef8e4fdee5",
       "name": "Load Home",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -78,7 +78,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT 'banner' AS _set, id, title, subtitle, badge, image_url, image_key, theme, cta_label, link_type, link_value FROM home_banners WHERE is_active = 1 AND (starts_at IS NULL OR starts_at <= NOW()) AND (ends_at IS NULL OR ends_at > NOW()) ORDER BY sort_order, id; SELECT 'tournament' AS _set, NULL AS slug, t.code, t.name, t.sport, NULL AS logo_url, t.logo_key, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, t.area, t.city, JSON_ARRAY(CASE t.format WHEN 'LEAGUE' THEN 'League' WHEN 'KNOCKOUT' THEN 'Knockout' ELSE 'Groups + knockout' END, IF(t.entry_fee > 0, CONCAT('Entry \u20b9', FORMAT(t.entry_fee, 0, 'en_IN')), 'Free entry')) AS tags, t.status FROM tournaments t WHERE t.visibility = 'PUBLIC' AND t.status IN ('REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'FIXTURES_READY', 'LIVE') AND t.end_date >= CURDATE() ORDER BY t.start_date LIMIT 20; SELECT 'tournament' AS _set, slug, NULL AS code, name, sport, logo_url, logo_key, DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date, area, city, tags, status FROM featured_tournaments WHERE is_active = 1 ORDER BY sort_order, id; SELECT 'unread' AS _set, COUNT(n.id) AS cnt FROM app_users u LEFT JOIN notifications n ON n.user_id = u.id AND n.read_at IS NULL WHERE u.phone = $1",
+        "query": "SELECT 'banner' AS _set, id, title, subtitle, badge, image_url, image_key, theme, cta_label, link_type, link_value FROM home_banners WHERE is_active = 1 AND (starts_at IS NULL OR starts_at <= NOW()) AND (ends_at IS NULL OR ends_at > NOW()) ORDER BY sort_order, id; SELECT 'tournament' AS _set, NULL AS slug, t.code, t.name, t.sport, NULL AS logo_url, t.logo_key, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, t.area, t.city, (SELECT IF(COUNT(*) > 1, JSON_ARRAY(CONCAT(COUNT(*), ' divisions'),   IF(MAX(v.entry_fee) = 0, 'Free entry', CONCAT(IF(MIN(v.entry_fee) = MAX(v.entry_fee), 'Entry \u20b9', 'Entry from \u20b9'), FORMAT(MIN(v.entry_fee), 0, 'en_IN')))),   JSON_ARRAY(CASE MIN(v.format) WHEN 'LEAGUE' THEN 'League' WHEN 'KNOCKOUT' THEN 'Knockout' ELSE 'Groups + knockout' END,   IF(MAX(v.entry_fee) > 0, CONCAT('Entry \u20b9', FORMAT(MAX(v.entry_fee), 0, 'en_IN')), 'Free entry'))) FROM tournament_divisions v WHERE v.tournament_id = t.id) AS tags, t.status FROM tournaments t WHERE t.visibility = 'PUBLIC' AND t.status IN ('REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'FIXTURES_READY', 'LIVE') AND t.end_date >= CURDATE() ORDER BY t.start_date LIMIT 20; SELECT 'tournament' AS _set, slug, NULL AS code, name, sport, logo_url, logo_key, DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date, area, city, tags, status FROM featured_tournaments WHERE is_active = 1 ORDER BY sort_order, id; SELECT 'unread' AS _set, COUNT(n.id) AS cnt FROM app_users u LEFT JOIN notifications n ON n.user_id = u.id AND n.read_at IS NULL WHERE u.phone = $1",
         "options": {
           "queryReplacement": "={{ [$json.phone] }}"
         }
@@ -92,7 +92,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "90f2fdbe-0b1e-4ca3-b4c1-17cc96d5ae38",
+      "id": "8fe29427-9412-4de8-acf8-d7c9c8f1a1fc",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -105,7 +105,7 @@
       }
     },
     {
-      "id": "cae536d4-dead-4bb1-aee7-1017f5f2e2ab",
+      "id": "00a4b743-4698-4850-80e1-d4f4d083801f",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -130,7 +130,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "fba6ac7d-27c2-4061-97c6-b662727938df",
+      "id": "7c3452aa-5614-4a10-b627-a78fc7b3d399",
       "name": "Logo Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -162,7 +162,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "13e6d1dc-6d82-48d1-8817-455884faedee",
+      "id": "c91c6d68-93dc-419f-b556-37b2c45a966f",
       "name": "Assets Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -194,7 +194,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c352aae5-4171-45c9-881d-0c6499ecb4e7",
+      "id": "a251cffd-bce4-4f42-aba4-80c0fef4ce7d",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -207,7 +207,7 @@
       }
     },
     {
-      "id": "607b517e-2873-4cbb-bda4-1fc87f3351f9",
+      "id": "759a69c1-769c-4327-8e65-abda8910c653",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,

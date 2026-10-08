@@ -102,6 +102,72 @@ class TournamentPayment {
       );
 }
 
+/// An age group or category inside a tournament, with its own teams, format, rules, fee and prize.
+class TournamentDivision {
+  final int? id;
+  final String name;
+  final int? minAge;
+  final int? maxAge;
+  final String format;
+  final int? groupCount;
+  final int? qualifyPerGroup;
+  final int maxTeams;
+  final int squadMin;
+  final int squadMax;
+  final int entryFee;
+  final String prizeType;
+  final String? prizeDetails;
+  final Map<String, dynamic> matchRules;
+  final Map<String, dynamic> points;
+  final int approvedTeams;
+
+  const TournamentDivision({
+    this.id,
+    required this.name,
+    this.minAge,
+    this.maxAge,
+    required this.format,
+    this.groupCount,
+    this.qualifyPerGroup,
+    required this.maxTeams,
+    required this.squadMin,
+    required this.squadMax,
+    required this.entryFee,
+    required this.prizeType,
+    this.prizeDetails,
+    required this.matchRules,
+    required this.points,
+    this.approvedTeams = 0,
+  });
+
+  /// "Under 13", "40 and over", "Ages 10 to 14" or null when anyone can play.
+  String? get ageLabel {
+    if (minAge == null && maxAge == null) return null;
+    if (minAge == null) return 'Under ${maxAge! + 1}';
+    if (maxAge == null) return '$minAge and over';
+    return 'Ages $minAge to $maxAge';
+  }
+
+  factory TournamentDivision.fromJson(Map<String, dynamic> j) => TournamentDivision(
+        id: j['id'] == null ? null : _int(j['id']),
+        name: j['name']?.toString() ?? 'Open',
+        minAge: j['min_age'] == null ? null : _int(j['min_age']),
+        maxAge: j['max_age'] == null ? null : _int(j['max_age']),
+        format: j['format']?.toString() ?? 'KNOCKOUT',
+        groupCount: j['group_count'] == null ? null : _int(j['group_count']),
+        qualifyPerGroup: j['qualify_per_group'] == null ? null : _int(j['qualify_per_group']),
+        maxTeams: _int(j['max_teams'], 8),
+        squadMin: _int(j['squad_min'], 1),
+        squadMax: _int(j['squad_max'], 1),
+        entryFee: _int(j['entry_fee']),
+        prizeType: j['prize_type']?.toString() ?? 'NONE',
+        prizeDetails: _str(j['prize_details']),
+        matchRules: Map<String, dynamic>.from(j['match_rules'] as Map? ?? {}),
+        points: Map<String, dynamic>.from(j['points'] as Map? ?? {}),
+        approvedTeams: _int(j['approved_teams']),
+      );
+}
+
 /// Full tournament as returned by `tournaments/detail`. Owner-only fields are null for everyone else.
 class Tournament {
   final String code;
@@ -141,6 +207,7 @@ class Tournament {
   final List<String> grounds;
   final List<TournamentDocument> documents;
   final List<TournamentSponsor> sponsors;
+  final List<TournamentDivision> divisions;
   final String? organizerName;
   final String? organizerPhotoUrl;
   final bool organizerVerified;
@@ -188,6 +255,7 @@ class Tournament {
     required this.grounds,
     required this.documents,
     required this.sponsors,
+    required this.divisions,
     this.organizerName,
     this.organizerPhotoUrl,
     required this.organizerVerified,
@@ -202,6 +270,9 @@ class Tournament {
   String get statusLabel => TournamentOptions.statusLabels[status] ?? status;
   String get location => [area, city].where((s) => s.isNotEmpty).join(', ');
   TournamentSponsor? get titleSponsor => sponsors.where((s) => s.isTitle).firstOrNull;
+  bool get hasDivisions => divisions.length > 1;
+  int get minEntryFee => divisions.isEmpty ? entryFee : divisions.map((d) => d.entryFee).reduce((a, b) => a < b ? a : b);
+  int get maxEntryFee => divisions.isEmpty ? entryFee : divisions.map((d) => d.entryFee).reduce((a, b) => a > b ? a : b);
 
   factory Tournament.fromJson(Map<String, dynamic> j) {
     final org = Map<String, dynamic>.from(j['organizer'] as Map? ?? {});
@@ -245,6 +316,7 @@ class Tournament {
       grounds: (j['grounds'] as List? ?? []).map((g) => '$g').toList(),
       documents: list('documents').map(TournamentDocument.fromJson).toList(),
       sponsors: list('sponsors').map(TournamentSponsor.fromJson).toList(),
+      divisions: list('divisions').map(TournamentDivision.fromJson).toList(),
       organizerName: _str(org['name']),
       organizerPhotoUrl: _str(org['photo_url']),
       organizerVerified: _bool(org['verified']),

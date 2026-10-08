@@ -90,7 +90,7 @@ class _Header extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(c.isEditing ? 'Edit tournament' : 'New tournament', style: tfStyle(12, color: Colors.white.withAlpha(130))),
-                    Text('Step $current of ${steps.length} · ${CreateTournamentController.stepTitles[step]}',
+                    Text('Step $current of ${steps.length} · ${c.titleOf(step)}',
                         style: tfStyle(14, weight: FontWeight.w700)),
                   ],
                 ),

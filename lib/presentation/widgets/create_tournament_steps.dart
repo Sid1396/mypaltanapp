@@ -7,6 +7,7 @@ import '../../config/tournament_options.dart';
 import '../../utils/helpers/image_prep.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/create_tournament_controller.dart';
+import '../controllers/division_draft.dart';
 import 'form_widgets.dart';
 import 'onboarding_widgets.dart';
 import 'tournament_form_widgets.dart';
@@ -57,20 +58,30 @@ class _StepBody extends StatelessWidget {
   }
 }
 
-Widget stepFor(String step) => switch (step) {
+Widget stepFor(String step) {
+  final c = Get.find<CreateTournamentController>();
+  final d = c.divisionOf(step);
+  final i = int.tryParse(step.split('@').last) ?? 0;
+  if (d != null) {
+    return switch (CreateTournamentController.kindOf(step)) {
+      'format' => FormatStep(d: d, index: i),
+      'rules' => RulesStep(d: d, index: i),
+      'points' => PointsStep(d: d, index: i),
+      _ => FeesStep(d: d, index: i),
+    };
+  }
+  return switch (step) {
       'sport' => const SportStep(),
       'basics' => const BasicsStep(),
       'venue' => const VenueStep(),
-      'format' => const FormatStep(),
-      'rules' => const RulesStep(),
-      'points' => const PointsStep(),
-      'fees' => const FeesStep(),
+      'divisions' => const DivisionsStep(),
       'payment' => const PaymentStep(),
       'extras' => const ExtrasStep(),
       'registration' => const RegistrationStep(),
       'media' => const MediaStep(),
       _ => const ReviewStep(),
     };
+}
 
 // ─── 1. Sport ───────────────────────────────────────────────────
 
@@ -357,10 +368,113 @@ class VenueStep extends GetView<CreateTournamentController> {
   }
 }
 
-// ─── 4. Format ──────────────────────────────────────────────────
+// ─── 4. Divisions ───────────────────────────────────────────────
+
+class DivisionsStep extends GetView<CreateTournamentController> {
+  const DivisionsStep({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    return _StepBody(
+      title: 'Divisions',
+      subtitle: 'Age groups or categories each get their own teams, rules, points table and prizes.',
+      children: [
+        Obx(() => Column(
+              children: [
+                OptionCard(
+                  key: const ValueKey('divisions-one'),
+                  title: 'One competition',
+                  subtitle: 'All teams play under the same rules. Most tournaments.',
+                  icon: Icons.emoji_events_rounded,
+                  selected: !c.multiDivision.value,
+                  onTap: () => c.setMultiDivision(false),
+                ),
+                gapH(10),
+                OptionCard(
+                  key: const ValueKey('divisions-many'),
+                  title: 'Several divisions',
+                  subtitle: 'For example Under 9, Under 11 and Under 13, or Men and Women.',
+                  icon: Icons.view_week_rounded,
+                  selected: c.multiDivision.value,
+                  onTap: () => c.setMultiDivision(true),
+                ),
+              ],
+            )),
+        Obx(() {
+          if (!c.multiDivision.value) return const SizedBox.shrink();
+          final used = c.divisions.map((d) => d.name.toLowerCase()).toSet();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              gapH(24),
+              const FormLabel('Your divisions', hint: 'You set the format, rules and fee for each one next.'),
+              for (var i = 0; i < c.divisions.length; i++) ...[
+                Row(
+                  children: [
+                    Container(
+                      width: SizeConfig.r(30),
+                      height: SizeConfig.r(30),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: AppColors.primary.withAlpha(30), shape: BoxShape.circle),
+                      child: Text('${i + 1}', style: tfStyle(13, weight: FontWeight.w800, color: AppColors.primary)),
+                    ),
+                    SizedBox(width: SizeConfig.w(10)),
+                    Expanded(
+                      child: FieldTextInput(
+                        key: ValueKey('division-name-$i'),
+                        controller: c.divisions[i].nameCtrl,
+                        hint: 'e.g. Under 13',
+                        maxLength: 40,
+                        textCapitalization: TextCapitalization.words,
+                      ),
+                    ),
+                    if (c.divisions.length > 1)
+                      IconButton(
+                        onPressed: () => c.removeDivision(i),
+                        icon: Icon(Icons.close_rounded, color: Colors.white.withAlpha(140), size: SizeConfig.r(20)),
+                      ),
+                  ],
+                ),
+                gapH(8),
+              ],
+              if (c.divisions.length < 8) ...[
+                gapH(4),
+                AddRowButton(key: const ValueKey('division-add'), icon: Icons.add_rounded, label: 'Add a division', onTap: () => c.addDivision()),
+                gapH(14),
+                Text('Quick add', style: tfStyle(12, color: Colors.white.withAlpha(120))),
+                gapH(8),
+                Wrap(
+                  spacing: SizeConfig.w(6),
+                  runSpacing: SizeConfig.h(6),
+                  children: [
+                    for (final n in TournamentOptions.divisionSuggestions.where((n) => !used.contains(n.toLowerCase())))
+                      GestureDetector(
+                        key: ValueKey('quick-$n'),
+                        onTap: () => c.addDivision(n),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(10), vertical: SizeConfig.h(6)),
+                          decoration: BoxDecoration(color: Colors.white.withAlpha(12), borderRadius: BorderRadius.circular(SizeConfig.r(100))),
+                          child: Text('+ $n', style: tfStyle(12.5, weight: FontWeight.w600, color: Colors.white.withAlpha(210))),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          );
+        }),
+      ],
+    );
+  }
+}
+
+// ─── 4b. Format ──────────────────────────────────────────────────
 
 class FormatStep extends GetView<CreateTournamentController> {
-  const FormatStep({super.key});
+  final DivisionDraft d;
+  final int index;
+  const FormatStep({super.key, required this.d, required this.index});
 
   static const _icons = {'LEAGUE': Icons.table_rows_rounded, 'KNOCKOUT': Icons.account_tree_rounded, 'LEAGUE_KNOCKOUT': Icons.grid_view_rounded};
 
@@ -369,9 +483,35 @@ class FormatStep extends GetView<CreateTournamentController> {
     final c = controller;
     final isRacket = c.sport.value == 'BADMINTON' || c.sport.value == 'PICKLEBALL';
     return _StepBody(
-      title: 'Format',
+      title: c.multiDivision.value ? '${d.name} format' : 'Format',
       subtitle: 'How teams progress and how many can take part.',
       children: [
+        if (index > 0) ...[
+          GestureDetector(
+            key: ValueKey('copy-division-$index'),
+            onTap: () => c.copyDivisionSettings(index, index - 1),
+            child: Container(
+              padding: EdgeInsets.all(SizeConfig.r(12)),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha(18),
+                borderRadius: BorderRadius.circular(SizeConfig.r(12)),
+                border: Border.all(color: AppColors.primary.withAlpha(60)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.content_copy_rounded, size: SizeConfig.r(18), color: AppColors.primary),
+                  SizedBox(width: SizeConfig.w(10)),
+                  Expanded(
+                    child: Text('Same as ${c.divisions[index - 1].name}? Copy its format, rules, points and fee.',
+                        style: tfStyle(12.5, color: Colors.white.withAlpha(210), height: 1.35)),
+                  ),
+                  Text('Copy', style: tfStyle(13, weight: FontWeight.w800, color: AppColors.primary)),
+                ],
+              ),
+            ),
+          ),
+          gapH(16),
+        ],
         Obx(() => Column(
               children: [
                 for (final (code, title, desc) in TournamentOptions.formats) ...[
@@ -380,8 +520,8 @@ class FormatStep extends GetView<CreateTournamentController> {
                     title: title,
                     subtitle: desc,
                     icon: _icons[code]!,
-                    selected: c.format.value == code,
-                    onTap: () => c.format.value = code,
+                    selected: d.format.value == code,
+                    onTap: () => d.format.value = code,
                   ),
                   gapH(10),
                 ],
@@ -393,47 +533,87 @@ class FormatStep extends GetView<CreateTournamentController> {
                 children: [
                   NumberStepper(
                     label: isRacket ? 'Number of entries' : 'Number of teams',
-                    value: c.maxTeams.value,
+                    value: d.maxTeams.value,
                     min: 2,
                     max: 128,
-                    onChanged: (v) => c.maxTeams.value = v,
+                    onChanged: (v) => d.maxTeams.value = v,
                   ),
-                  if (c.format.value == 'LEAGUE_KNOCKOUT') ...[
-                    NumberStepper(label: 'Groups', value: c.groupCount.value, min: 1, max: 16, onChanged: (v) => c.groupCount.value = v),
+                  if (d.format.value == 'LEAGUE_KNOCKOUT') ...[
+                    NumberStepper(label: 'Groups', value: d.groupCount.value, min: 1, max: 16, onChanged: (v) => d.groupCount.value = v),
                     NumberStepper(
                       label: 'Qualify from each group',
-                      value: c.qualifyPerGroup.value,
+                      value: d.qualifyPerGroup.value,
                       min: 1,
                       max: 8,
-                      onChanged: (v) => c.qualifyPerGroup.value = v,
+                      onChanged: (v) => d.qualifyPerGroup.value = v,
                     ),
                   ],
                   Divider(color: Colors.white.withAlpha(15)),
                   NumberStepper(
                     label: 'Min players per squad',
-                    value: c.squadMin.value,
+                    value: d.squadMin.value,
                     min: 1,
                     max: 40,
-                    onChanged: (v) => c.squadMin.value = v,
+                    onChanged: (v) => d.squadMin.value = v,
                   ),
                   NumberStepper(
                     label: 'Max players per squad',
                     hint: 'Including substitutes',
-                    value: c.squadMax.value,
+                    value: d.squadMax.value,
                     min: 1,
                     max: 40,
-                    onChanged: (v) => c.squadMax.value = v,
+                    onChanged: (v) => d.squadMax.value = v,
                   ),
                 ],
               )),
         ),
+        gapH(20),
+        const FormLabel('Who can play', hint: 'Age on the first day of the tournament. We check it from players\' birthdates.'),
         Obx(() {
-          if (c.format.value != 'LEAGUE_KNOCKOUT') return const SizedBox.shrink();
-          final per = (c.maxTeams.value / c.groupCount.value).ceil();
+          final mode = d.maxAge.value != null ? 'UNDER' : d.minAge.value != null ? 'OVER' : 'ANY';
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ChoiceChips(
+                options: const [('ANY', 'Any age'), ('UNDER', 'Under an age'), ('OVER', 'Over an age')],
+                selected: mode,
+                onSelected: (v) {
+                  d.minAge.value = v == 'OVER' ? (d.minAge.value ?? 35) : null;
+                  d.maxAge.value = v == 'UNDER' ? (d.maxAge.value ?? 12) : null;
+                },
+              ),
+              if (mode != 'ANY') ...[
+                gapH(8),
+                FormCard(
+                  child: mode == 'UNDER'
+                      ? NumberStepper(
+                          label: 'Under',
+                          hint: 'Players must be ${d.maxAge.value} or younger',
+                          value: d.maxAge.value! + 1,
+                          min: 5,
+                          max: 25,
+                          onChanged: (v) => d.maxAge.value = v - 1,
+                        )
+                      : NumberStepper(
+                          label: 'Age and over',
+                          hint: 'Players must be ${d.minAge.value} or older',
+                          value: d.minAge.value!,
+                          min: 18,
+                          max: 70,
+                          onChanged: (v) => d.minAge.value = v,
+                        ),
+                ),
+              ],
+            ],
+          );
+        }),
+        Obx(() {
+          if (d.format.value != 'LEAGUE_KNOCKOUT') return const SizedBox.shrink();
+          final per = (d.maxTeams.value / d.groupCount.value).ceil();
           return Padding(
             padding: EdgeInsets.only(top: SizeConfig.h(12)),
-            child: InfoNote('${c.groupCount.value} groups of about $per teams. '
-                'Top ${c.qualifyPerGroup.value} from each group go through: ${c.groupCount.value * c.qualifyPerGroup.value} teams in the knockouts.'),
+            child: InfoNote('${d.groupCount.value} groups of about $per teams. '
+                'Top ${d.qualifyPerGroup.value} from each group go through: ${d.groupCount.value * d.qualifyPerGroup.value} teams in the knockouts.'),
           );
         }),
       ],
@@ -444,13 +624,15 @@ class FormatStep extends GetView<CreateTournamentController> {
 // ─── 5. Match rules ─────────────────────────────────────────────
 
 class RulesStep extends GetView<CreateTournamentController> {
-  const RulesStep({super.key});
+  final DivisionDraft d;
+  final int index;
+  const RulesStep({super.key, required this.d, required this.index});
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
     return _StepBody(
-      title: 'Match rules',
+      title: c.multiDivision.value ? '${d.name} rules' : 'Match rules',
       subtitle: 'Scorers use these for every match. You can change them before the tournament starts.',
       children: switch (c.sport.value) {
         'CRICKET' => _cricket(c),
@@ -462,17 +644,17 @@ class RulesStep extends GetView<CreateTournamentController> {
 
   List<Widget> _cricket(CreateTournamentController c) => [
         const FormLabel('Match type'),
-        Obx(() => ChoiceChips(options: TournamentOptions.cricketMatchTypes, selected: c.matchType.value, onSelected: c.setMatchType)),
+        Obx(() => ChoiceChips(options: TournamentOptions.cricketMatchTypes, selected: d.matchType.value, onSelected: d.setMatchType)),
         gapH(20),
         const FormLabel('Ball'),
-        Obx(() => ChoiceChips(options: TournamentOptions.ballTypes, selected: c.ballType.value, onSelected: (v) => c.ballType.value = v)),
+        Obx(() => ChoiceChips(options: TournamentOptions.ballTypes, selected: d.ballType.value, onSelected: (v) => d.ballType.value = v)),
         gapH(20),
         const FormLabel('Pitch', optional: true),
         Obx(() => ChoiceChips(
               options: TournamentOptions.pitchTypes,
-              selected: c.pitchType.value,
+              selected: d.pitchType.value,
               allowDeselect: true,
-              onSelected: (v) => c.pitchType.value = v,
+              onSelected: (v) => d.pitchType.value = v,
             )),
         gapH(20),
         FormCard(
@@ -480,34 +662,34 @@ class RulesStep extends GetView<CreateTournamentController> {
                 children: [
                   NumberStepper(
                     label: 'Players per side',
-                    value: c.playersPerSide.value,
+                    value: d.playersPerSide.value,
                     min: 2,
                     max: 11,
-                    onChanged: (v) => c.playersPerSide.value = v,
+                    onChanged: (v) => d.playersPerSide.value = v,
                   ),
-                  if (c.matchType.value != 'TEST') ...[
-                    NumberStepper(label: 'Overs per innings', value: c.overs.value, min: 1, max: 90, onChanged: c.setOvers),
+                  if (d.matchType.value != 'TEST') ...[
+                    NumberStepper(label: 'Overs per innings', value: d.overs.value, min: 1, max: 90, onChanged: d.setOvers),
                     NumberStepper(
                       label: 'Overs per bowler',
-                      value: c.oversPerBowler.value,
+                      value: d.oversPerBowler.value,
                       min: 1,
-                      max: c.overs.value,
-                      onChanged: (v) => c.oversPerBowler.value = v,
+                      max: d.overs.value,
+                      onChanged: (v) => d.oversPerBowler.value = v,
                     ),
                     NumberStepper(
                       label: 'Powerplay overs',
-                      value: c.powerplayOvers.value,
+                      value: d.powerplayOvers.value,
                       min: 0,
-                      max: c.overs.value,
-                      onChanged: (v) => c.powerplayOvers.value = v,
+                      max: d.overs.value,
+                      onChanged: (v) => d.powerplayOvers.value = v,
                       display: (v) => v == 0 ? 'None' : '$v',
                     ),
                   ],
                   SwitchRow(
                     label: 'Last batter can bat alone',
                     hint: 'The innings continues until every batter is out.',
-                    value: c.lastBatter.value,
-                    onChanged: (v) => c.lastBatter.value = v,
+                    value: d.lastBatter.value,
+                    onChanged: (v) => d.lastBatter.value = v,
                   ),
                 ],
               )),
@@ -521,26 +703,26 @@ class RulesStep extends GetView<CreateTournamentController> {
                   NumberStepper(
                     label: 'Players per side',
                     hint: 'Including the goalkeeper',
-                    value: c.footballPlayers.value,
+                    value: d.footballPlayers.value,
                     min: 3,
                     max: 11,
-                    onChanged: (v) => c.footballPlayers.value = v,
+                    onChanged: (v) => d.footballPlayers.value = v,
                   ),
                   NumberStepper(
                     label: 'Minutes per half',
-                    value: c.halfMinutes.value,
+                    value: d.halfMinutes.value,
                     min: 5,
                     max: 45,
-                    onChanged: (v) => c.halfMinutes.value = v,
+                    onChanged: (v) => d.halfMinutes.value = v,
                   ),
                   SwitchRow(
                     label: 'Rolling substitutions',
                     hint: 'Players can come off and go back on.',
-                    value: c.rollingSubs.value,
-                    onChanged: (v) => c.rollingSubs.value = v,
+                    value: d.rollingSubs.value,
+                    onChanged: (v) => d.rollingSubs.value = v,
                   ),
-                  SwitchRow(label: 'Extra time in knockouts', value: c.extraTime.value, onChanged: (v) => c.extraTime.value = v),
-                  SwitchRow(label: 'Penalty shootout if tied', value: c.penalties.value, onChanged: (v) => c.penalties.value = v),
+                  SwitchRow(label: 'Extra time in knockouts', value: d.extraTime.value, onChanged: (v) => d.extraTime.value = v),
+                  SwitchRow(label: 'Penalty shootout if tied', value: d.penalties.value, onChanged: (v) => d.penalties.value = v),
                 ],
               )),
         ),
@@ -548,18 +730,18 @@ class RulesStep extends GetView<CreateTournamentController> {
 
   List<Widget> _racket(CreateTournamentController c) => [
         const FormLabel('Event'),
-        Obx(() => ChoiceChips(options: TournamentOptions.racketEvents, selected: c.racketEvent.value, onSelected: (v) => c.racketEvent.value = v)),
+        Obx(() => ChoiceChips(options: TournamentOptions.racketEvents, selected: d.racketEvent.value, onSelected: (v) => d.racketEvent.value = v)),
         gapH(20),
         const FormLabel('Match length'),
         Obx(() => ChoiceChips(
               options: const [('1', 'Best of 1'), ('3', 'Best of 3'), ('5', 'Best of 5')],
-              selected: '${c.games.value}',
-              onSelected: (v) => c.games.value = int.parse(v),
+              selected: '${d.games.value}',
+              onSelected: (v) => d.games.value = int.parse(v),
             )),
         if (c.sport.value == 'PICKLEBALL') ...[
           gapH(20),
           const FormLabel('Scoring'),
-          Obx(() => ChoiceChips(options: TournamentOptions.pickleballScoring, selected: c.scoring.value, onSelected: (v) => c.scoring.value = v)),
+          Obx(() => ChoiceChips(options: TournamentOptions.pickleballScoring, selected: d.scoring.value, onSelected: (v) => d.scoring.value = v)),
         ],
         gapH(20),
         FormCard(
@@ -567,16 +749,16 @@ class RulesStep extends GetView<CreateTournamentController> {
                 children: [
                   NumberStepper(
                     label: 'Points per game',
-                    value: c.pointsPerGame.value,
+                    value: d.pointsPerGame.value,
                     min: 5,
                     max: 30,
-                    onChanged: (v) => c.pointsPerGame.value = v,
+                    onChanged: (v) => d.pointsPerGame.value = v,
                   ),
                   SwitchRow(
                     label: 'Win by 2 points',
                     hint: 'A game at deuce continues until one side leads by 2.',
-                    value: c.winByTwo.value,
-                    onChanged: (v) => c.winByTwo.value = v,
+                    value: d.winByTwo.value,
+                    onChanged: (v) => d.winByTwo.value = v,
                   ),
                 ],
               )),
@@ -587,39 +769,81 @@ class RulesStep extends GetView<CreateTournamentController> {
 // ─── 6. Points ──────────────────────────────────────────────────
 
 class PointsStep extends GetView<CreateTournamentController> {
-  const PointsStep({super.key});
+  final DivisionDraft d;
+  final int index;
+  const PointsStep({super.key, required this.d, required this.index});
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
     return _StepBody(
-      title: 'Points table',
+      title: c.multiDivision.value ? '${d.name} points' : 'Points table',
       subtitle: 'Points for each result in the league stage.',
       children: [
         FormCard(
           child: Obx(() => Column(
                 children: [
-                  NumberStepper(label: 'Win', value: c.ptsWin.value, min: 0, max: 10, onChanged: (v) => c.ptsWin.value = v),
-                  NumberStepper(label: 'Tie', value: c.ptsTie.value, min: 0, max: 10, onChanged: (v) => c.ptsTie.value = v),
+                  NumberStepper(label: 'Win', value: d.ptsWin.value, min: 0, max: 10, onChanged: (v) => d.ptsWin.value = v),
+                  NumberStepper(
+                    label: c.sport.value == 'FOOTBALL' ? 'Draw' : 'Tie',
+                    value: d.ptsTie.value,
+                    min: 0,
+                    max: 10,
+                    onChanged: (v) => d.ptsTie.value = v,
+                  ),
                   NumberStepper(
                     label: 'No result',
                     hint: 'Abandoned or washed out',
-                    value: c.ptsNoResult.value,
+                    value: d.ptsNoResult.value,
                     min: 0,
                     max: 10,
-                    onChanged: (v) => c.ptsNoResult.value = v,
+                    onChanged: (v) => d.ptsNoResult.value = v,
                   ),
-                  NumberStepper(label: 'Loss', value: c.ptsLoss.value, min: 0, max: 10, onChanged: (v) => c.ptsLoss.value = v),
+                  NumberStepper(label: 'Loss', value: d.ptsLoss.value, min: 0, max: 10, onChanged: (v) => d.ptsLoss.value = v),
                 ],
               )),
         ),
         gapH(20),
-        const FormLabel('If teams are level on points', hint: 'Used to decide who ranks higher.'),
-        Obx(() => ChoiceChips(
-              options: TournamentOptions.tiebreakers[c.sport.value] ?? const [],
-              selected: c.tiebreaker.value,
-              onSelected: (v) => c.tiebreaker.value = v,
-            )),
+        const FormLabel('If teams are level on points', hint: 'Checked in this order. Tap to add or remove.'),
+        Obx(() {
+          final options = TournamentOptions.tiebreakers[c.sport.value] ?? const [];
+          return Wrap(
+            spacing: SizeConfig.w(8),
+            runSpacing: SizeConfig.h(8),
+            children: [
+              for (final (code, label) in options)
+                GestureDetector(
+                  onTap: () => d.toggleTiebreaker(code),
+                  child: Container(
+                    padding: EdgeInsets.fromLTRB(SizeConfig.w(8), SizeConfig.h(7), SizeConfig.w(14), SizeConfig.h(7)),
+                    decoration: BoxDecoration(
+                      color: d.tiebreakers.contains(code) ? AppColors.primary : AppColors.primary.withAlpha(8),
+                      borderRadius: BorderRadius.circular(SizeConfig.r(100)),
+                      border: Border.all(color: d.tiebreakers.contains(code) ? AppColors.primary : AppColors.primary.withAlpha(35), width: 1.2),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: SizeConfig.r(20),
+                          height: SizeConfig.r(20),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: d.tiebreakers.contains(code) ? Colors.black.withAlpha(60) : Colors.white.withAlpha(15),
+                          ),
+                          child: Text(d.tiebreakers.contains(code) ? '${d.tiebreakers.indexOf(code) + 1}' : '+',
+                              style: tfStyle(11, weight: FontWeight.w800)),
+                        ),
+                        SizedBox(width: SizeConfig.w(8)),
+                        Text(label, style: tfStyle(13, weight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        }),
       ],
     );
   }
@@ -628,19 +852,21 @@ class PointsStep extends GetView<CreateTournamentController> {
 // ─── 7. Fees & prize ────────────────────────────────────────────
 
 class FeesStep extends GetView<CreateTournamentController> {
-  const FeesStep({super.key});
+  final DivisionDraft d;
+  final int index;
+  const FeesStep({super.key, required this.d, required this.index});
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
     return _StepBody(
-      title: 'Entry fee & prize',
-      subtitle: 'Leave the fee empty for a free tournament.',
+      title: c.multiDivision.value ? '${d.name} fee & prize' : 'Entry fee & prize',
+      subtitle: c.multiDivision.value ? 'Leave the fee empty if this division is free.' : 'Leave the fee empty for a free tournament.',
       children: [
         const FormLabel('Entry fee per team', optional: true),
         FieldTextInput(
           key: const ValueKey('t-fee'),
-          controller: c.entryFeeCtrl,
+          controller: d.entryFeeCtrl,
           hint: '0',
           prefixText: '₹ ',
           keyboardType: TextInputType.number,
@@ -655,13 +881,13 @@ class FeesStep extends GetView<CreateTournamentController> {
         ),
         gapH(24),
         const FormLabel('Prize'),
-        Obx(() => ChoiceChips(options: TournamentOptions.prizeTypes, selected: c.prizeType.value, onSelected: (v) => c.prizeType.value = v)),
-        Obx(() => c.prizeType.value == 'NONE'
+        Obx(() => ChoiceChips(options: TournamentOptions.prizeTypes, selected: d.prizeType.value, onSelected: (v) => d.prizeType.value = v)),
+        Obx(() => d.prizeType.value == 'NONE'
             ? const SizedBox.shrink()
             : Padding(
                 padding: EdgeInsets.only(top: SizeConfig.h(12)),
                 child: FieldTextInput(
-                  controller: c.prizeCtrl,
+                  controller: d.prizeCtrl,
                   hint: 'e.g. Winner ₹21,000 + trophy, runner-up ₹11,000',
                   maxLines: 3,
                   maxLength: 255,
@@ -936,19 +1162,38 @@ class ReviewStep extends GetView<CreateTournamentController> {
     final c = controller;
     String label(List<(String, String)> o, String code) => Sports.labelOf(o, code);
     final sport = Sports.byCode(c.sport.value);
-    final format = TournamentOptions.formats.where((f) => f.$1 == c.format.value).firstOrNull?.$2 ?? '';
+    final isRacket = c.sport.value == 'BADMINTON' || c.sport.value == 'PICKLEBALL';
 
-    String rulesSummary() {
+    String rulesSummary(DivisionDraft d) {
       switch (c.sport.value) {
         case 'CRICKET':
-          final t = label(TournamentOptions.cricketMatchTypes, c.matchType.value);
-          final o = c.matchType.value == 'TEST' ? '' : ', ${c.overs.value} overs';
-          return '$t$o, ${label(TournamentOptions.ballTypes, c.ballType.value).toLowerCase()} ball, ${c.playersPerSide.value} a side';
+          final t = label(TournamentOptions.cricketMatchTypes, d.matchType.value);
+          final o = d.matchType.value == 'TEST' ? '' : ', ${d.overs.value} overs';
+          return '$t$o, ${label(TournamentOptions.ballTypes, d.ballType.value).toLowerCase()} ball, ${d.playersPerSide.value} a side';
         case 'FOOTBALL':
-          return '${c.footballPlayers.value} a side, 2 × ${c.halfMinutes.value} min';
+          return '${d.footballPlayers.value} a side, 2 × ${d.halfMinutes.value} min';
         default:
-          return '${label(TournamentOptions.racketEvents, c.racketEvent.value)}, best of ${c.games.value}, ${c.pointsPerGame.value} points';
+          return '${label(TournamentOptions.racketEvents, d.racketEvent.value)}, best of ${d.games.value}, ${d.pointsPerGame.value} points';
       }
+    }
+
+    List<String> divisionLines(DivisionDraft d) {
+      final format = TournamentOptions.formats.where((f) => f.$1 == d.format.value).firstOrNull?.$2 ?? 'No format yet';
+      final tbs = d.tiebreakers.map((t) => label(TournamentOptions.tiebreakers[c.sport.value] ?? const [], t).toLowerCase()).join(', then ');
+      final age = d.maxAge.value != null ? 'Under ${d.maxAge.value! + 1}' : d.minAge.value != null ? '${d.minAge.value} and over' : null;
+      return [
+        [if (age != null && age.toLowerCase() != d.name.toLowerCase()) age, '$format · ${d.maxTeams.value} ${isRacket ? 'entries' : 'teams'}'].join(' · '),
+        if (d.format.value == 'LEAGUE_KNOCKOUT')
+          '${d.groupCount.value} ${d.groupCount.value == 1 ? 'group' : 'groups'}, top ${d.qualifyPerGroup.value} qualify',
+        '${rulesSummary(d)} · squad of ${d.squadMin.value} to ${d.squadMax.value}',
+        if (d.format.value != 'KNOCKOUT')
+          'Win ${d.ptsWin.value} · ${c.sport.value == 'FOOTBALL' ? 'Draw' : 'Tie'} ${d.ptsTie.value} · Loss ${d.ptsLoss.value}${tbs.isEmpty ? '' : ' · then $tbs'}',
+        [
+          d.entryFee > 0 ? '${rupees(d.entryFee)} per team' : 'Free entry',
+          if (d.prizeType.value != 'NONE')
+            d.prizeCtrl.text.trim().isEmpty ? label(TournamentOptions.prizeTypes, d.prizeType.value) : d.prizeCtrl.text.trim(),
+        ].join(' · '),
+      ];
     }
 
     return Obx(() {
@@ -1011,23 +1256,15 @@ class ReviewStep extends GetView<CreateTournamentController> {
                 : '${fmtDate(c.startDate.value)} to ${fmtDate(c.endDate.value)}',
             '${label(TournamentOptions.matchDays, c.matchDays.value)} · ${label(TournamentOptions.matchTimings, c.matchTiming.value)}',
           ]),
-          _ReviewSection(step: 'format', title: 'Format', lines: [
-            '$format · ${c.maxTeams.value} ${c.sport.value == 'BADMINTON' || c.sport.value == 'PICKLEBALL' ? 'entries' : 'teams'}',
-            if (c.format.value == 'LEAGUE_KNOCKOUT') '${c.groupCount.value} groups, top ${c.qualifyPerGroup.value} qualify',
-            'Squad of ${c.squadMin.value} to ${c.squadMax.value} players',
-          ]),
-          _ReviewSection(step: 'rules', title: 'Match rules', lines: [rulesSummary()]),
-          if (steps.contains('points'))
-            _ReviewSection(step: 'points', title: 'Points', lines: [
-              'Win ${c.ptsWin.value} · Tie ${c.ptsTie.value} · No result ${c.ptsNoResult.value} · Loss ${c.ptsLoss.value}',
-              'Tie-breaker: ${label(TournamentOptions.tiebreakers[c.sport.value] ?? const [], c.tiebreaker.value)}',
-            ]),
-          _ReviewSection(step: 'fees', title: 'Entry fee & prize', lines: [
-            c.entryFee > 0 ? '${rupees(c.entryFee)} per team' : 'Free entry',
-            c.prizeType.value == 'NONE'
-                ? 'No prize'
-                : (c.prizeCtrl.text.trim().isEmpty ? label(TournamentOptions.prizeTypes, c.prizeType.value) : c.prizeCtrl.text.trim()),
-          ]),
+          if (c.multiDivision.value)
+            _ReviewSection(step: 'divisions', title: 'Divisions', lines: [c.divisions.map((d) => d.name).join(' · ')]),
+          for (var i = 0; i < c.divisions.length; i++)
+            _ReviewSection(
+              step: 'format@$i',
+              also: [for (final k in ['rules', 'points', 'fees']) if (steps.contains('$k@$i')) '$k@$i'],
+              title: c.multiDivision.value ? c.divisions[i].name : 'Format, rules & fee',
+              lines: divisionLines(c.divisions[i]),
+            ),
           if (steps.contains('payment'))
             _ReviewSection(step: 'payment', title: 'Payment', lines: [
               '${c.upiCtrl.text.trim()} (${c.upiNameCtrl.text.trim()})',
@@ -1062,13 +1299,14 @@ class ReviewStep extends GetView<CreateTournamentController> {
 
 class _ReviewSection extends GetView<CreateTournamentController> {
   final String step;
+  final List<String> also; // more steps whose errors show on this card
   final String title;
   final List<String> lines;
-  const _ReviewSection({required this.step, required this.title, required this.lines});
+  const _ReviewSection({required this.step, required this.title, required this.lines, this.also = const []});
 
   @override
   Widget build(BuildContext context) {
-    final error = controller.validate(step);
+    final error = [step, ...also].map(controller.validate).whereType<String>().firstOrNull;
     return Padding(
       padding: EdgeInsets.only(bottom: SizeConfig.h(10)),
       child: GestureDetector(

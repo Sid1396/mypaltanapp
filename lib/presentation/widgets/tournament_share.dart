@@ -28,11 +28,20 @@ String shortDates(Tournament t) {
   return '${s.day} ${_months[s.month - 1]} – ${e.day} ${_months[e.month - 1]}';
 }
 
+/// "Free entry", "Entry ₹2,500" or "Entry from ₹500" when divisions charge different fees.
+String feeLabel(Tournament t) {
+  if (t.maxEntryFee == 0) return 'Free entry';
+  if (t.minEntryFee == t.maxEntryFee) return 'Entry ${rupees(t.maxEntryFee)}';
+  return t.minEntryFee == 0 ? 'Entry up to ${rupees(t.maxEntryFee)}' : 'Entry from ${rupees(t.minEntryFee)}';
+}
+
 String shareMessage(Tournament t) {
+  final prize = t.hasDivisions ? null : (t.divisions.isNotEmpty ? t.divisions.first.prizeDetails : t.prizeDetails);
   final lines = [
     '${_sportEmoji[t.sport] ?? '🏆'} *${t.name}*',
     '📅 ${shortDates(t)} · 📍 ${t.area}',
-    '💰 ${t.entryFee > 0 ? 'Entry ${rupees(t.entryFee)}' : 'Free entry'}${t.prizeType != 'NONE' && t.prizeDetails != null ? ' · 🏆 ${t.prizeDetails}' : ''}',
+    if (t.hasDivisions) '🏅 ${t.divisions.map((d) => d.name).join(' · ')}',
+    '💰 ${feeLabel(t)}${prize != null ? ' · 🏆 $prize' : ''}',
     '',
     'Register your team on MyPaltan 👇',
     DeepLinkService.tournamentUrl(t.code),
@@ -332,9 +341,9 @@ class TournamentPoster extends StatelessWidget {
                     SizedBox(height: u(16)),
                     _fact(u, s, Icons.calendar_today_rounded, shortDates(t)),
                     _fact(u, s, Icons.place_rounded, [t.area, t.city].where((x) => x.isNotEmpty).join(', ')),
-                    _fact(u, s, Icons.currency_rupee_rounded,
-                        '${t.entryFee > 0 ? 'Entry ${rupees(t.entryFee)}' : 'Free entry'}  ·  ${t.maxTeams} teams'),
-                    if (t.prizeType != 'NONE' && t.prizeDetails != null) _fact(u, s, Icons.emoji_events_rounded, t.prizeDetails!),
+                    if (t.hasDivisions) _fact(u, s, Icons.view_week_rounded, t.divisions.map((d) => d.name).join(' · ')),
+                    _fact(u, s, Icons.currency_rupee_rounded, '${feeLabel(t)}  ·  ${t.maxTeams} teams'),
+                    if (!t.hasDivisions && t.prizeType != 'NONE' && t.prizeDetails != null) _fact(u, s, Icons.emoji_events_rounded, t.prizeDetails!),
                     const Spacer(),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,

@@ -37,12 +37,28 @@ class TournamentOptions {
   static const racketEvents = [('SINGLES', 'Singles'), ('DOUBLES', 'Doubles'), ('MIXED', 'Mixed doubles')];
   static const pickleballScoring = [('SIDE_OUT', 'Side-out'), ('RALLY', 'Rally')];
 
+  /// Tie-breakers allowed per sport (same as the server), in a sensible default order.
   static const tiebreakers = {
-    'CRICKET': [('NRR', 'Net run rate'), ('HEAD_TO_HEAD', 'Head to head')],
-    'FOOTBALL': [('GOAL_DIFF', 'Goal difference'), ('HEAD_TO_HEAD', 'Head to head')],
-    'BADMINTON': [('POINT_DIFF', 'Point difference'), ('HEAD_TO_HEAD', 'Head to head')],
-    'PICKLEBALL': [('POINT_DIFF', 'Point difference'), ('HEAD_TO_HEAD', 'Head to head')],
+    'CRICKET': [('NRR', 'Net run rate'), ('HEAD_TO_HEAD', 'Head to head'), ('WINS', 'Most wins')],
+    'FOOTBALL': [('GOAL_DIFF', 'Goal difference'), ('GOALS_FOR', 'Goals scored'), ('HEAD_TO_HEAD', 'Head to head'), ('SHOOTOUT', 'Penalty shootout')],
+    'BADMINTON': [('GAMES_DIFF', 'Games difference'), ('POINT_DIFF', 'Point difference'), ('HEAD_TO_HEAD', 'Head to head')],
+    'PICKLEBALL': [('GAMES_DIFF', 'Games difference'), ('POINT_DIFF', 'Point difference'), ('HEAD_TO_HEAD', 'Head to head')],
   };
+  static const tiebreakerDefaults = {
+    'CRICKET': ['NRR', 'HEAD_TO_HEAD'],
+    'FOOTBALL': ['GOAL_DIFF', 'GOALS_FOR', 'HEAD_TO_HEAD'],
+    'BADMINTON': ['GAMES_DIFF', 'POINT_DIFF', 'HEAD_TO_HEAD'],
+    'PICKLEBALL': ['GAMES_DIFF', 'POINT_DIFF', 'HEAD_TO_HEAD'],
+  };
+
+  /// Default points (win, tie/draw, no result, loss). Football uses 3 for a win.
+  static const pointDefaults = {'CRICKET': (2, 1, 1, 0), 'FOOTBALL': (3, 1, 1, 0), 'BADMINTON': (2, 1, 1, 0), 'PICKLEBALL': (2, 1, 1, 0)};
+
+  /// Quick names when adding divisions. "Under N" also sets the age limit (under N on the start date).
+  static const divisionSuggestions = [
+    'Under 7', 'Under 9', 'Under 11', 'Under 13', 'Under 15', 'Under 17', 'Under 19',
+    'Open', 'Men', 'Women', 'Mixed', 'Veterans 40+', 'Corporate',
+  ];
 
   /// Default squad (min, max) per sport, same as the server.
   static const squadDefaults = {'CRICKET': (6, 25), 'FOOTBALL': (5, 25), 'BADMINTON': (1, 2), 'PICKLEBALL': (1, 2)};
