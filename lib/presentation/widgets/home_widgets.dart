@@ -282,7 +282,9 @@ class TournamentCard extends StatelessWidget {
     final sport = Sports.byCode(t.sport);
     final imageSize = compact ? SizeConfig.w(220) : double.infinity;
     return GestureDetector(
-      onTap: () => Get.toNamed(AppRoutes.tournamentDetail, arguments: t),
+      onTap: () => t.code != null
+          ? Get.toNamed(AppRoutes.tournament, arguments: {'code': t.code})
+          : Get.toNamed(AppRoutes.tournamentDetail, arguments: t),
       child: Container(
         width: compact ? SizeConfig.w(220) : null,
         decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(SizeConfig.r(18))),

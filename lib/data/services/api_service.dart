@@ -125,6 +125,12 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  /// Deletes a draft the user organises. Published tournaments cannot be deleted.
+  Future<Map<String, dynamic>> deleteTournament(String code) => _send(
+        () => http.post(Uri.parse('$_base/tournaments/delete'), headers: _authHeaders, body: jsonEncode({'code': code})),
+        authed: true,
+      );
+
   Future<Map<String, dynamic>> getMyTournaments() => _send(
         () => http.get(Uri.parse('$_base/tournaments/mine'), headers: _authHeaders),
         authed: true,

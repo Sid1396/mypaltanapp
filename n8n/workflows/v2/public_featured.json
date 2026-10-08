@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "03131af4-22b2-45cf-b06d-f6ab9fb0645f",
+      "id": "7256945e-325b-4458-88bb-77cf52c47e04",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -20,10 +20,10 @@
           "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
         }
       },
-      "webhookId": "7fd28369-6f22-4bcf-a776-eb5808d981bc"
+      "webhookId": "ceb75155-8104-4722-9781-81d51effddf5"
     },
     {
-      "id": "5f19d7fb-7a7c-4f2d-9729-6ba228528938",
+      "id": "eb0de461-91ee-49da-9272-55d252dade41",
       "name": "Load Tournaments",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -33,7 +33,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT 'tournament' AS _set, slug, name, sport, logo_url, logo_key, DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date, area, city, tags, status FROM featured_tournaments WHERE is_active = 1 ORDER BY sort_order, id",
+        "query": "SELECT 'tournament' AS _set, NULL AS slug, t.code, t.name, t.sport, NULL AS logo_url, t.logo_key, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, t.area, t.city, JSON_ARRAY(CASE t.format WHEN 'LEAGUE' THEN 'League' WHEN 'KNOCKOUT' THEN 'Knockout' ELSE 'Groups + knockout' END, IF(t.entry_fee > 0, CONCAT('Entry \u20b9', FORMAT(t.entry_fee, 0, 'en_IN')), 'Free entry')) AS tags, t.status FROM tournaments t WHERE t.visibility = 'PUBLIC' AND t.status IN ('REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'FIXTURES_READY', 'LIVE') AND t.end_date >= CURDATE() ORDER BY t.start_date LIMIT 20; SELECT 'tournament' AS _set, slug, NULL AS code, name, sport, logo_url, logo_key, DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date, area, city, tags, status FROM featured_tournaments WHERE is_active = 1 ORDER BY sort_order, id",
         "options": {
           "queryReplacement": ""
         }
@@ -47,7 +47,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "0f33ccd3-0391-4b13-bdc7-862035b279ee",
+      "id": "2643835f-8658-4342-8a1e-17b2905cb9ec",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -60,7 +60,7 @@
       }
     },
     {
-      "id": "0e8d9012-c9e9-40de-8734-c6220d4897e7",
+      "id": "357d6f7f-0bfa-42db-a84f-dba18d8490ac",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -85,7 +85,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "8cb5074f-207c-435f-af8c-5415152f0777",
+      "id": "b547b3ab-3770-499a-aa45-bfc0355523bf",
       "name": "Logo Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -117,7 +117,39 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "b3aeb40d-b91a-4dcc-8373-799146887b3d",
+      "id": "b144f1ad-6eee-456a-a261-eb9a1732a425",
+      "name": "Assets Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_download_authorization",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ bucketId: '57d8ff72a9534e199bf30918', fileNamePrefix: 'tournament_assets/', validDurationInSeconds: 86400 }) }}"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b69b549c-edfd-43e4-adf4-b4e50d8207f0",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -126,11 +158,11 @@
         0
       ],
       "parameters": {
-        "jsCode": "\nconst rows = $('Load Tournaments').all().map(i => i.json).filter(r => r && r._set);\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst link = $('Logo Link').isExecuted ? $('Logo Link').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst signed = key => (key && dl && link?.authorizationToken)\n  ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${link.authorizationToken}`\n  : null;\nconst parseTags = t => { if (Array.isArray(t)) return t; try { return JSON.parse(t || '[]'); } catch { return []; } };\nconst tournaments = rows.filter(r => r._set === 'tournament').map(r => ({\n  slug: r.slug, name: r.name, sport: r.sport, logo_url: signed(r.logo_key) || r.logo_url || null, start_date: r.start_date || null,\n  area: r.area || null, city: r.city, tags: parseTags(r.tags), status: r.status,\n}));\nconst banners = rows.filter(r => r._set === 'banner').map(r => ({\n  id: r.id, title: r.title, subtitle: r.subtitle || null, badge: r.badge || null, image_url: signed(r.image_key) || r.image_url || null,\n  theme: r.theme, cta_label: r.cta_label || null, link_type: r.link_type, link_value: r.link_value || null,\n}));\nconst unreadRow = rows.find(r => r._set === 'unread');\n\nreturn [{ json: { status: 200, body: { success: true, featured_tournaments: tournaments } } }];"
+        "jsCode": "\nconst rows = $('Load Tournaments').all().map(i => i.json).filter(r => r && r._set);\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst signed = key => {\n  const t = key && tokenOf(key.startsWith('tournament_assets/') ? 'Assets Link' : 'Logo Link');\n  return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null;\n};\nconst parseTags = t => { if (Array.isArray(t)) return t; try { return JSON.parse(t || '[]'); } catch { return []; } };\n// Approved public tournaments first (they can be joined now), then the featured leagues.\nconst tournaments = rows.filter(r => r._set === 'tournament').map(r => ({\n  slug: r.slug || null, code: r.code || null, name: r.name, sport: r.sport, logo_url: signed(r.logo_key) || r.logo_url || null, start_date: r.start_date || null,\n  area: r.area || null, city: r.city, tags: parseTags(r.tags), status: r.status,\n}));\nconst banners = rows.filter(r => r._set === 'banner').map(r => ({\n  id: r.id, title: r.title, subtitle: r.subtitle || null, badge: r.badge || null, image_url: signed(r.image_key) || r.image_url || null,\n  theme: r.theme, cta_label: r.cta_label || null, link_type: r.link_type, link_value: r.link_value || null,\n}));\nconst unreadRow = rows.find(r => r._set === 'unread');\n\nreturn [{ json: { status: 200, body: { success: true, featured_tournaments: tournaments } } }];"
       }
     },
     {
-      "id": "fc4bae51-0495-48f0-985a-3f152acc32ac",
+      "id": "6472248f-09fd-4bea-9338-5f914d7dca1d",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -182,6 +214,17 @@
       ]
     },
     "Logo Link": {
+      "main": [
+        [
+          {
+            "node": "Assets Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assets Link": {
       "main": [
         [
           {

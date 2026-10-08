@@ -36,8 +36,11 @@ class HomeBanner {
       );
 }
 
+/// A card in "Upcoming". Either a featured league (slug, info page only) or a real
+/// public tournament (code, opens the full tournament page).
 class FeaturedTournament {
   final String slug;
+  final String? code;
   final String name;
   final String sport;
   final String? logoUrl;
@@ -49,6 +52,7 @@ class FeaturedTournament {
 
   const FeaturedTournament({
     required this.slug,
+    this.code,
     required this.name,
     required this.sport,
     this.logoUrl,
@@ -63,6 +67,7 @@ class FeaturedTournament {
     'COMING_SOON': 'Registrations open soon',
     'REGISTRATION_OPEN': 'Registrations open',
     'REGISTRATION_CLOSED': 'Registrations closed',
+    'FIXTURES_READY': 'Fixtures out',
     'LIVE': 'Live now',
     'COMPLETED': 'Completed',
   };
@@ -76,6 +81,7 @@ class FeaturedTournament {
 
   factory FeaturedTournament.fromJson(Map<String, dynamic> j) => FeaturedTournament(
         slug: j['slug']?.toString() ?? '',
+        code: j['code']?.toString(),
         name: j['name']?.toString() ?? '',
         sport: j['sport']?.toString() ?? 'CRICKET',
         logoUrl: j['logo_url']?.toString(),

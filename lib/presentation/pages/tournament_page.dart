@@ -386,6 +386,22 @@ class _OwnerCard extends GetView<TournamentController> {
               ),
             ],
           ),
+          if (t.isDraft) ...[
+            gapH(10),
+            Obx(() => GestureDetector(
+                  key: const ValueKey('delete-draft'),
+                  onTap: controller.isDeleting.value ? null : controller.confirmDeleteDraft,
+                  child: Row(
+                    children: [
+                      controller.isDeleting.value
+                          ? SizedBox(width: SizeConfig.r(15), height: SizeConfig.r(15), child: const CircularProgressIndicator(strokeWidth: 2, color: AppColors.negative))
+                          : Icon(Icons.delete_outline_rounded, size: SizeConfig.r(17), color: AppColors.negative),
+                      SizedBox(width: SizeConfig.w(6)),
+                      Text('Delete draft', style: tfStyle(13, weight: FontWeight.w700, color: AppColors.negative)),
+                    ],
+                  ),
+                )),
+          ],
         ],
       ),
     );

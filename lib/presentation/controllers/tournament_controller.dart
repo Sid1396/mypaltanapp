@@ -22,6 +22,7 @@ class TournamentController extends GetxController with LoggerMixin {
   final isLoading = true.obs;
   final error = Rx<String?>(null);
   final isPublishing = false.obs;
+  final isDeleting = false.obs;
   final tab = 0.obs;
 
   // Sponsor impressions, sent in batches. The organiser's own views are not counted.
@@ -68,6 +69,46 @@ class TournamentController extends GetxController with LoggerMixin {
   Future<void> edit() async {
     final changed = await Get.toNamed(AppRoutes.createTournament, arguments: {'code': code});
     if (changed == true) load();
+  }
+
+  void confirmDeleteDraft() {
+    Get.dialog(AlertDialog(
+      backgroundColor: AppColors.darkSurface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(SizeConfig.r(18))),
+      title: Text('Delete this draft?', style: tfStyle(18, weight: FontWeight.w800)),
+      content: Text(
+        'The tournament, its documents, sponsors and images will be removed. This cannot be undone.',
+        style: tfStyle(13.5, color: Colors.white.withAlpha(180), height: 1.45),
+      ),
+      actions: [
+        TextButton(onPressed: Get.back, child: Text('Keep it', style: tfStyle(14, color: Colors.white.withAlpha(180)))),
+        TextButton(
+          key: const ValueKey('delete-draft-confirm'),
+          onPressed: () {
+            Get.back();
+            _deleteDraft();
+          },
+          child: Text('Delete', style: tfStyle(14, weight: FontWeight.w700, color: AppColors.negative)),
+        ),
+      ],
+    ));
+  }
+
+  Future<void> _deleteDraft() async {
+    isDeleting.value = true;
+    try {
+      final res = await _api.deleteTournament(code);
+      if (res['success'] != true) {
+        AppSnackbar.error('Could not delete', res['message']?.toString() ?? 'Please try again.');
+        return;
+      }
+      Get.back(result: 'deleted');
+      AppSnackbar.success('Draft deleted', '${tournament.value?.name ?? 'The tournament'} was removed.');
+    } on ApiException catch (e) {
+      AppSnackbar.error('Could not delete', e.message);
+    } finally {
+      isDeleting.value = false;
+    }
   }
 
   void copyCode() {
