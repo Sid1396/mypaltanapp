@@ -364,9 +364,9 @@ void main() {
     await shot('tournament_draft');
     await t.drag(find.byType(CustomScrollView), const Offset(0, -500));
     await shot('tournament_about');
-    await t.tap(find.byKey(const ValueKey('tournament-tab-2')));
-    await shot('tournament_sponsors');
     await t.tap(find.byKey(const ValueKey('tournament-tab-3')));
+    await shot('tournament_sponsors');
+    await t.tap(find.byKey(const ValueKey('tournament-tab-4')));
     await shot('tournament_documents');
     await t.tap(find.text('Rules'));
     await pumpFor(t, const Duration(seconds: 4));

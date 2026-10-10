@@ -1,12 +1,14 @@
 import 'package:get/get.dart';
 import '../presentation/bindings/onboarding_binding.dart';
 import '../presentation/controllers/create_tournament_controller.dart';
+import '../presentation/controllers/fixtures_setup_controller.dart';
 import '../presentation/controllers/team_controllers.dart';
 import '../presentation/controllers/register_team_controller.dart';
 import '../presentation/controllers/tournament_controller.dart';
 import '../presentation/controllers/verify_identity_controller.dart';
 import '../presentation/pages/create_tournament_page.dart';
 import '../presentation/pages/document_viewer_page.dart';
+import '../presentation/pages/fixtures_setup_page.dart';
 import '../presentation/pages/team_form_page.dart';
 import '../presentation/pages/team_page.dart';
 import '../presentation/pages/login_page.dart';
@@ -33,6 +35,7 @@ class AppRoutes {
   static const String tournament = '/tournament';
   static const String createTournament = '/tournament/create';
   static const String registerTeam = '/tournament/register';
+  static const String fixturesSetup = '/tournament/fixtures';
   static const String verifyIdentity = '/verify-identity';
   static const String documentViewer = '/document';
   static const String team = '/team';
@@ -84,6 +87,14 @@ class AppRoutes {
             Get.put(TeamController());
           }),
           transition: Transition.rightToLeft,
+        ),
+        GetPage(
+          name: fixturesSetup,
+          page: () => const FixturesSetupPage(),
+          binding: BindingsBuilder(() {
+            Get.put(FixturesSetupController());
+          }),
+          transition: Transition.downToUp,
         ),
         GetPage(
           name: registerTeam,

@@ -202,6 +202,25 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  // ─── Fixtures ─────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getFixtures(String tournamentCode) => _send(
+        () => http.get(Uri.parse('$_base/fixtures?code=${Uri.encodeQueryComponent(tournamentCode)}'), headers: _authHeaders),
+        authed: true,
+      );
+
+  /// Makes (or makes again) the whole schedule. Organiser only.
+  Future<Map<String, dynamic>> generateFixtures(Map<String, dynamic> body) => _send(
+        () => http.post(Uri.parse('$_base/fixtures/generate'), headers: _authHeaders, body: jsonEncode(body)),
+        authed: true,
+      );
+
+  /// action: UPDATE (one match's time, pitch or teams) or PUBLISH. Organiser only.
+  Future<Map<String, dynamic>> fixtureAction(Map<String, dynamic> body) => _send(
+        () => http.post(Uri.parse('$_base/fixtures/action'), headers: _authHeaders, body: jsonEncode(body)),
+        authed: true,
+      );
+
   /// action: APPROVE or REJECT (organiser, REJECT needs a reason) or WITHDRAW (team).
   Future<Map<String, dynamic>> updateEntry(int entryId, String action, {String? reason}) => _send(
         () => http.post(Uri.parse('$_base/entries/update'),

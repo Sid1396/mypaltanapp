@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_routes.dart';
 import '../../data/models/entry.dart';
+import '../../data/models/fixtures.dart';
 import '../../data/models/tournament.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/deep_link_service.dart';
@@ -34,6 +35,12 @@ class TournamentController extends GetxController with LoggerMixin {
   final myEntries = <MyEntry>[].obs; // registrations by teams this user manages
   final regOptions = Rx<RegOptions?>(null);
   final expanded = <int>{}.obs;
+
+  // Fixtures
+  final fixtures = Rx<Fixtures?>(null);
+  final fixturesLoaded = false.obs;
+  final fixtureFilter = 0.obs; // 0 = all, -1 = my matches, otherwise a division id
+  final isPublishingFixtures = false.obs;
   final busyEntry = 0.obs;
 
   // Sponsor impressions, sent in batches. The organiser's own views are not counted.
@@ -66,6 +73,7 @@ class TournamentController extends GetxController with LoggerMixin {
         tournament.value = Tournament.fromJson(Map<String, dynamic>.from(res['tournament'] as Map));
         if (!tournament.value!.isDraft) {
           loadEntries();
+          loadFixtures();
           if (!tournament.value!.isOwner) loadMine();
         }
       } else {
@@ -78,6 +86,84 @@ class TournamentController extends GetxController with LoggerMixin {
       isLoading.value = false;
     }
   }
+
+  // ─── Fixtures ─────────────────────────────────────────────────
+
+  Future<void> loadFixtures() async {
+    try {
+      final res = await _api.getFixtures(code);
+      if (res['success'] == true) fixtures.value = Fixtures.fromJson(res);
+    } on ApiException catch (e) {
+      logError('Fixtures failed', e);
+    } finally {
+      fixturesLoaded.value = true;
+    }
+  }
+
+  Future<void> openFixturesSetup() async {
+    final made = await Get.toNamed(AppRoutes.fixturesSetup, arguments: {'code': code});
+    if (made == true) {
+      tab.value = 2;
+      await loadFixtures();
+    }
+  }
+
+  void confirmPublishFixtures() {
+    final f = fixtures.value;
+    if (f == null) return;
+    _confirm(
+      f.published ? 'Publish changes?' : 'Publish fixtures?',
+      f.published
+          ? 'Every coach, captain and squad player gets a notification that the fixtures changed.'
+          : 'Every coach, captain and squad player gets a notification. Registration closes and squads are locked.',
+      'Publish',
+      _publishFixtures,
+      key: 'fixtures-publish-confirm',
+    );
+  }
+
+  Future<void> _publishFixtures() async {
+    isPublishingFixtures.value = true;
+    try {
+      final res = await _api.fixtureAction({'code': code, 'action': 'PUBLISH'});
+      if (res['success'] != true) {
+        AppSnackbar.error('Could not publish', res['message']?.toString() ?? 'Please try again.');
+        return;
+      }
+      AppSnackbar.success('Published', res['message']?.toString() ?? 'Teams have been told.');
+      await Future.wait([load(), loadFixtures()]);
+    } on ApiException catch (e) {
+      AppSnackbar.error('Could not publish', e.message);
+    } finally {
+      isPublishingFixtures.value = false;
+    }
+  }
+
+  /// Saves one match and returns the success message, or null when it failed (the error is shown).
+  Future<String?> updateMatch(FixtureMatch m, DateTime at, int pitch, int? home, int? away) async {
+    try {
+      final res = await _api.fixtureAction({
+        'code': code,
+        'action': 'UPDATE',
+        'match_id': m.id,
+        'scheduled_at': fixtureTimeString(at),
+        'pitch': pitch,
+        'home_entry_id': home,
+        'away_entry_id': away,
+      });
+      if (res['success'] != true) {
+        AppSnackbar.error('Could not save', res['message']?.toString() ?? 'Please try again.');
+        return null;
+      }
+      await loadFixtures();
+      return res['message']?.toString() ?? 'Match updated.';
+    } on ApiException catch (e) {
+      AppSnackbar.error('Could not save', e.message);
+      return null;
+    }
+  }
+
+  void showMessage(String title, String message) => AppSnackbar.success(title, message);
 
   // ─── Registrations ────────────────────────────────────────────
 
