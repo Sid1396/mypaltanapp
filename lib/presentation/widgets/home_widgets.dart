@@ -504,7 +504,14 @@ class MyTournamentCard extends StatelessWidget {
                             style: _gilroy(9.5, weight: FontWeight.w800, color: draft ? Colors.white.withAlpha(170) : AppColors.primary)),
                       ),
                       SizedBox(width: SizeConfig.w(6)),
-                      Text('ORGANISER', style: _gilroy(9.5, weight: FontWeight.w800, color: Colors.white.withAlpha(110))),
+                      Expanded(
+                        child: Text(
+                          t.role == 'ORGANIZER' ? 'ORGANISER' : '${t.role == 'PLAYER' ? 'PLAYING' : 'TEAM'} · ${(t.teamName ?? '').toUpperCase()}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _gilroy(9.5, weight: FontWeight.w800, color: Colors.white.withAlpha(110)),
+                        ),
+                      ),
                     ],
                   ),
                   SizedBox(height: SizeConfig.h(5)),
@@ -514,8 +521,11 @@ class MyTournamentCard extends StatelessWidget {
                     [
                       sport?.label ?? t.sport,
                       if (d != null) '${d.day} ${months[d.month - 1]}',
-                      '${t.approvedTeams}/${t.maxTeams} teams',
-                      if (t.pendingTeams > 0) '${t.pendingTeams} waiting',
+                      if (t.role == 'ORGANIZER') ...[
+                        '${t.approvedTeams}/${t.maxTeams} teams',
+                        if (t.pendingTeams > 0) '${t.pendingTeams} waiting',
+                      ] else
+                        switch (t.entryStatus) { 'APPROVED' => 'Confirmed', 'WAITLISTED' => 'Waitlist', _ => 'Waiting for organiser' },
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

@@ -4,9 +4,11 @@ import '../../config/app_colors.dart';
 import '../../data/models/entry.dart';
 import '../../data/models/tournament.dart';
 import '../../utils/helpers/size_config.dart';
+import '../../utils/helpers/snackbar_helper.dart';
 import '../controllers/tournament_controller.dart';
 import 'create_tournament_steps.dart' show rupees;
 import 'tournament_form_widgets.dart';
+import 'tournament_media_editors.dart' show SmallButtonLarge;
 
 const _amber = Color(0xFFFFB74D);
 
@@ -50,7 +52,10 @@ class MyEntryCard extends GetView<TournamentController> {
 
   @override
   Widget build(BuildContext context) {
-    final division = t.divisions.firstWhereOrNull((d) => d.id == e.divisionId)?.name;
+    final div = t.divisions.firstWhereOrNull((d) => d.id == e.divisionId);
+    final division = div?.name;
+    final squadOpen = e.isActive && t.status == 'REGISTRATION_OPEN';
+    final need = div != null && e.players < div.squadMin ? ' · need ${div.squadMin}' : '';
     final (String title, String body) = switch (e.status) {
       'APPROVED' => ('Your team is in!', '${e.teamName} has a confirmed place${division != null ? ' in $division' : ''}.'),
       'WAITLISTED' => ('On the waitlist', '${division ?? 'The division'} is full. ${e.teamName} moves up if a team drops out.'),
@@ -85,8 +90,25 @@ class MyEntryCard extends GetView<TournamentController> {
           gapH(6),
           Text(body, style: tfStyle(12.5, color: Colors.white.withAlpha(190), height: 1.4)),
           gapH(4),
-          Text('${e.players} players${e.amount > 0 ? ' · ${rupees(e.amount)} ${e.paymentMethod == 'CASH' ? 'cash' : 'UPI'}' : ''}',
+          Text('${e.players}${div != null ? ' of ${div.squadMax}' : ''} players$need${e.amount > 0 ? ' · ${rupees(e.amount)} ${e.paymentMethod == 'CASH' ? 'cash' : 'UPI'}' : ''}',
               style: tfStyle(12, color: Colors.white.withAlpha(130))),
+          if (squadOpen) ...[
+            gapH(12),
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionButton(
+                    key: const ValueKey('entry-squad-link'),
+                    label: 'Invite players',
+                    filled: true,
+                    onTap: () => controller.showSquadLinkSheet(e),
+                  ),
+                ),
+                SizedBox(width: SizeConfig.w(10)),
+                Expanded(child: _ActionButton(key: const ValueKey('entry-squad-edit'), label: 'Edit squad', onTap: () => showEditSquadSheet(e))),
+              ],
+            ),
+          ],
           if (e.status == 'PENDING' || e.status == 'WAITLISTED') ...[
             gapH(10),
             Obx(() => GestureDetector(
@@ -381,4 +403,89 @@ class _ActionButton extends StatelessWidget {
           child: Text(label, style: tfStyle(13.5, weight: FontWeight.w700)),
         ),
       );
+}
+
+// ─── Edit squad ─────────────────────────────────────────────────
+
+void showEditSquadSheet(MyEntry e) {
+  final c = Get.find<TournamentController>();
+  final choices = c.squadChoices(e);
+  final d = c.tournament.value?.divisions.firstWhereOrNull((d) => d.id == e.divisionId);
+  final picked = e.memberIds.toSet().obs;
+  final saving = false.obs;
+  Get.bottomSheet(
+    Builder(builder: (sheet) => Obx(() => SheetFrame(title: 'Edit squad', children: [
+          Text(
+            '${picked.length}${d != null ? ' of ${d.squadMax}' : ''} picked${d != null && picked.length < d.squadMin ? ' · ${d.squadMin} needed by the deadline' : ''}',
+            style: tfStyle(13.5, weight: FontWeight.w700, color: AppColors.primary),
+          ),
+          gapH(4),
+          Text('Players who joined with the squad link are already ticked. Kids without the app are added from the team page.',
+              style: tfStyle(12.5, color: Colors.white.withAlpha(150), height: 1.4)),
+          gapH(12),
+          if (choices.isEmpty) Text('No players in the team yet.', style: tfStyle(13, color: Colors.white.withAlpha(140))),
+          for (final (p, blocked) in choices)
+            GestureDetector(
+              key: ValueKey('squad-edit-${p.memberId}'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                if (blocked != null) return;
+                if (picked.contains(p.memberId)) {
+                  picked.remove(p.memberId);
+                } else if (d == null || picked.length < d.squadMax) {
+                  picked.add(p.memberId);
+                }
+              },
+              child: Opacity(
+                opacity: blocked != null ? 0.45 : 1,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: SizeConfig.h(7)),
+                  child: Row(children: [
+                    ClipOval(
+                      child: SizedBox(
+                        width: SizeConfig.r(34),
+                        height: SizeConfig.r(34),
+                        child: p.photoUrl != null
+                            ? Image.network(p.photoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFF2A2A2A)))
+                            : const ColoredBox(color: Color(0xFF2A2A2A)),
+                      ),
+                    ),
+                    SizedBox(width: SizeConfig.w(12)),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(p.name, style: tfStyle(14, weight: FontWeight.w700)),
+                        Text(blocked ?? [if (p.age != null) 'Age ${p.age}', if (p.isGuest) 'Added by coach'].join(' · '),
+                            style: tfStyle(12, color: blocked != null ? _amber : Colors.white.withAlpha(130))),
+                      ]),
+                    ),
+                    Icon(
+                      blocked != null ? Icons.block_rounded : (picked.contains(p.memberId) ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded),
+                      color: picked.contains(p.memberId) ? AppColors.primary : Colors.white.withAlpha(90),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+          gapH(14),
+          SizedBox(
+            width: double.infinity,
+            child: SmallButtonLarge(
+              key: const ValueKey('squad-edit-save'),
+              label: saving.value ? 'Saving…' : 'Save squad',
+              onTap: saving.value
+                  ? null
+                  : () async {
+                      saving.value = true;
+                      final message = await c.saveSquad(e, picked.toSet());
+                      saving.value = false;
+                      if (message == null || !sheet.mounted) return;
+                      // Close the sheet before the snackbar, or the pop would close the snackbar instead.
+                      Navigator.of(sheet).pop();
+                      AppSnackbar.success('Squad saved', message);
+                    },
+            ),
+          ),
+        ]))),
+    isScrollControlled: true,
+  );
 }

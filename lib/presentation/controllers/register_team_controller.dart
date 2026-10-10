@@ -82,18 +82,7 @@ class RegisterTeamController extends GetxController {
   bool get isLast => step.value >= steps.length - 1;
 
   /// Why this player can't be picked for the chosen division, or null.
-  String? blockedReason(RegPlayer p) {
-    final d = division;
-    if (d != null) {
-      final age = d.ageProblem(p.age);
-      if (age != null && (d.minAge != null || d.maxAge != null)) return age;
-    }
-    if (p.userId != null) {
-      final other = options.value?.taken.firstWhereOrNull((t) => t.userId == p.userId && t.teamCode != teamCode.value);
-      if (other != null) return 'In ${other.teamName}\'s squad';
-    }
-    return null;
-  }
+  String? blockedReason(RegPlayer p) => squadBlockReason(p, division, options.value!, teamCode.value);
 
   void selectTeam(String code) {
     if (teamCode.value == code) return;
@@ -133,8 +122,8 @@ class RegisterTeamController extends GetxController {
         if (division == null) return 'Choose a division.';
         return null;
       case RegStep.squad:
+        // Players can also join later through the squad link, so only the maximum applies now.
         final d = division!;
-        if (picked.length < d.squadMin) return 'Pick at least ${d.squadMin} players. You have ${picked.length}.';
         if (picked.length > d.squadMax) return 'Pick at most ${d.squadMax} players.';
         return null;
       case RegStep.payment:
@@ -236,7 +225,7 @@ class RegisterTeamController extends GetxController {
         if (res['message']?.toString().contains('Refresh') == true) load();
         return;
       }
-      Get.back(result: true);
+      Get.back(result: {'team_code': teamCode.value, 'team_name': team?.name ?? '', 'division': division?.name});
       AppSnackbar.success(res['status'] == 'WAITLISTED' ? 'On the waitlist' : 'Registered', res['message']?.toString() ?? 'The organiser will confirm your team.');
     } on ApiException catch (e) {
       AppSnackbar.error('Could not register', e.message);

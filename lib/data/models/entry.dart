@@ -120,6 +120,7 @@ class MyEntry {
   final String paymentMethod;
   final String? rejectReason;
   final int players;
+  final List<int> memberIds; // team member ids in the squad
 
   const MyEntry({
     required this.id,
@@ -131,6 +132,7 @@ class MyEntry {
     required this.paymentMethod,
     this.rejectReason,
     required this.players,
+    this.memberIds = const [],
   });
 
   bool get isActive => status == 'PENDING' || status == 'WAITLISTED' || status == 'APPROVED';
@@ -145,6 +147,7 @@ class MyEntry {
         paymentMethod: j['payment_method']?.toString() ?? 'NONE',
         rejectReason: _str(j['reject_reason']),
         players: _int(j['players']),
+        memberIds: (j['member_ids'] as List? ?? []).map((v) => _int(v)).toList(),
       );
 }
 
@@ -215,12 +218,27 @@ class RegOptions {
       );
 }
 
+/// Why a player cannot be in [teamCode]'s squad for division [d], or null if they can.
+String? squadBlockReason(RegPlayer p, RegDivision? d, RegOptions o, String teamCode) {
+  if (d != null && (d.minAge != null || d.maxAge != null)) {
+    final age = d.ageProblem(p.age);
+    if (age != null) return age;
+  }
+  if (p.userId != null) {
+    final other = o.taken.where((t) => t.userId == p.userId && t.teamCode != teamCode).firstOrNull;
+    if (other != null) return "In ${other.teamName}'s squad";
+  }
+  return null;
+}
+
 /// A registration as the organiser (or, when confirmed, anyone) sees it.
 class TournamentEntry {
   final int id;
   final String status;
   final int? divisionId;
   final String? division;
+  final int squadMin;
+  final int squadMax;
   final String teamCode;
   final String teamName;
   final String? logoUrl;
@@ -240,6 +258,8 @@ class TournamentEntry {
     required this.status,
     this.divisionId,
     this.division,
+    this.squadMin = 0,
+    this.squadMax = 0,
     required this.teamCode,
     required this.teamName,
     this.logoUrl,
@@ -259,6 +279,8 @@ class TournamentEntry {
         status: j['status']?.toString() ?? 'PENDING',
         divisionId: _intOrNull(j['division_id']),
         division: _str(j['division']),
+        squadMin: _int(j['squad_min']),
+        squadMax: _int(j['squad_max']),
         teamCode: j['team_code']?.toString() ?? '',
         teamName: j['team_name']?.toString() ?? '',
         logoUrl: _str(j['logo_url']),

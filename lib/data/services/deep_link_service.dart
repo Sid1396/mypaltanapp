@@ -10,9 +10,12 @@ class DeepLinkService extends GetxService with LoggerMixin {
   static const host = 'mypaltan.com';
   static String tournamentUrl(String code) => 'https://$host/tournament/$code';
 
+  /// The captain's link for players to join the team's squad in a tournament.
+  static String squadUrl(String teamCode, String tournamentCode) => 'https://$host/team/$teamCode?t=$tournamentCode';
+
   final _links = AppLinks();
   StreamSubscription<Uri>? _sub;
-  (String, String)? _pending;
+  Uri? _pending;
   bool _ready = false;
 
   @override
@@ -43,13 +46,18 @@ class DeepLinkService extends GetxService with LoggerMixin {
     return RegExp(r'^[A-Z0-9]{6}$').hasMatch(code) ? (segments[0], code) : null;
   }
 
+  /// The tournament in a squad link (?t=CODE), or null.
+  static String? squadTournamentFrom(Uri uri) {
+    final t = uri.queryParameters['t']?.toUpperCase();
+    return t != null && RegExp(r'^[A-Z0-9]{6}$').hasMatch(t) ? t : null;
+  }
+
   void _handle(Uri uri) {
-    final target = targetFrom(uri);
-    if (target == null) return;
+    if (targetFrom(uri) == null) return;
     if (_ready) {
-      _open(target);
+      _open(uri);
     } else {
-      _pending = target;
+      _pending = uri;
     }
   }
 
@@ -57,16 +65,23 @@ class DeepLinkService extends GetxService with LoggerMixin {
   void markReady() {
     if (_ready) return;
     _ready = true;
-    final target = _pending;
+    final uri = _pending;
     _pending = null;
-    if (target != null) _open(target);
+    if (uri != null) _open(uri);
   }
 
   /// Called on logout so the next link waits for login again.
   void reset() => _ready = false;
 
-  void _open((String, String) target) =>
-      target.$1 == 'team' ? Get.toNamed(AppRoutes.team, arguments: {'code': target.$2}) : openTournament(target.$2);
+  void _open(Uri uri) {
+    final target = targetFrom(uri)!;
+    if (target.$1 == 'team') {
+      final tournament = squadTournamentFrom(uri);
+      Get.toNamed(AppRoutes.team, arguments: {'code': target.$2, if (tournament != null) 'tournament': tournament});
+    } else {
+      openTournament(target.$2);
+    }
+  }
 
   void openTournament(String code) {
     if (Get.currentRoute == AppRoutes.tournament && (Get.arguments is Map) && (Get.arguments as Map)['code'] == code) return;

@@ -343,7 +343,9 @@ class MyTournament {
   final int entryFee;
   final int approvedTeams;
   final int pendingTeams;
-  final String role;
+  final String role; // ORGANIZER, TEAM (registered a team), PLAYER (in a squad)
+  final String? teamName;
+  final String? entryStatus;
 
   const MyTournament({
     required this.code,
@@ -359,6 +361,8 @@ class MyTournament {
     required this.approvedTeams,
     required this.pendingTeams,
     required this.role,
+    this.teamName,
+    this.entryStatus,
   });
 
   String get statusLabel => TournamentOptions.statusLabels[status] ?? status;
@@ -377,6 +381,8 @@ class MyTournament {
         approvedTeams: _int(j['approved_teams']),
         pendingTeams: _int(j['pending_teams']),
         role: j['role']?.toString() ?? 'ORGANIZER',
+        teamName: _str(j['team_name']),
+        entryStatus: _str(j['entry_status']),
       );
 }
 

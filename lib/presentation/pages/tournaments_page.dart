@@ -51,7 +51,11 @@ class _TournamentsPageState extends State<TournamentsPage> {
         ),
       Padding(
         padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
-        child: SmallButton(label: 'Create another tournament', filled: false, onTap: m.create),
+        child: SmallButton(
+          label: m.items.any((t) => t.role == 'ORGANIZER') ? 'Create another tournament' : 'Organise a tournament',
+          filled: false,
+          onTap: m.create,
+        ),
       ),
     ];
   }

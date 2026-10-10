@@ -53,7 +53,9 @@ class RegisterTeamPage extends GetView<RegisterTeamController> {
                 if (!(c.current == RegStep.team && o.teams.isEmpty))
                   StepBottomButton(
                     key: const ValueKey('reg-next'),
-                    label: c.isLast ? (c.division?.isFull == true ? 'Join the waitlist' : 'Register team') : 'Continue',
+                    label: c.isLast
+                        ? (c.division?.isFull == true ? 'Join the waitlist' : 'Register team')
+                        : (c.current == RegStep.squad && c.picked.isEmpty ? 'Skip, players join by link' : 'Continue'),
                     loading: c.isSubmitting.value,
                     onPressed: c.next,
                   ),
@@ -111,28 +113,27 @@ class RegisterTeamPage extends GetView<RegisterTeamController> {
     final range = d.squadMin == d.squadMax ? '${d.squadMin}' : '${d.squadMin} to ${d.squadMax}';
     final players = [...t.players]..sort((a, b) => (c.blockedReason(a) == null ? 0 : 1).compareTo(c.blockedReason(b) == null ? 0 : 1));
     return [
-      StepIntro(title: 'Pick your squad', subtitle: 'Choose $range players from ${t.name}. Coaches are not counted.'),
+      StepIntro(
+        title: 'Pick your squad',
+        subtitle: 'Squads have $range players. Tick players already in ${t.name}, or skip: after registering you get a link to send your players.',
+      ),
       gapH(16),
       Row(
         children: [
           Text('${c.picked.length} of ${d.squadMax} picked',
               style: tfStyle(14, weight: FontWeight.w800, color: c.picked.length >= d.squadMin ? AppColors.primary : Colors.white)),
           const Spacer(),
-          if (c.picked.length < d.squadMin) Text('${d.squadMin - c.picked.length} more needed', style: tfStyle(12.5, color: Colors.white.withAlpha(140))),
+          if (c.picked.length < d.squadMin) Text('Need ${d.squadMin} by the deadline', style: tfStyle(12.5, color: Colors.white.withAlpha(140))),
         ],
       ),
       gapH(10),
       if (players.isEmpty)
-        const InfoNote('Your team has no players yet. Share the team link or add players from the team page.')
+        const InfoNote('No players in the team yet. Register now and send the squad link to your players. Kids without the app can be added from the team page.')
       else
         for (final p in players) ...[
           _PlayerTile(p: p, blocked: c.blockedReason(p), selected: c.picked.contains(p.memberId), onTap: () => c.togglePlayer(p)),
           gapH(8),
         ],
-      if (players.length < d.squadMin && players.isNotEmpty) ...[
-        gapH(8),
-        InfoNote('This division needs at least ${d.squadMin} players. Add more players to ${t.name} first.'),
-      ],
       if (c.isLast) ...[gapH(16), _Summary(c: c)],
     ];
   }

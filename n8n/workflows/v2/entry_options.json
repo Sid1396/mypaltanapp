@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "f58bf8c7-daaf-404a-81d1-ab50fc7ba146",
+      "id": "6eb6d680-79c3-45ac-841e-74a41ac0efc9",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -18,10 +18,10 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "webhookId": "706e0d55-46f4-45d5-abdc-4e6ce814cda8"
+      "webhookId": "1b6edfee-1925-4032-a9b6-dc9d6f2e4cd9"
     },
     {
-      "id": "3590118f-6d4c-4524-b87f-ef5ee083b1d8",
+      "id": "48df3c93-a391-412c-b389-c12e375cbe7d",
       "name": "Check Login",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -34,7 +34,7 @@
       }
     },
     {
-      "id": "39e6f35a-7cd9-437f-aace-0238147104c9",
+      "id": "375fd4cd-8044-4f11-acb0-1fcb66169925",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -52,7 +52,7 @@
           },
           "conditions": [
             {
-              "id": "8543f392-e8a7-44ff-85c5-4671195036a8",
+              "id": "746c8045-c76d-4cfb-9b26-7b18f54835d6",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -68,7 +68,7 @@
       }
     },
     {
-      "id": "3aee0a8a-0415-4d57-90fb-7862342875b8",
+      "id": "611aa1a2-0908-4f71-b1e2-16373a507d02",
       "name": "Load Options",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -78,7 +78,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.id, t.code, t.name, t.sport, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS registration_deadline, (t.registration_deadline < NOW()) AS closed, (t.organizer_user_id = viewer.id) AS is_owner, p.upi_id, p.upi_name, p.qr_key, p.accept_cash, p.note AS payment_note, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'sort_order', d.sort_order, 'min_age', d.min_age, 'max_age', d.max_age,   'squad_min', d.squad_min, 'squad_max', d.squad_max, 'max_teams', d.max_teams, 'entry_fee', d.entry_fee,   'approved', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED')))  FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, (SELECT JSON_ARRAYAGG(JSON_OBJECT('code', tm.code, 'name', tm.name, 'logo_key', tm.logo_key, 'my_role', mm.role,   'players', (SELECT JSON_ARRAYAGG(JSON_OBJECT('member_id', x.id, 'user_id', x.user_id, 'name', COALESCE(u.name, x.guest_name),      'photo_key', COALESCE(u.photo_key, x.guest_photo_key), 'position', COALESCE(x.position, s.role), 'is_guest', x.user_id IS NULL,      'age', TIMESTAMPDIFF(YEAR, COALESCE(u.birthdate, x.guest_birthdate), t.start_date), 'jersey_number', COALESCE(x.jersey_number, u.jersey_number)))    FROM team_members x LEFT JOIN app_users u ON u.id = x.user_id LEFT JOIN app_user_sports s ON s.user_id = x.user_id AND s.sport = tm.sport    WHERE x.team_id = tm.id AND x.status = 'ACTIVE' AND x.role <> 'COACH')))  FROM team_members mm JOIN teams tm ON tm.id = mm.team_id  WHERE mm.user_id = viewer.id AND mm.status = 'ACTIVE' AND mm.role IN ('COACH', 'CAPTAIN', 'VICE_CAPTAIN') AND tm.sport = t.sport) AS teams, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', e.id, 'team_code', tm.code, 'team_name', tm.name, 'division_id', e.division_id, 'status', e.status,   'amount', e.amount, 'payment_method', e.payment_method, 'reject_reason', e.reject_reason,   'players', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id)))  FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id  JOIN team_members mm ON mm.team_id = tm.id AND mm.user_id = viewer.id AND mm.status = 'ACTIVE' AND mm.role IN ('COACH', 'CAPTAIN', 'VICE_CAPTAIN')  WHERE e.tournament_id = t.id) AS my_entries, (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', ep.user_id, 'team_code', tt.code, 'team_name', tt.name)) FROM tournament_entry_players ep  JOIN tournament_entries e2 ON e2.id = ep.entry_id JOIN teams tt ON tt.id = e2.team_id  WHERE ep.tournament_id = t.id AND ep.user_id IS NOT NULL AND e2.status IN ('PENDING', 'APPROVED', 'WAITLISTED')) AS taken FROM tournaments t LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id LEFT JOIN app_users viewer ON viewer.phone = $1 WHERE t.code = $2 AND t.status <> 'DRAFT'",
+        "query": "SELECT t.id, t.code, t.name, t.sport, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS registration_deadline, (t.registration_deadline < NOW()) AS closed, (t.organizer_user_id = viewer.id) AS is_owner, p.upi_id, p.upi_name, p.qr_key, p.accept_cash, p.note AS payment_note, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'sort_order', d.sort_order, 'min_age', d.min_age, 'max_age', d.max_age,   'squad_min', d.squad_min, 'squad_max', d.squad_max, 'max_teams', d.max_teams, 'entry_fee', d.entry_fee,   'approved', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED')))  FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, (SELECT JSON_ARRAYAGG(JSON_OBJECT('code', tm.code, 'name', tm.name, 'logo_key', tm.logo_key, 'my_role', mm.role,   'players', (SELECT JSON_ARRAYAGG(JSON_OBJECT('member_id', x.id, 'user_id', x.user_id, 'name', COALESCE(u.name, x.guest_name),      'photo_key', COALESCE(u.photo_key, x.guest_photo_key), 'position', COALESCE(x.position, s.role), 'is_guest', x.user_id IS NULL,      'age', TIMESTAMPDIFF(YEAR, COALESCE(u.birthdate, x.guest_birthdate), t.start_date), 'jersey_number', COALESCE(x.jersey_number, u.jersey_number)))    FROM team_members x LEFT JOIN app_users u ON u.id = x.user_id LEFT JOIN app_user_sports s ON s.user_id = x.user_id AND s.sport = tm.sport    WHERE x.team_id = tm.id AND x.status = 'ACTIVE' AND x.role <> 'COACH')))  FROM team_members mm JOIN teams tm ON tm.id = mm.team_id  WHERE mm.user_id = viewer.id AND mm.status = 'ACTIVE' AND mm.role IN ('COACH', 'CAPTAIN', 'VICE_CAPTAIN') AND tm.sport = t.sport) AS teams, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', e.id, 'team_code', tm.code, 'team_name', tm.name, 'division_id', e.division_id, 'status', e.status,   'amount', e.amount, 'payment_method', e.payment_method, 'reject_reason', e.reject_reason,   'players', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id),   'member_ids', (SELECT JSON_ARRAYAGG(ep.team_member_id) FROM tournament_entry_players ep WHERE ep.entry_id = e.id)))  FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id  JOIN team_members mm ON mm.team_id = tm.id AND mm.user_id = viewer.id AND mm.status = 'ACTIVE' AND mm.role IN ('COACH', 'CAPTAIN', 'VICE_CAPTAIN')  WHERE e.tournament_id = t.id) AS my_entries, (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', ep.user_id, 'team_code', tt.code, 'team_name', tt.name)) FROM tournament_entry_players ep  JOIN tournament_entries e2 ON e2.id = ep.entry_id JOIN teams tt ON tt.id = e2.team_id  WHERE ep.tournament_id = t.id AND ep.user_id IS NOT NULL AND e2.status IN ('PENDING', 'APPROVED', 'WAITLISTED')) AS taken FROM tournaments t LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id LEFT JOIN app_users viewer ON viewer.phone = $1 WHERE t.code = $2 AND t.status <> 'DRAFT'",
         "options": {
           "queryReplacement": "={{ [$json.phone, $json.code] }}"
         }
@@ -92,7 +92,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "cf46b816-b0c8-4264-b681-6b31acef305c",
+      "id": "420162a1-593f-4e89-b42f-732e487ef442",
       "name": "Check Found",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -105,7 +105,7 @@
       }
     },
     {
-      "id": "ff246a0a-3cf8-4b04-b610-321ee173f3cb",
+      "id": "0c987f7c-870e-46d8-b766-bd923935771f",
       "name": "Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -123,7 +123,7 @@
           },
           "conditions": [
             {
-              "id": "49f6e3af-d9d1-430a-90b7-b8262250f333",
+              "id": "f3d61fe9-e14e-406a-87dc-6baa9e14249a",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -139,7 +139,7 @@
       }
     },
     {
-      "id": "7f300bfd-80c1-42e7-aa81-b26eba848149",
+      "id": "4f3cd09c-b917-43cf-9da8-9c7383b93fdb",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -152,7 +152,7 @@
       }
     },
     {
-      "id": "c47b84aa-c898-430c-88b4-ba33962d19d1",
+      "id": "7d1d10a8-3ed7-493e-a1ed-be435e086873",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -177,7 +177,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "9e2f771b-ada5-4901-a9a9-a0dc12be22ce",
+      "id": "8733d24b-928a-4f59-a92d-de8ec29f8630",
       "name": "Team Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -209,7 +209,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "3a379de8-3c09-4b56-a973-a6849b5ef06a",
+      "id": "20ac6b16-d058-4927-bb16-f750cb8bcff3",
       "name": "Photo Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -241,7 +241,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c6358ec2-a19b-48c5-94bd-2384b6ec4f33",
+      "id": "805b3edf-5798-4385-a30a-5ee35381f06c",
       "name": "QR Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -273,7 +273,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "bc84236f-119c-4628-af5b-ac1f49c6cb0c",
+      "id": "1be73a7a-f5cb-48ee-a9fc-8eb0791cc284",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -282,11 +282,11 @@
         -100
       ],
       "parameters": {
-        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst t = $('Check Found').first().json;\nconst photo = k => !k ? null : k.startsWith('profile_photos/') ? signWith(k, 'Photo Link') : signWith(k, 'Team Link');\nconst divisions = (parseJ(t.divisions) || []).sort((a, b) => a.sort_order - b.sort_order).map(d => ({ id: d.id, name: d.name, min_age: d.min_age, max_age: d.max_age,\n  squad_min: d.squad_min, squad_max: d.squad_max, max_teams: d.max_teams, entry_fee: Number(d.entry_fee), approved: Number(d.approved || 0) }));\nconst teams = (parseJ(t.teams) || []).map(tm => ({ code: tm.code, name: tm.name, logo_url: signWith(tm.logo_key, 'Team Link'), my_role: tm.my_role,\n  players: (tm.players || []).map(p => ({ member_id: p.member_id, user_id: p.user_id, name: p.name, photo_url: photo(p.photo_key), position: p.position || null,\n    is_guest: !!p.is_guest, age: p.age ?? null, jersey_number: p.jersey_number ?? null })).sort((a, b) => String(a.name).localeCompare(String(b.name))) }));\nconst my_entries = (parseJ(t.my_entries) || []).map(e => ({ ...e, amount: Number(e.amount || 0), players: Number(e.players || 0) }));\nconst taken = parseJ(t.taken) || [];\nconst open = t.status === 'REGISTRATION_OPEN' && Number(t.closed) !== 1;\nreturn [{ json: { status: 200, body: { success: true, code: t.code, name: t.name, sport: t.sport, start_date: t.start_date,\n  registration_deadline: t.registration_deadline, open, is_owner: Number(t.is_owner) === 1, divisions, teams, my_entries, taken,\n  payment: t.upi_id ? { upi_id: t.upi_id, upi_name: t.upi_name, qr_url: signWith(t.qr_key, 'QR Link'), accept_cash: Number(t.accept_cash) === 1, note: t.payment_note || null } : null } } }];"
+        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst t = $('Check Found').first().json;\nconst photo = k => !k ? null : k.startsWith('profile_photos/') ? signWith(k, 'Photo Link') : signWith(k, 'Team Link');\nconst divisions = (parseJ(t.divisions) || []).sort((a, b) => a.sort_order - b.sort_order).map(d => ({ id: d.id, name: d.name, min_age: d.min_age, max_age: d.max_age,\n  squad_min: d.squad_min, squad_max: d.squad_max, max_teams: d.max_teams, entry_fee: Number(d.entry_fee), approved: Number(d.approved || 0) }));\nconst teams = (parseJ(t.teams) || []).map(tm => ({ code: tm.code, name: tm.name, logo_url: signWith(tm.logo_key, 'Team Link'), my_role: tm.my_role,\n  players: (tm.players || []).map(p => ({ member_id: p.member_id, user_id: p.user_id, name: p.name, photo_url: photo(p.photo_key), position: p.position || null,\n    is_guest: !!p.is_guest, age: p.age ?? null, jersey_number: p.jersey_number ?? null })).sort((a, b) => String(a.name).localeCompare(String(b.name))) }));\nconst my_entries = (parseJ(t.my_entries) || []).map(e => ({ ...e, amount: Number(e.amount || 0), players: Number(e.players || 0), member_ids: e.member_ids || [] }));\nconst taken = parseJ(t.taken) || [];\nconst open = t.status === 'REGISTRATION_OPEN' && Number(t.closed) !== 1;\nreturn [{ json: { status: 200, body: { success: true, code: t.code, name: t.name, sport: t.sport, start_date: t.start_date,\n  registration_deadline: t.registration_deadline, open, is_owner: Number(t.is_owner) === 1, divisions, teams, my_entries, taken,\n  payment: t.upi_id ? { upi_id: t.upi_id, upi_name: t.upi_name, qr_url: signWith(t.qr_key, 'QR Link'), accept_cash: Number(t.accept_cash) === 1, note: t.payment_note || null } : null } } }];"
       }
     },
     {
-      "id": "aef064ed-494b-4135-a901-28fa542d1375",
+      "id": "ebd3be92-7fb1-4ae7-8256-a989faa2f79d",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,

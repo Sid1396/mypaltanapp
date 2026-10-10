@@ -161,7 +161,9 @@ class TeamController extends GetxController with LoggerMixin {
   ApiService get _api => Get.find<ApiService>();
 
   late final String code;
+  String? tournamentCode; // set when opened from a squad link
   final team = Rx<Team?>(null);
+  final squad = Rx<SquadInvite?>(null);
   final isLoading = true.obs;
   final isBusy = false.obs;
   final error = Rx<String?>(null);
@@ -173,6 +175,7 @@ class TeamController extends GetxController with LoggerMixin {
     super.onInit();
     final args = Get.arguments;
     code = (args is Map ? args['code'] as String? : null) ?? '';
+    tournamentCode = args is Map ? args['tournament'] as String? : null;
     load();
   }
 
@@ -182,6 +185,7 @@ class TeamController extends GetxController with LoggerMixin {
       final res = await _api.getTeam(code);
       if (res['success'] == true && res['team'] is Map) {
         team.value = Team.fromJson(Map<String, dynamic>.from(res['team'] as Map));
+        if (tournamentCode != null) await loadSquad();
       } else {
         error.value = res['message']?.toString() ?? 'Could not load this team.';
       }
@@ -208,6 +212,39 @@ class TeamController extends GetxController with LoggerMixin {
     } finally {
       isBusy.value = false;
     }
+  }
+
+  // ─── Squad link ───────────────────────────────────────────────
+
+  Future<void> loadSquad() async {
+    try {
+      final res = await _api.joinSquad(tournamentCode!, code, preview: true);
+      squad.value = res['success'] == true ? SquadInvite.fromJson(res) : null;
+    } on ApiException catch (e) {
+      logError('Squad preview failed', e);
+    }
+  }
+
+  Future<void> joinSquad() async {
+    isBusy.value = true;
+    try {
+      final res = await _api.joinSquad(tournamentCode!, code);
+      if (res['success'] != true) {
+        AppSnackbar.error('Could not join', res['message']?.toString() ?? 'Please try again.');
+        await loadSquad();
+        return;
+      }
+      AppSnackbar.success("You're in!", res['message']?.toString() ?? 'You joined the squad.');
+      await load();
+    } on ApiException catch (e) {
+      AppSnackbar.error('Could not join', e.message);
+    } finally {
+      isBusy.value = false;
+    }
+  }
+
+  void openTournament() {
+    if (tournamentCode != null) Get.toNamed(AppRoutes.tournament, arguments: {'code': tournamentCode});
   }
 
   /// Runs a team action and reloads. Returns true when it worked.

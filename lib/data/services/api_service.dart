@@ -188,6 +188,20 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  /// A player joins a team's squad from the captain's squad link. preview: only report whether they can.
+  Future<Map<String, dynamic>> joinSquad(String tournamentCode, String teamCode, {bool preview = false}) => _send(
+        () => http.post(Uri.parse('$_base/entries/join'),
+            headers: _authHeaders, body: jsonEncode({'tournament_code': tournamentCode, 'team_code': teamCode, 'preview': preview})),
+        authed: true,
+      );
+
+  /// Coach / captain / vice-captain adds or removes squad players (team member ids) until the deadline.
+  Future<Map<String, dynamic>> updateSquad(String tournamentCode, String teamCode, {List<int> add = const [], List<int> remove = const []}) => _send(
+        () => http.post(Uri.parse('$_base/entries/squad'),
+            headers: _authHeaders, body: jsonEncode({'tournament_code': tournamentCode, 'team_code': teamCode, 'add': add, 'remove': remove})),
+        authed: true,
+      );
+
   /// action: APPROVE or REJECT (organiser, REJECT needs a reason) or WITHDRAW (team).
   Future<Map<String, dynamic>> updateEntry(int entryId, String action, {String? reason}) => _send(
         () => http.post(Uri.parse('$_base/entries/update'),

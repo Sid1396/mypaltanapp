@@ -52,7 +52,11 @@ class TeamPage extends GetView<TeamController> {
                     children: [
                       _Header(t: t),
                       gapH(18),
-                      if (!t.isMember) _JoinCard(t: t) else ...[
+                      if (controller.tournamentCode != null && controller.squad.value != null) ...[
+                        _SquadCard(t: t, s: controller.squad.value!),
+                        gapH(18),
+                      ],
+                      if (!t.isMember) ...[if (controller.squad.value == null) _JoinCard(t: t)] else ...[
                         _InviteCard(t: t),
                         gapH(22),
                         _Squad(t: t),
@@ -149,6 +153,60 @@ class _Header extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Opened from a squad link: join the team's squad for a tournament (joins the team too).
+class _SquadCard extends GetView<TeamController> {
+  final Team t;
+  final SquadInvite s;
+  const _SquadCard({required this.t, required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = s.inSquad ? AppColors.positive : (s.problem != null ? const Color(0xFFFFB74D) : AppColors.primary);
+    final count = s.squadMax != null ? '${s.squadCount} of ${s.squadMax} players' : '${s.squadCount} players';
+    return Container(
+      key: const ValueKey('squad-card'),
+      padding: EdgeInsets.all(SizeConfig.r(16)),
+      decoration: BoxDecoration(
+        color: color.withAlpha(18),
+        borderRadius: BorderRadius.circular(SizeConfig.r(16)),
+        border: Border.all(color: color.withAlpha(80)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(s.inSquad ? "YOU'RE IN THE SQUAD" : 'SQUAD INVITE', style: tfStyle(11, weight: FontWeight.w800, color: color).copyWith(letterSpacing: 0.8)),
+          gapH(6),
+          Text(s.tournamentName, style: tfStyle(18, weight: FontWeight.w900)),
+          gapH(2),
+          Text([if (s.division != null) s.division!, count].join(' · '), style: tfStyle(13, color: Colors.white.withAlpha(170))),
+          gapH(10),
+          Text(
+            s.inSquad
+                ? "You'll play for ${t.name}. The organiser shares the match schedule closer to the day."
+                : s.problem ?? '${t.captainName} invited you to play for ${t.name}.${s.inTeam ? '' : ' Joining the squad also adds you to the team.'}',
+            style: tfStyle(13.5, color: Colors.white.withAlpha(200), height: 1.45),
+          ),
+          gapH(14),
+          if (s.inSquad || s.problem != null)
+            SizedBox(
+              width: double.infinity,
+              child: SmallButton(key: const ValueKey('squad-open-tournament'), label: 'View tournament', filled: false, onTap: controller.openTournament),
+            )
+          else
+            Obx(() => SizedBox(
+                  width: double.infinity,
+                  child: SmallButtonLarge(
+                    key: const ValueKey('squad-join'),
+                    label: controller.isBusy.value ? 'Joining…' : 'Join the squad',
+                    onTap: controller.isBusy.value ? null : controller.joinSquad,
+                  ),
+                )),
+        ],
+      ),
     );
   }
 }

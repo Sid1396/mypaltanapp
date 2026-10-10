@@ -2,12 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_routes.dart';
 import '../../data/models/entry.dart';
 import '../../data/models/tournament.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/deep_link_service.dart';
 import '../../utils/helpers/size_config.dart';
 import '../../utils/helpers/snackbar_helper.dart';
 import '../../utils/mixins/logger_mixin.dart';
@@ -30,6 +32,7 @@ class TournamentController extends GetxController with LoggerMixin {
   final entries = <TournamentEntry>[].obs;
   final entriesLoaded = false.obs;
   final myEntries = <MyEntry>[].obs; // registrations by teams this user manages
+  final regOptions = Rx<RegOptions?>(null);
   final expanded = <int>{}.obs;
   final busyEntry = 0.obs;
 
@@ -93,7 +96,10 @@ class TournamentController extends GetxController with LoggerMixin {
   Future<void> loadMine() async {
     try {
       final res = await _api.getRegistrationOptions(code);
-      if (res['success'] == true) myEntries.assignAll(RegOptions.fromJson(res).myEntries);
+      if (res['success'] == true) {
+        regOptions.value = RegOptions.fromJson(res);
+        myEntries.assignAll(regOptions.value!.myEntries);
+      }
     } on ApiException catch (e) {
       logError('My entries failed', e);
     }
@@ -105,8 +111,99 @@ class TournamentController extends GetxController with LoggerMixin {
 
   Future<void> register() async {
     final done = await Get.toNamed(AppRoutes.registerTeam, arguments: {'code': code});
-    if (done == true) {
+    if (done is Map) {
       await Future.wait([load(), loadMine()]);
+      final e = myEntries.firstWhereOrNull((e) => e.teamCode == done['team_code'] && e.isActive);
+      if (e != null) showSquadLinkSheet(e, justRegistered: true);
+    }
+  }
+
+  // ─── Squad link and squad changes ─────────────────────────────
+
+  String squadMessage(MyEntry e) {
+    final t = tournament.value;
+    final division = t?.divisions.firstWhereOrNull((d) => d.id == e.divisionId)?.name;
+    return '⚽ Play for *${e.teamName}* in *${t?.name ?? 'the tournament'}*${division != null && (t?.hasDivisions ?? false) ? ' ($division)' : ''}\n\n'
+        'Tap to join the squad on MyPaltan 👇\n${DeepLinkService.squadUrl(e.teamCode, code)}';
+  }
+
+  Future<void> shareSquadWhatsApp(MyEntry e) async {
+    final opened = await launchUrl(Uri.parse('whatsapp://send?text=${Uri.encodeComponent(squadMessage(e))}'), mode: LaunchMode.externalApplication)
+        .catchError((_) => false);
+    if (!opened) await shareSquadMore(e);
+  }
+
+  Future<void> shareSquadMore(MyEntry e) => SharePlus.instance.share(ShareParams(text: squadMessage(e), subject: e.teamName));
+
+  void copySquadLink(MyEntry e) {
+    Clipboard.setData(ClipboardData(text: DeepLinkService.squadUrl(e.teamCode, code)));
+    AppSnackbar.success('Copied', 'Squad link copied.');
+  }
+
+  void showSquadLinkSheet(MyEntry e, {bool justRegistered = false}) {
+    Get.bottomSheet(
+      SheetFrame(title: justRegistered ? 'Now invite your players' : 'Squad link', children: [
+        Text(
+          'Send this link to your players. When they tap it, they join ${e.teamName} and its squad for ${tournament.value?.name ?? 'this tournament'}. '
+          'Age limits are checked for you. Add kids without the app from the team page.',
+          style: tfStyle(13.5, color: Colors.white.withAlpha(170), height: 1.45),
+        ),
+        gapH(14),
+        GestureDetector(
+          onTap: () => copySquadLink(e),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(12), vertical: SizeConfig.h(12)),
+            decoration: BoxDecoration(color: Colors.black.withAlpha(90), borderRadius: BorderRadius.circular(SizeConfig.r(10))),
+            child: Row(children: [
+              Expanded(
+                child: Text(DeepLinkService.squadUrl(e.teamCode, code), maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(13, weight: FontWeight.w700)),
+              ),
+              Icon(Icons.copy_rounded, size: SizeConfig.r(16), color: AppColors.primary),
+            ]),
+          ),
+        ),
+        gapH(14),
+        SizedBox(
+          width: double.infinity,
+          child: SmallButtonLarge(key: const ValueKey('squad-share-whatsapp'), label: 'Send on WhatsApp', onTap: () => shareSquadWhatsApp(e)),
+        ),
+        gapH(8),
+        Center(
+          child: TextButton(
+            onPressed: () => shareSquadMore(e),
+            child: Text('More options', style: tfStyle(13.5, weight: FontWeight.w700, color: Colors.white.withAlpha(190))),
+          ),
+        ),
+      ]),
+      isScrollControlled: true,
+    );
+  }
+
+  /// Players the coach can tick for [e]'s squad, with the reason a player is blocked.
+  List<(RegPlayer, String?)> squadChoices(MyEntry e) {
+    final o = regOptions.value;
+    final team = o?.teams.firstWhereOrNull((t) => t.code == e.teamCode);
+    if (o == null || team == null) return [];
+    final d = o.divisions.firstWhereOrNull((d) => d.id == e.divisionId);
+    return [for (final p in team.players) (p, e.memberIds.contains(p.memberId) ? null : squadBlockReason(p, d, o, e.teamCode))];
+  }
+
+  /// Saves the squad and returns the success message, or null when it failed (the error is shown).
+  Future<String?> saveSquad(MyEntry e, Set<int> picked) async {
+    final before = e.memberIds.toSet();
+    final add = picked.difference(before).toList(), remove = before.difference(picked).toList();
+    if (add.isEmpty && remove.isEmpty) return 'No changes.';
+    try {
+      final res = await _api.updateSquad(code, e.teamCode, add: add, remove: remove);
+      if (res['success'] != true) {
+        AppSnackbar.error('Could not save', res['message']?.toString() ?? 'Please try again.');
+        return null;
+      }
+      await Future.wait([loadMine(), loadEntries()]);
+      return res['message']?.toString() ?? 'Squad updated.';
+    } on ApiException catch (err) {
+      AppSnackbar.error('Could not save', err.message);
+      return null;
     }
   }
 
@@ -131,10 +228,11 @@ class TournamentController extends GetxController with LoggerMixin {
 
   void approve(TournamentEntry e) => _confirm(
         'Confirm ${e.teamName}?',
-        e.paymentMethod == 'NONE' || e.amount == 0
+        (e.squad.length < e.squadMin ? 'This team has only ${e.squad.length} of the ${e.squadMin} players it needs. More can join until the deadline. ' : '') +
+        (e.paymentMethod == 'NONE' || e.amount == 0
             ? 'The team gets a confirmed place in ${e.division ?? 'the tournament'}.'
             : 'Only confirm after you have received ${e.paymentMethod == 'CASH' ? 'the cash' : 'the payment in your UPI app'}. '
-                'Once a team is confirmed, the fee and age limits of its division are locked.',
+                'Once a team is confirmed, the fee and age limits of its division are locked.'),
         'Confirm team',
         () => _update(e.id, 'APPROVE'),
         key: 'entry-approve-confirm',

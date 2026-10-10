@@ -157,3 +157,37 @@ class MyTeam {
         members: _int(j['members']),
       );
 }
+
+/// What a squad link offers: joining a team's squad for one tournament.
+class SquadInvite {
+  final String tournamentCode;
+  final String tournamentName;
+  final String? division;
+  final int squadCount;
+  final int? squadMax;
+  final bool inTeam;
+  final bool inSquad;
+  final String? problem; // why the user cannot join, or null
+
+  const SquadInvite({
+    required this.tournamentCode,
+    required this.tournamentName,
+    this.division,
+    required this.squadCount,
+    this.squadMax,
+    required this.inTeam,
+    required this.inSquad,
+    this.problem,
+  });
+
+  factory SquadInvite.fromJson(Map<String, dynamic> j) => SquadInvite(
+        tournamentCode: j['tournament_code']?.toString() ?? '',
+        tournamentName: j['tournament_name']?.toString() ?? '',
+        division: j['division']?.toString(),
+        squadCount: (j['squad_count'] as num?)?.toInt() ?? 0,
+        squadMax: (j['squad_max'] as num?)?.toInt(),
+        inTeam: j['in_team'] == true,
+        inSquad: j['in_squad'] == true,
+        problem: j['problem']?.toString(),
+      );
+}

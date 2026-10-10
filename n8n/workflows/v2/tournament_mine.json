@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "760f341b-22d4-42c8-a0e5-8e0f3761b715",
+      "id": "6062ed3f-cf1c-41c2-84dc-da06e66be3c9",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -18,10 +18,10 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "webhookId": "dceb1801-ab3e-496a-beb7-fdf152ea8b2b"
+      "webhookId": "84416c1c-4aff-4da8-ac60-7ac28ee8f4d4"
     },
     {
-      "id": "8e72d231-a7f8-48d1-9ba0-fc2b4011b4f3",
+      "id": "8d2020ee-8a52-44ad-ac0c-95c6bb0f5a23",
       "name": "Check Login",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -34,7 +34,7 @@
       }
     },
     {
-      "id": "f765a3bb-8026-462d-a124-df7b5c195e54",
+      "id": "535ed70f-0873-41a2-b128-109ad4f099a6",
       "name": "Logged In?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -52,7 +52,7 @@
           },
           "conditions": [
             {
-              "id": "7c157098-e206-4e9b-b3ae-b93cb905cfcf",
+              "id": "dcd64ce7-72b6-4397-9382-979449898da0",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -68,7 +68,7 @@
       }
     },
     {
-      "id": "cb48092d-ec0f-45e8-b913-ec4f1551c1b2",
+      "id": "212431d4-adf1-461e-a701-a89ac415159f",
       "name": "Load Mine",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -78,7 +78,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.code, t.name, t.sport, t.status, t.visibility, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, t.area, t.city, t.logo_key, t.max_teams, t.entry_fee, (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'APPROVED') AS approved_teams, (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'PENDING') AS pending_teams FROM tournaments t JOIN app_users u ON u.id = t.organizer_user_id WHERE u.phone = $1 ORDER BY t.created_at DESC",
+        "query": "SELECT t.code, t.name, t.sport, t.status, t.visibility, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, t.area, t.city, t.logo_key, t.max_teams, t.entry_fee, (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'APPROVED') AS approved_teams, (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'PENDING') AS pending_teams, 'ORGANIZER' AS role, NULL AS team_name, NULL AS entry_status, 0 AS sort_group, t.created_at AS sort_at FROM tournaments t JOIN app_users u ON u.id = t.organizer_user_id WHERE u.phone = $1 UNION ALL SELECT t.code, t.name, t.sport, t.status, t.visibility, DATE_FORMAT(t.start_date, '%Y-%m-%d'), t.area, t.city, t.logo_key, t.max_teams, t.entry_fee, (SELECT COUNT(*) FROM tournament_entries x WHERE x.tournament_id = t.id AND x.status = 'APPROVED'), 0, IF(ep.id IS NOT NULL, 'PLAYER', 'TEAM'), tm.name, e.status, 1, t.start_date FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id JOIN app_users u ON u.phone = $1 LEFT JOIN tournament_entry_players ep ON ep.entry_id = e.id AND ep.user_id = u.id LEFT JOIN team_members mm ON mm.team_id = e.team_id AND mm.user_id = u.id AND mm.status = 'ACTIVE' AND mm.role IN ('COACH', 'CAPTAIN', 'VICE_CAPTAIN') WHERE e.status IN ('PENDING', 'WAITLISTED', 'APPROVED') AND (ep.id IS NOT NULL OR mm.id IS NOT NULL) AND t.organizer_user_id <> u.id ORDER BY sort_group, sort_at DESC",
         "options": {
           "queryReplacement": "={{ [$json.phone] }}"
         }
@@ -92,7 +92,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "29015373-2a67-4896-968a-520966129e35",
+      "id": "52bf1d27-054d-4366-a0f3-df6d66d33d2d",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -105,7 +105,7 @@
       }
     },
     {
-      "id": "8f3bb4ad-57f7-42b7-8e1b-52d1141fb860",
+      "id": "1fc18a6b-a739-4503-ac35-850d85fe8499",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -130,7 +130,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "ab812ce1-dee8-4ddf-b485-66759d9c12d4",
+      "id": "b29265fe-71f7-41fd-abdc-2dc45055d6d3",
       "name": "Assets Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -162,7 +162,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "59c97642-72cd-4cdb-ac97-ae86a7ca2b7f",
+      "id": "5c657f01-b598-4d33-a2cd-2dfedb253069",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -171,11 +171,11 @@
         -100
       ],
       "parameters": {
-        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst rows = $('Load Mine').all().map(i => i.json).filter(r => r && r.code);\nconst tournaments = rows.map(r => ({ code: r.code, name: r.name, sport: r.sport, status: r.status, visibility: r.visibility, start_date: r.start_date,\n  area: r.area, city: r.city, logo_url: signWith(r.logo_key, 'Assets Link'), max_teams: r.max_teams, entry_fee: Number(r.entry_fee),\n  approved_teams: Number(r.approved_teams || 0), pending_teams: Number(r.pending_teams || 0), role: 'ORGANIZER' }));\nreturn [{ json: { status: 200, body: { success: true, tournaments } } }];"
+        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst rows = $('Load Mine').all().map(i => i.json).filter(r => r && r.code);\nconst tournaments = rows.map(r => ({ code: r.code, name: r.name, sport: r.sport, status: r.status, visibility: r.visibility, start_date: r.start_date,\n  area: r.area, city: r.city, logo_url: signWith(r.logo_key, 'Assets Link'), max_teams: r.max_teams, entry_fee: Number(r.entry_fee),\n  approved_teams: Number(r.approved_teams || 0), pending_teams: Number(r.pending_teams || 0), role: r.role || 'ORGANIZER',\n  team_name: r.team_name || null, entry_status: r.entry_status || null }))\n  .filter((t, i, all) => all.findIndex(x => x.code === t.code) === i);\nreturn [{ json: { status: 200, body: { success: true, tournaments } } }];"
       }
     },
     {
-      "id": "8639c912-5110-44ed-a33d-1b65bf864b62",
+      "id": "bf937566-5d74-4ba0-ae49-6a1092e2bddd",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
