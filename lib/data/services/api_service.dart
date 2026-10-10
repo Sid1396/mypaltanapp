@@ -171,6 +171,30 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  // ─── Team registration for tournaments ───────────────────────
+
+  Future<Map<String, dynamic>> getRegistrationOptions(String tournamentCode) => _send(
+        () => http.get(Uri.parse('$_base/entries/options?code=${Uri.encodeQueryComponent(tournamentCode)}'), headers: _authHeaders),
+        authed: true,
+      );
+
+  Future<Map<String, dynamic>> registerTeam(Map<String, dynamic> body) => _send(
+        () => http.post(Uri.parse('$_base/entries/register'), headers: _authHeaders, body: jsonEncode(body)),
+        authed: true,
+      );
+
+  Future<Map<String, dynamic>> getTournamentEntries(String tournamentCode) => _send(
+        () => http.get(Uri.parse('$_base/entries/list?code=${Uri.encodeQueryComponent(tournamentCode)}'), headers: _authHeaders),
+        authed: true,
+      );
+
+  /// action: APPROVE or REJECT (organiser, REJECT needs a reason) or WITHDRAW (team).
+  Future<Map<String, dynamic>> updateEntry(int entryId, String action, {String? reason}) => _send(
+        () => http.post(Uri.parse('$_base/entries/update'),
+            headers: _authHeaders, body: jsonEncode({'entry_id': entryId, 'action': action, if (reason != null) 'reason': reason})),
+        authed: true,
+      );
+
   // ─── Identity verification ────────────────────────────────────
 
   Future<Map<String, dynamic>> getVerificationStatus() => _send(

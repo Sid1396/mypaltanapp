@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../presentation/bindings/onboarding_binding.dart';
 import '../presentation/controllers/create_tournament_controller.dart';
 import '../presentation/controllers/team_controllers.dart';
+import '../presentation/controllers/register_team_controller.dart';
 import '../presentation/controllers/tournament_controller.dart';
 import '../presentation/controllers/verify_identity_controller.dart';
 import '../presentation/pages/create_tournament_page.dart';
@@ -13,6 +14,7 @@ import '../presentation/pages/main_navigation_page.dart';
 import '../presentation/pages/notifications_page.dart';
 import '../presentation/pages/onboarding_page.dart';
 import '../presentation/pages/otp_page.dart';
+import '../presentation/pages/register_team_page.dart';
 import '../presentation/pages/splash_page.dart';
 import '../presentation/pages/tournament_detail_page.dart';
 import '../presentation/pages/tournament_page.dart';
@@ -30,6 +32,7 @@ class AppRoutes {
   static const String tournamentDetail = '/featured-tournament';
   static const String tournament = '/tournament';
   static const String createTournament = '/tournament/create';
+  static const String registerTeam = '/tournament/register';
   static const String verifyIdentity = '/verify-identity';
   static const String documentViewer = '/document';
   static const String team = '/team';
@@ -79,6 +82,14 @@ class AppRoutes {
           page: () => const TeamPage(),
           binding: BindingsBuilder(() {
             Get.put(TeamController());
+          }),
+          transition: Transition.rightToLeft,
+        ),
+        GetPage(
+          name: registerTeam,
+          page: () => const RegisterTeamPage(),
+          binding: BindingsBuilder(() {
+            Get.put(RegisterTeamController());
           }),
           transition: Transition.rightToLeft,
         ),

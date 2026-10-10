@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../config/app_colors.dart';
+import '../../config/app_routes.dart';
 import '../../data/models/home_models.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/notifications_controller.dart';
@@ -78,32 +79,41 @@ class _NotificationTile extends StatelessWidget {
     return '${diff.inDays}d';
   }
 
+  void _open() {
+    final t = n.target;
+    if (t == null) return;
+    Get.toNamed(t.$1 == 'team' ? AppRoutes.team : AppRoutes.tournament, arguments: {'code': t.$2});
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(SizeConfig.r(14)),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(SizeConfig.r(14)),
-        border: Border.all(color: n.isRead ? Colors.transparent : AppColors.primary.withAlpha(80)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.notifications_rounded, color: AppColors.primary, size: SizeConfig.r(20)),
-          SizedBox(width: SizeConfig.w(12)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(n.title, style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(14), color: Colors.white)),
-                if (n.body != null)
-                  Text(n.body!, style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(13), color: Colors.white.withAlpha(150), height: 1.4)),
-              ],
+    return GestureDetector(
+      onTap: _open,
+      child: Container(
+        padding: EdgeInsets.all(SizeConfig.r(14)),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(SizeConfig.r(14)),
+          border: Border.all(color: n.isRead ? Colors.transparent : AppColors.primary.withAlpha(80)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.notifications_rounded, color: AppColors.primary, size: SizeConfig.r(20)),
+            SizedBox(width: SizeConfig.w(12)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(n.title, style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(14), color: Colors.white)),
+                  if (n.body != null)
+                    Text(n.body!, style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(13), color: Colors.white.withAlpha(150), height: 1.4)),
+                ],
+              ),
             ),
-          ),
-          Text(_ago(n.createdAt), style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(11), color: Colors.white.withAlpha(110))),
-        ],
+            Text(_ago(n.createdAt), style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(11), color: Colors.white.withAlpha(110))),
+          ],
+        ),
       ),
     );
   }

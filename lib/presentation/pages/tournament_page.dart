@@ -12,6 +12,7 @@ import '../widgets/form_widgets.dart';
 import '../widgets/home_widgets.dart';
 import '../widgets/tournament_form_widgets.dart';
 import '../widgets/tournament_media_editors.dart' show fileSizeLabel;
+import '../widgets/tournament_entries.dart';
 import '../widgets/tournament_share.dart';
 
 String _l(List<(String, String)> o, String? c) => Sports.labelOf(o, c);
@@ -497,6 +498,11 @@ class _AboutTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (!t.isOwner)
+          Obx(() {
+            final mine = Get.find<TournamentController>().myEntry;
+            return mine == null ? const SizedBox.shrink() : Padding(padding: EdgeInsets.only(bottom: SizeConfig.h(16)), child: MyEntryCard(e: mine, t: t));
+          }),
         if (t.description != null) ...[
           Text(t.description!, style: tfStyle(14, color: Colors.white.withAlpha(200), height: 1.5)),
           gapH(12),
@@ -642,30 +648,7 @@ class _TeamsTab extends StatelessWidget {
   const _TeamsTab({required this.t});
 
   @override
-  Widget build(BuildContext context) {
-    return FormCard(
-      padding: EdgeInsets.all(SizeConfig.r(16)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.shield_outlined, color: Colors.white.withAlpha(140), size: SizeConfig.r(20)),
-              SizedBox(width: SizeConfig.w(10)),
-              Text(t.approvedTeams == 0 ? 'No teams yet' : '${t.approvedTeams} teams confirmed', style: tfStyle(15, weight: FontWeight.w700)),
-            ],
-          ),
-          gapH(8),
-          Text(
-            t.isDraft
-                ? 'Publish the tournament to start taking team registrations.'
-                : 'Teams that register appear here.${t.isOwner ? ' You approve each team once you receive its entry fee.' : ''}',
-            style: tfStyle(13, color: Colors.white.withAlpha(140), height: 1.45),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => TeamsTabBody(t: t);
 }
 
 // ─── Sponsors ───────────────────────────────────────────────────
@@ -814,7 +797,9 @@ class _BottomBar extends GetView<TournamentController> {
   const _BottomBar({required this.t});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Obx(_build);
+
+  Widget _build() {
     final String label;
     final VoidCallback onTap;
     if (t.isOwner && t.isDraft) {
@@ -824,8 +809,9 @@ class _BottomBar extends GetView<TournamentController> {
       label = 'Share tournament';
       onTap = () => showTournamentShareSheet(t);
     } else if (t.status == 'REGISTRATION_OPEN') {
-      label = 'Register my team';
-      onTap = () => showComingSoon('Team registration', detail: 'Captains will be able to register for ${t.name} here very soon.');
+      final mine = controller.myEntry;
+      label = mine != null && mine.isActive ? 'Register another team' : 'Register my team';
+      onTap = controller.register;
     } else {
       label = t.statusLabel;
       onTap = () {};

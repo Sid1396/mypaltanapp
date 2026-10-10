@@ -100,6 +100,7 @@ class AppNotification {
   final String? body;
   final bool isRead;
   final DateTime? createdAt;
+  final Map<String, dynamic> data;
 
   const AppNotification({
     required this.id,
@@ -108,7 +109,17 @@ class AppNotification {
     this.body,
     this.isRead = false,
     this.createdAt,
+    this.data = const {},
   });
+
+  /// Where tapping the notification goes: ('tournament' | 'team', code), or null.
+  (String, String)? get target {
+    final t = data['tournament_code']?.toString();
+    if (t != null && t.isNotEmpty) return ('tournament', t);
+    final tm = data['team_code']?.toString();
+    if (tm != null && tm.isNotEmpty) return ('team', tm);
+    return null;
+  }
 
   factory AppNotification.fromJson(Map<String, dynamic> j) => AppNotification(
         id: (j['id'] as num?)?.toInt() ?? 0,
@@ -117,5 +128,6 @@ class AppNotification {
         body: j['body']?.toString(),
         isRead: j['is_read'] == true,
         createdAt: DateTime.tryParse(j['created_at']?.toString() ?? ''),
+        data: j['data'] is Map ? Map<String, dynamic>.from(j['data'] as Map) : const {},
       );
 }
