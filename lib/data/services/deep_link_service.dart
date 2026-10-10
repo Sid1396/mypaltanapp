@@ -12,7 +12,7 @@ class DeepLinkService extends GetxService with LoggerMixin {
 
   final _links = AppLinks();
   StreamSubscription<Uri>? _sub;
-  String? _pendingCode;
+  (String, String)? _pending;
   bool _ready = false;
 
   @override
@@ -29,21 +29,27 @@ class DeepLinkService extends GetxService with LoggerMixin {
 
   /// Extracts a tournament code from a link, or null if it is not a tournament link.
   static String? codeFrom(Uri uri) {
+    final t = targetFrom(uri);
+    return t?.$1 == 'tournament' ? t!.$2 : null;
+  }
+
+  /// ('tournament' | 'team', CODE) for a MyPaltan link, or null.
+  static (String, String)? targetFrom(Uri uri) {
     final isWeb = (uri.scheme == 'https' || uri.scheme == 'http') && (uri.host == host || uri.host == 'www.$host');
     final segments = uri.scheme == 'mypaltan' ? [uri.host, ...uri.pathSegments] : uri.pathSegments;
     if (!isWeb && uri.scheme != 'mypaltan') return null;
-    if (segments.length < 2 || segments[0] != 'tournament') return null;
+    if (segments.length < 2 || (segments[0] != 'tournament' && segments[0] != 'team')) return null;
     final code = segments[1].toUpperCase();
-    return RegExp(r'^[A-Z0-9]{6}$').hasMatch(code) ? code : null;
+    return RegExp(r'^[A-Z0-9]{6}$').hasMatch(code) ? (segments[0], code) : null;
   }
 
   void _handle(Uri uri) {
-    final code = codeFrom(uri);
-    if (code == null) return;
+    final target = targetFrom(uri);
+    if (target == null) return;
     if (_ready) {
-      openTournament(code);
+      _open(target);
     } else {
-      _pendingCode = code;
+      _pending = target;
     }
   }
 
@@ -51,13 +57,16 @@ class DeepLinkService extends GetxService with LoggerMixin {
   void markReady() {
     if (_ready) return;
     _ready = true;
-    final code = _pendingCode;
-    _pendingCode = null;
-    if (code != null) openTournament(code);
+    final target = _pending;
+    _pending = null;
+    if (target != null) _open(target);
   }
 
   /// Called on logout so the next link waits for login again.
   void reset() => _ready = false;
+
+  void _open((String, String) target) =>
+      target.$1 == 'team' ? Get.toNamed(AppRoutes.team, arguments: {'code': target.$2}) : openTournament(target.$2);
 
   void openTournament(String code) {
     if (Get.currentRoute == AppRoutes.tournament && (Get.arguments is Map) && (Get.arguments as Map)['code'] == code) return;

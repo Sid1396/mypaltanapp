@@ -29,13 +29,15 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Tournament links (https://mypaltan.com/tournament/CODE) open the app once verified via assetlinks.json -->
+            <!-- Tournament and team links (https://mypaltan.com/tournament/CODE, /team/CODE) open the app once verified via assetlinks.json -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="https" android:host="mypaltan.com" android:pathPrefix="/tournament/"/>
                 <data android:scheme="https" android:host="www.mypaltan.com" android:pathPrefix="/tournament/"/>
+                <data android:scheme="https" android:host="mypaltan.com" android:pathPrefix="/team/"/>
+                <data android:scheme="https" android:host="www.mypaltan.com" android:pathPrefix="/team/"/>
             </intent-filter>
             <!-- "Open in app" button on the website -->
             <intent-filter>
@@ -43,6 +45,7 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="mypaltan" android:host="tournament"/>
+                <data android:scheme="mypaltan" android:host="team"/>
             </intent-filter>
             <!-- Links are handled by DeepLinkService, not Flutter's router -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>

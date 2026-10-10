@@ -142,6 +142,35 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  // ─── Teams ────────────────────────────────────────────────────
+
+  /// Creates a team (no code) or edits one (code). Returns `code`.
+  Future<Map<String, dynamic>> saveTeam(Map<String, dynamic> body) => _send(
+        () => http.post(Uri.parse('$_base/teams/save'), headers: _authHeaders, body: jsonEncode(body)),
+        authed: true,
+      );
+
+  Future<Map<String, dynamic>> getMyTeams() => _send(
+        () => http.get(Uri.parse('$_base/teams/mine'), headers: _authHeaders),
+        authed: true,
+      );
+
+  Future<Map<String, dynamic>> getTeam(String code) => _send(
+        () => http.get(Uri.parse('$_base/teams/detail?code=${Uri.encodeQueryComponent(code)}'), headers: _authHeaders),
+        authed: true,
+      );
+
+  Future<Map<String, dynamic>> joinTeam(String code) => _send(
+        () => http.post(Uri.parse('$_base/teams/join'), headers: _authHeaders, body: jsonEncode({'code': code})),
+        authed: true,
+      );
+
+  /// Team actions: LEAVE, REMOVE, SET_ROLE, MAKE_CAPTAIN, SET_JERSEY, ADD_GUEST, EDIT_GUEST.
+  Future<Map<String, dynamic>> manageTeam(Map<String, dynamic> body) => _send(
+        () => http.post(Uri.parse('$_base/teams/manage'), headers: _authHeaders, body: jsonEncode(body)),
+        authed: true,
+      );
+
   // ─── Identity verification ────────────────────────────────────
 
   Future<Map<String, dynamic>> getVerificationStatus() => _send(

@@ -1,10 +1,13 @@
 import 'package:get/get.dart';
 import '../presentation/bindings/onboarding_binding.dart';
 import '../presentation/controllers/create_tournament_controller.dart';
+import '../presentation/controllers/team_controllers.dart';
 import '../presentation/controllers/tournament_controller.dart';
 import '../presentation/controllers/verify_identity_controller.dart';
 import '../presentation/pages/create_tournament_page.dart';
 import '../presentation/pages/document_viewer_page.dart';
+import '../presentation/pages/team_form_page.dart';
+import '../presentation/pages/team_page.dart';
 import '../presentation/pages/login_page.dart';
 import '../presentation/pages/main_navigation_page.dart';
 import '../presentation/pages/notifications_page.dart';
@@ -29,6 +32,8 @@ class AppRoutes {
   static const String createTournament = '/tournament/create';
   static const String verifyIdentity = '/verify-identity';
   static const String documentViewer = '/document';
+  static const String team = '/team';
+  static const String teamForm = '/team/edit';
 
   static List<GetPage> get pages => [
         GetPage(name: splash, page: () => const SplashPage()),
@@ -69,5 +74,21 @@ class AppRoutes {
           transition: Transition.rightToLeft,
         ),
         GetPage(name: documentViewer, page: () => const DocumentViewerPage(), transition: Transition.rightToLeft),
+        GetPage(
+          name: team,
+          page: () => const TeamPage(),
+          binding: BindingsBuilder(() {
+            Get.put(TeamController());
+          }),
+          transition: Transition.rightToLeft,
+        ),
+        GetPage(
+          name: teamForm,
+          page: () => const TeamFormPage(),
+          binding: BindingsBuilder(() {
+            Get.put(TeamFormController());
+          }),
+          transition: Transition.downToUp,
+        ),
       ];
 }

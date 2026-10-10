@@ -442,9 +442,9 @@ void showCreateSheet() {
               Get.toNamed(AppRoutes.createTournament);
             }),
             SizedBox(height: SizeConfig.h(10)),
-            option(Icons.shield_rounded, 'Create a team', 'Invite players with one link', () {
+            option(Icons.shield_rounded, 'Create a team', 'Invite players with one link', key: const ValueKey('create-team'), () {
               Get.back();
-              showComingSoon('Creating teams');
+              Get.toNamed(AppRoutes.teamForm);
             }),
             SizedBox(height: SizeConfig.h(10)),
             option(Icons.sports_score_rounded, 'Score a match', 'Ball by ball, goal by goal', () {

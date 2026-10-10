@@ -1,0 +1,304 @@
+{
+  "id": "TeamSave2026mPx1",
+  "name": "MyPaltan v2 - Team Save",
+  "active": false,
+  "nodes": [
+    {
+      "id": "1ac976b6-a3ee-4ecd-af94-31a5a642e77c",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "v2/teams/save",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "479de132-ea21-4862-a388-06f4db007bc1"
+    },
+    {
+      "id": "dd58aaf8-36ad-491f-9af0-e78f1f123590",
+      "name": "Check & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction hmacSha256(key,msg){\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let kB=toB(key);if(kB.length>64)kB=sha256bytes(kB);\n  const kP=new Array(64).fill(0);kB.forEach((v,i)=>kP[i]=v);\n  const ipad=kP.map(v=>v^0x36);const opad=kP.map(v=>v^0x5c);\n  const mB=toB(msg);\n  return sha256bytes([...opad,...sha256bytes([...ipad,...mB])]);\n}\nfunction b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, ''); }\nfunction signToken(phone) {\n  const now = Math.floor(Date.now() / 1000);\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const body = b64url(Buffer.from(JSON.stringify({ phone, iat: now, exp: now + 30 * 24 * 60 * 60 })));\n  return `${header}.${body}.${b64url(hmacSha256($env.JWT_SECRET, `${header}.${body}`))}`;\n}\nfunction verifyToken(headers) {\n  const auth = String((headers || {}).authorization || '').trim();\n  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\n  if (!token) return { ok: false, error: 'Please log in again.' };\n  const parts = token.split('.');\n  if (parts.length !== 3) return { ok: false, error: 'Please log in again.' };\n  const [h, p, s] = parts;\n  if (b64url(hmacSha256($env.JWT_SECRET, `${h}.${p}`)) !== s) return { ok: false, error: 'Please log in again.' };\n  let claims;\n  try { claims = JSON.parse(Buffer.from(p, 'base64').toString('utf8')); } catch { return { ok: false, error: 'Please log in again.' }; }\n  if (!claims.exp || claims.exp < Math.floor(Date.now() / 1000)) return { ok: false, error: 'Your session expired. Please log in again.' };\n  if (!/^[6-9]\\d{9}$/.test(String(claims.phone || ''))) return { ok: false, error: 'Please log in again.' };\n  return { ok: true, phone: String(claims.phone) };\n}\n\nconst auth = verifyToken($in.headers);\nif (!auth.ok) return [{ json: { ok: false, status: 401, body: { success: false, message: auth.error } } }];\n\nconst b = $in.body || {};\nconst SPORTS = ['CRICKET', 'FOOTBALL', 'BADMINTON', 'PICKLEBALL'];\nconst name = String(b.name ?? '').trim().replace(/\\s+/g, ' ');\nconst short = String(b.short_name ?? '').trim().toUpperCase();\nconst area = String(b.area ?? '').trim().replace(/\\s+/g, ' ');\nconst city = String(b.city || 'Mumbai').trim().replace(/\\s+/g, ' ');\nconst sport = String(b.sport ?? '').toUpperCase();\nconst logo = b.logo_key;\nlet code = b.code ? String(b.code).toUpperCase() : null;\nconst e = [];\nif (!code && !SPORTS.includes(sport)) e.push('Choose a sport.');\nif (name.length < 2 || name.length > 40) e.push('Team name must be 2-40 characters.');\nif (!/^[A-Z0-9]{2,4}$/.test(short)) e.push('Short name must be 2-4 letters or numbers, e.g. MPFC.');\nif (typeof logo !== 'string' || !logo.startsWith(`team_assets/${auth.phone}/`) || logo.includes('..')) e.push(logo ? 'The logo upload could not be verified. Please upload it again.' : 'Add a team logo.');\nif (area.length < 2 || area.length > 100) e.push('Enter the area your team is from.');\nif (city.length < 2 || city.length > 50) e.push('Enter the city.');\nif (code && !/^[A-Z0-9]{6}$/.test(code)) e.push('Invalid team code.');\nif (e.length) return [{ json: { ok: false, status: 422, body: { success: false, message: e[0], errors: e } } }];\nconst isNew = !code;\nif (isNew) { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; code = Array.from({ length: 6 }, () => A[Math.floor(Math.random() * A.length)]).join(''); }\n// The creator either plays (captain) or only runs the team (coach, not counted as a player).\nconst role = b.playing === false ? 'COACH' : 'CAPTAIN';\nreturn [{ json: { ok: true, isNew, phone: auth.phone, code, sport, name, short, logo, area, city, role } }];"
+      }
+    },
+    {
+      "id": "d3601458-64a3-44cc-8ce8-0c038028bbd2",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cf5ba100-4c75-49be-a0d5-a0d21c57637d",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8d10ce03-5c18-4fdd-9a28-9dcd6cc92662",
+      "name": "New?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0528aeac-f005-4042-8121-8edf1268c136",
+              "leftValue": "={{ $json.isNew }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5a2232fd-5200-438d-8b1f-c1486d599d9d",
+      "name": "Create Team",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        -200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET @u = (SELECT id FROM app_users WHERE phone = $8 AND profile_complete = 1); INSERT INTO teams (code, sport, name, short_name, logo_key, area, city, captain_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, @u); SET @t = LAST_INSERT_ID(); INSERT INTO team_members (team_id, user_id, role, position, added_by) VALUES (@t, @u, $9, IF($9 = 'COACH', NULL, (SELECT s.role FROM app_user_sports s WHERE s.user_id = @u AND s.sport = $2)), @u); SELECT code FROM teams WHERE id = @t",
+        "options": {
+          "queryReplacement": "={{ [$json.code, $json.sport, $json.name, $json.short, $json.logo, $json.area, $json.city, $json.phone, $json.role] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1b6acfa4-02ea-409a-a120-ff6c8b7a8015",
+      "name": "Edit Team",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE teams t JOIN team_members m ON m.team_id = t.id AND m.status = 'ACTIVE' AND m.role IN ('COACH', 'CAPTAIN', 'VICE_CAPTAIN') JOIN app_users u ON u.id = m.user_id AND u.phone = $7 SET t.name = $2, t.short_name = $3, t.logo_key = $4, t.area = $5, t.city = $6 WHERE t.code = $1; SELECT (SELECT COUNT(*) FROM teams WHERE code = $1) AS found, (SELECT COUNT(*) FROM team_members m JOIN teams t ON t.id = m.team_id JOIN app_users u ON u.id = m.user_id  WHERE t.code = $1 AND u.phone = $7 AND m.status = 'ACTIVE' AND m.role IN ('COACH', 'CAPTAIN', 'VICE_CAPTAIN')) AS can_edit",
+        "options": {
+          "queryReplacement": "={{ [$json.code, $json.name, $json.short, $json.logo, $json.area, $json.city, $json.phone] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f90dcf75-6bdc-4f68-a4f2-f27b16772214",
+      "name": "Created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $in;\nconst msg = String(r.message || r.error?.message || '');\nif (msg || !r.code) {\n  if (msg.includes('captain_user_id')) return [{ json: { status: 403, body: { success: false, message: 'Finish your profile before creating a team.' } } }];\n  if (msg.includes('uq_code') || msg.includes('Duplicate')) return [{ json: { status: 409, body: { success: false, message: 'Please tap Save again.' } } }];\n  return [{ json: { status: 500, body: { success: false, message: 'Could not create the team. Please try again.' } } }];\n}\nreturn [{ json: { status: 201, body: { success: true, code: r.code, created: true } } }];"
+      }
+    },
+    {
+      "id": "ee64a735-30bd-4052-aeed-5ece45faf76c",
+      "name": "Edited",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $in;\nif (r.message || r.error) return [{ json: { status: 500, body: { success: false, message: 'Could not save the team. Please try again.' } } }];\nif (!Number(r.found)) return [{ json: { status: 404, body: { success: false, message: 'Team not found.' } } }];\nif (!Number(r.can_edit)) return [{ json: { status: 403, body: { success: false, message: 'Only the coach, captain or vice-captain can edit this team.' } } }];\nreturn [{ json: { status: 200, body: { success: true, code: $('Check & Validate').first().json.code, created: false } } }];"
+      }
+    },
+    {
+      "id": "8bd22416-d176-4aa1-9350-992da872b91b",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check & Validate": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "New?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New?": {
+      "main": [
+        [
+          {
+            "node": "Create Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Team": {
+      "main": [
+        [
+          {
+            "node": "Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Team": {
+      "main": [
+        [
+          {
+            "node": "Edited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Created": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edited": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
