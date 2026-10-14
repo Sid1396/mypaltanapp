@@ -1,0 +1,736 @@
+{
+  "id": "PubEvtReg026mPx7",
+  "name": "MyPaltan v2 - Public Event Registration",
+  "active": false,
+  "nodes": [
+    {
+      "id": "7b33a59c-7037-4fb3-b6d1-06e2586e3040",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "v2/public/register",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
+        }
+      },
+      "webhookId": "de61a3c7-ed68-4ef7-912e-ddafeec2bae9"
+    },
+    {
+      "id": "7f56b2cb-0a41-4e64-9f0d-196aa0f04104",
+      "name": "Check Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nconst byteSize = async (key, f) => {\n  try { const buf = await this.helpers.getBinaryDataBuffer(0, key); if (buf && buf.length) return buf.length; } catch (e) {}\n  const m = String(f.fileSize ?? '').trim().match(/^([\\d.]+)\\s*(B|kB|KB|MB|GB)?$/i);\n  if (m) return Math.ceil(parseFloat(m[1]) * ({ b: 1, kb: 1000, mb: 1e6, gb: 1e9 })[(m[2] || 'B').toLowerCase()]);\n  return Buffer.from(f.data || '', 'base64').length;\n};\n\nconst EVENTS = {\"sspl\": {\"name\": \"SSPL 2027 Season 07\", \"closes\": null}};\nconst b = $in.body || {};\nconst bad = m => [{ json: { ok: false, status: 422, body: { success: false, message: m } } }];\nif (b.website) return bad('Please try again.');            // hidden field only bots fill in\nconst slug = String(b.event ?? '').toLowerCase();\nconst ev = EVENTS[slug];\nif (!ev) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This form is not available.' } } }];\nif (ev.closes && new Date() > new Date(ev.closes)) return bad('Registration is closed.');\nconst name = String(b.name ?? '').trim().replace(/\\s+/g, ' ');\nif (name.length < 2 || name.length > 60 || !/^[\\p{L}][\\p{L} .'-]*$/u.test(name)) return bad('Enter your full name.');\nconst phone = String(b.phone ?? '').replace(/\\D/g, '').slice(-10);\nif (!/^[6-9]\\d{9}$/.test(phone)) return bad('Enter a valid 10-digit mobile number.');\nconst category = String(b.category ?? '').toUpperCase();\nif (!['BATSMAN', 'BOWLER', 'ALL_ROUNDER', 'WICKET_KEEPER'].includes(category)) return bad('Choose your category.');\nconst size = String(b.jersey_size ?? '').toUpperCase();\nif (!['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].includes(size)) return bad('Choose your jersey size.');\nconst jname = String(b.jersey_name ?? '').trim().toUpperCase().replace(/\\s+/g, ' ');\nif (!/^[A-Z][A-Z .'-]{0,11}$/.test(jname)) return bad('Jersey name must be 1-12 letters.');\nconst jno = Number(b.jersey_number);\nif (!(Number.isInteger(jno) && jno >= 0 && jno <= 99) || String(b.jersey_number ?? '').trim() === '') return bad('Jersey number must be 0 to 99.');\nconst food = String(b.food ?? '').toUpperCase();\nif (!['VEG', 'NON_VEG'].includes(food)) return bad('Choose veg or non-veg.');\nconst bin = $input.first().binary || {};\nconst exts = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic' };\nconst files = {};\nfor (const [k, label] of [['photo', 'profile photo'], ['payment', 'payment screenshot']]) {\n  const f = bin[k];\n  if (!f) return bad(`Add your ${label}.`);\n  const mime = f.mimeType === 'image/jpg' ? 'image/jpeg' : f.mimeType;\n  if (!exts[mime]) return bad(`The ${label} must be a photo (JPG or PNG).`);\n  const bytes = await byteSize(k, f);\n  if (bytes > 8 * 1024 * 1024) return bad(`The ${label} must be under 8 MB.`);\n  files[k] = { mime, key: `event_registrations/${slug}/${phone}_${k}_${Date.now()}.${exts[mime]}` };\n}\nreturn [{ json: { ok: true, slug, name, phone, category, size, jname, jno, food, files }, binary: bin }];"
+      }
+    },
+    {
+      "id": "ed529a05-d22c-46ef-9ac7-895c4e0fc975",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0b12ecfc-f8af-4a0a-a053-b4b1be1ae79d",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "aa059bbf-572c-4933-a023-c48c8b86e614",
+      "name": "Find Phone",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) AS n FROM event_registrations WHERE event_slug = $1 AND phone = $2",
+        "options": {
+          "queryReplacement": "={{ [$json.slug, $json.phone] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "c3b035a1-64a8-4fdb-aa16-c7b658256ed1",
+      "name": "Check New",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $('Check Request').first();\nif (Number($in.n) > 0) return [{ json: { ok: false, status: 409, body: { success: false, message: 'This mobile number is already registered. Contact the organiser to change your details.' } } }];\nreturn [{ json: { ok: true, ...r.json }, binary: r.binary }];"
+      }
+    },
+    {
+      "id": "67994373-b857-42af-8107-81ca2c6a06a5",
+      "name": "New?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8084fd2e-4738-414f-95d7-53b451eff71f",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6ab58675-7acf-47d4-9869-a23d26afd16b",
+      "name": "B2 Credentials",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nreturn [{ json: { ...$input.first().json, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: $input.first().binary }];"
+      }
+    },
+    {
+      "id": "f65b9e23-81f7-4c94-890b-93f81fb13ba2",
+      "name": "Authorize B2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        -200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.backblazeb2.com/b2api/v4/b2_authorize_account",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.basicAuth }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7a59fdc2-bb66-462c-9299-6bf293bdda20",
+      "name": "Upload URL photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        -200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_upload_url?bucketId=57d8ff72a9534e199bf30918",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "40baae5a-7a2f-4cc1-bf20-5946b1f60be1",
+      "name": "Attach photo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $('Check Request').first();\nconst f = r.json.files['photo'];\nreturn [{ json: { uploadUrl: $in.uploadUrl, uploadToken: $in.authorizationToken, mime: f.mime,\n  name: f.key.split('/').map(encodeURIComponent).join('/') }, binary: { file: r.binary['photo'] } }];"
+      }
+    },
+    {
+      "id": "532f59ec-8794-4ffb-a3b4-5c3203b5917d",
+      "name": "Upload photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2120,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.uploadUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.uploadToken }}"
+            },
+            {
+              "name": "X-Bz-File-Name",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.mime }}"
+            },
+            {
+              "name": "X-Bz-Content-Sha1",
+              "value": "do_not_verify"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "cac763bb-c28f-4366-bb3d-a8cd7ed10dad",
+      "name": "photo uploaded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2320,
+        -200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b87c9073-f508-4ac7-92d9-3f9968548c1f",
+              "leftValue": "={{ $json.statusCode === 200 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "748c796a-16db-409c-8432-cdd058ffcef0",
+      "name": "Upload URL payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2520,
+        -200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_upload_url?bucketId=57d8ff72a9534e199bf30918",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f9a9cf28-50e9-40fd-a932-662caee9c9e0",
+      "name": "Attach payment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $('Check Request').first();\nconst f = r.json.files['payment'];\nreturn [{ json: { uploadUrl: $in.uploadUrl, uploadToken: $in.authorizationToken, mime: f.mime,\n  name: f.key.split('/').map(encodeURIComponent).join('/') }, binary: { file: r.binary['payment'] } }];"
+      }
+    },
+    {
+      "id": "f274c5ea-d6c1-475c-92ec-425ea347ca5f",
+      "name": "Upload payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2920,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.uploadUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.uploadToken }}"
+            },
+            {
+              "name": "X-Bz-File-Name",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.mime }}"
+            },
+            {
+              "name": "X-Bz-Content-Sha1",
+              "value": "do_not_verify"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "50b9ec99-d839-4c01-a312-db1ce06eaf17",
+      "name": "payment uploaded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3120,
+        -200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "93e6900f-10fd-4b36-9f58-f5783d88317e",
+              "leftValue": "={{ $json.statusCode === 200 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4e7e2d77-5ff1-4c2c-be8f-d0cdbe1f4609",
+      "name": "Upload Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3320,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { status: 502, body: { success: false, message: \"Could not upload your photos. Please check your internet and try again.\" } } }];"
+      }
+    },
+    {
+      "id": "f672225c-040f-4312-bea9-21d8a940ba43",
+      "name": "Save",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        3320,
+        -300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO event_registrations (event_slug, name, phone, category, jersey_size, jersey_name, jersey_number, food, photo_key, payment_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        "options": {
+          "queryReplacement": "={{ (r => [r.slug, r.name, r.phone, r.category, r.size, r.jname, r.jno, r.food, r.files.photo.key, r.files.payment.key])($('Check Request').first().json) }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c61a6c9d-cb21-49ab-adcd-d75b58e3593a",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3540,
+        -300
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst msg = String($in.message || $in.error?.message || '');\nif (msg.includes('Duplicate') || msg.includes('uq_event_phone')) return [{ json: { status: 409, body: { success: false, message: 'This mobile number is already registered. Contact the organiser to change your details.' } } }];\nif (msg) return [{ json: { status: 500, body: { success: false, message: 'Could not save your registration. Please try again.' } } }];\nconst r = $('Check Request').first().json;\nreturn [{ json: { status: 200, body: { success: true, message: `Thanks ${r.name.split(' ')[0]}, you're registered.` } } }];"
+      }
+    },
+    {
+      "id": "d54d635f-f9c6-4e24-93ac-8753207d8386",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3760,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Authorize B2": {
+      "main": [
+        [
+          {
+            "node": "Upload URL photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload URL photo": {
+      "main": [
+        [
+          {
+            "node": "Attach photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach photo": {
+      "main": [
+        [
+          {
+            "node": "Upload photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload photo": {
+      "main": [
+        [
+          {
+            "node": "photo uploaded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "photo uploaded?": {
+      "main": [
+        [
+          {
+            "node": "Upload URL payment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upload URL payment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upload Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload URL payment": {
+      "main": [
+        [
+          {
+            "node": "Attach payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach payment": {
+      "main": [
+        [
+          {
+            "node": "Upload payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload payment": {
+      "main": [
+        [
+          {
+            "node": "payment uploaded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "payment uploaded?": {
+      "main": [
+        [
+          {
+            "node": "Save",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upload Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Request": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Find Phone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Phone": {
+      "main": [
+        [
+          {
+            "node": "Check New",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check New": {
+      "main": [
+        [
+          {
+            "node": "New?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New?": {
+      "main": [
+        [
+          {
+            "node": "B2 Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Credentials": {
+      "main": [
+        [
+          {
+            "node": "Authorize B2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
