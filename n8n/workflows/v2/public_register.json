@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "ff7117ee-5d18-4b5c-acb6-db24ab87e677",
+      "id": "0d55e15f-7f4d-4719-93c0-4d36ce5781db",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -20,10 +20,10 @@
           "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
         }
       },
-      "webhookId": "02fcdf16-b226-4dee-9eb4-09075de4dc83"
+      "webhookId": "eee5ea69-f14a-4e33-90a3-f8e1805c08e4"
     },
     {
-      "id": "db27e212-8665-4a85-a806-52458aadf9a9",
+      "id": "c12c6734-07d4-4622-89cf-19e4948b6f8a",
       "name": "Check Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -32,11 +32,11 @@
         0
       ],
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\nconst byteSize = async (key, f) => {\n  try { const buf = await this.helpers.getBinaryDataBuffer(0, key); if (buf && buf.length) return buf.length; } catch (e) {}\n  const m = String(f.fileSize ?? '').trim().match(/^([\\d.]+)\\s*(B|kB|KB|MB|GB)?$/i);\n  if (m) return Math.ceil(parseFloat(m[1]) * ({ b: 1, kb: 1000, mb: 1e6, gb: 1e9 })[(m[2] || 'B').toLowerCase()]);\n  return Buffer.from(f.data || '', 'base64').length;\n};\n\nconst EVENTS = {\"sspl\": {\"name\": \"SSPL 2027 Season 07\", \"closes\": \"2026-12-06T23:59:59+05:30\"}};\nconst b = $in.body || {};\nconst bad = m => [{ json: { ok: false, status: 422, body: { success: false, message: m } } }];\nif (b.website) return bad('Please try again.');            // hidden field only bots fill in\nconst slug = String(b.event ?? '').toLowerCase();\nconst ev = EVENTS[slug];\nif (!ev) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This form is not available.' } } }];\nif (ev.closes && new Date() > new Date(ev.closes)) return bad('Registration is closed.');\nconst name = String(b.name ?? '').trim().replace(/\\s+/g, ' ');\nif (name.length < 2 || name.length > 60 || !/^[\\p{L}][\\p{L} .'-]*$/u.test(name)) return bad('Enter your full name.');\nconst phone = String(b.phone ?? '').replace(/\\D/g, '').slice(-10);\nif (!/^[6-9]\\d{9}$/.test(phone)) return bad('Enter a valid 10-digit mobile number.');\nconst category = String(b.category ?? '').toUpperCase();\nif (!['BATSMAN', 'BOWLER', 'ALL_ROUNDER', 'WICKET_KEEPER'].includes(category)) return bad('Choose your category.');\nconst size = String(b.jersey_size ?? '').toUpperCase();\nif (!['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].includes(size)) return bad('Choose your jersey size.');\nconst jname = String(b.jersey_name ?? '').trim().toUpperCase().replace(/\\s+/g, ' ');\nif (!/^[A-Z][A-Z .'-]{0,11}$/.test(jname)) return bad('Jersey name must be 1-12 letters.');\nconst jno = Number(b.jersey_number);\nif (!(Number.isInteger(jno) && jno >= 0 && jno <= 99) || String(b.jersey_number ?? '').trim() === '') return bad('Jersey number must be 0 to 99.');\nconst food = String(b.food ?? '').toUpperCase();\nif (!['VEG', 'NON_VEG'].includes(food)) return bad('Choose veg or non-veg.');\nconst bin = $input.first().binary || {};\nconst exts = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic' };\nconst files = {};\nfor (const [k, label] of [['photo', 'profile photo'], ['payment', 'payment screenshot']]) {\n  const f = bin[k];\n  if (!f) return bad(`Add your ${label}.`);\n  const mime = f.mimeType === 'image/jpg' ? 'image/jpeg' : f.mimeType;\n  if (!exts[mime]) return bad(`The ${label} must be a photo (JPG or PNG).`);\n  const bytes = await byteSize(k, f);\n  if (bytes > 8 * 1024 * 1024) return bad(`The ${label} must be under 8 MB.`);\n  files[k] = { mime, key: `event_registrations/${slug}/${phone}_${k}_${Date.now()}.${exts[mime]}` };\n}\nreturn [{ json: { ok: true, slug, name, phone, category, size, jname, jno, food, files }, binary: bin }];"
+        "jsCode": "const $in = $input.first().json;\nconst byteSize = async (key, f) => {\n  try { const buf = await this.helpers.getBinaryDataBuffer(0, key); if (buf && buf.length) return buf.length; } catch (e) {}\n  const m = String(f.fileSize ?? '').trim().match(/^([\\d.]+)\\s*(B|kB|KB|MB|GB)?$/i);\n  if (m) return Math.ceil(parseFloat(m[1]) * ({ b: 1, kb: 1000, mb: 1e6, gb: 1e9 })[(m[2] || 'B').toLowerCase()]);\n  return Buffer.from(f.data || '', 'base64').length;\n};\n\nconst EVENTS = {\"sspl\": {\"name\": \"SSPL 2027 Season 07\", \"closes\": \"2026-12-06T23:59:59+05:30\"}};\nconst b = $in.body || {};\nconst bad = m => [{ json: { ok: false, status: 422, body: { success: false, message: m } } }];\n// At most 30 complete submissions an hour from one network (kept in the workflow's static data).\n// Many phones on mobile data share one address, so only submissions that pass every check count.\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 30) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\nif (b.website) return bad('Please try again.');            // hidden field only bots fill in\nconst slug = String(b.event ?? '').toLowerCase();\nconst ev = EVENTS[slug];\nif (!ev) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This form is not available.' } } }];\nif (ev.closes && new Date() > new Date(ev.closes)) return bad('Registration is closed.');\nconst name = String(b.name ?? '').trim().replace(/\\s+/g, ' ');\nif (name.length < 2 || name.length > 60 || !/^[\\p{L}][\\p{L} .'-]*$/u.test(name)) return bad('Enter your full name.');\nconst phone = String(b.phone ?? '').replace(/\\D/g, '').slice(-10);\nif (!/^[6-9]\\d{9}$/.test(phone)) return bad('Enter a valid 10-digit mobile number.');\nconst category = String(b.category ?? '').toUpperCase();\nif (!['BATSMAN', 'BOWLER', 'ALL_ROUNDER', 'WICKET_KEEPER'].includes(category)) return bad('Choose your category.');\nconst size = String(b.jersey_size ?? '').toUpperCase();\nif (!['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].includes(size)) return bad('Choose your jersey size.');\nconst jname = String(b.jersey_name ?? '').trim().toUpperCase().replace(/\\s+/g, ' ');\nif (!/^[A-Z][A-Z .'-]{0,11}$/.test(jname)) return bad('Jersey name must be 1-12 letters.');\nconst jno = Number(b.jersey_number);\nif (!(Number.isInteger(jno) && jno >= 0 && jno <= 99) || String(b.jersey_number ?? '').trim() === '') return bad('Jersey number must be 0 to 99.');\nconst food = String(b.food ?? '').toUpperCase();\nif (!['VEG', 'NON_VEG'].includes(food)) return bad('Choose veg or non-veg.');\nconst bin = $input.first().binary || {};\nconst exts = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic' };\nconst files = {};\nfor (const [k, label] of [['photo', 'profile photo'], ['payment', 'payment screenshot']]) {\n  const f = bin[k];\n  if (!f) return bad(`Add your ${label}.`);\n  const mime = f.mimeType === 'image/jpg' ? 'image/jpeg' : f.mimeType;\n  if (!exts[mime]) return bad(`The ${label} must be a photo (JPG or PNG).`);\n  const bytes = await byteSize(k, f);\n  if (bytes > 8 * 1024 * 1024) return bad(`The ${label} must be under 8 MB.`);\n  // Check the file really is an image, not just named like one.\n  let head = null;\n  try { head = (await this.helpers.getBinaryDataBuffer(0, k)).subarray(0, 12); } catch (e) { head = Buffer.from(f.data || '', 'base64').subarray(0, 12); }\n  const hex = head ? head.toString('hex') : '';\n  const isImage = hex.startsWith('ffd8ff') || hex.startsWith('89504e470d0a1a0a') ||\n    (hex.startsWith('52494646') && hex.slice(16, 24) === '57454250') || hex.slice(8, 16) === '66747970';\n  if (!isImage) return bad(`The ${label} must be a photo (JPG or PNG).`);\n  files[k] = { mime, key: `event_registrations/${slug}/${phone}_${k}_${Date.now()}.${exts[mime]}` };\n}\nstore.hits[ip] = [...mine, now];\nreturn [{ json: { ok: true, slug, name, phone, category, size, jname, jno, food, files }, binary: bin }];"
       }
     },
     {
-      "id": "78e5fe59-595c-4d0f-bde2-07a9a73dcf3f",
+      "id": "e4a54454-aa16-4374-a588-fdf7a4a611d4",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "68c22615-6395-4232-bc48-527d7c672338",
+              "id": "5d944657-ad7a-4f23-891e-0c55f0f0292c",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "266989f0-3475-46bf-b926-27aabfb18135",
+      "id": "3d560511-3316-4fd7-86da-b264cbe44ed3",
       "name": "Find Phone",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -80,7 +80,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COUNT(*) AS n FROM event_registrations WHERE event_slug = $1 AND phone = $2",
+        "query": "SELECT (SELECT COUNT(*) FROM event_registrations WHERE event_slug = $1 AND phone = $2) AS n, (SELECT COUNT(*) FROM event_registrations WHERE event_slug = $1) AS total",
         "options": {
           "queryReplacement": "={{ [$json.slug, $json.phone] }}"
         }
@@ -94,7 +94,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "9d53d26a-0816-4322-979b-a0e2ee05e02d",
+      "id": "45b66c5a-e189-410d-a2eb-39048dc1f33a",
       "name": "Check New",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -103,11 +103,11 @@
         -100
       ],
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst r = $('Check Request').first();\nif (Number($in.n) > 0) return [{ json: { ok: false, status: 409, body: { success: false, message: 'This mobile number is already registered. Contact the organiser to change your details.' } } }];\nreturn [{ json: { ok: true, ...r.json }, binary: r.binary }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $('Check Request').first();\nif (Number($in.total) >= 1000) return [{ json: { ok: false, status: 409, body: { success: false, message: 'Registration is full. Contact the organiser.' } } }];\nif (Number($in.n) > 0) return [{ json: { ok: false, status: 409, body: { success: false, message: 'This mobile number is already registered. Contact the organiser to change your details.' } } }];\nreturn [{ json: { ok: true, ...r.json }, binary: r.binary }];"
       }
     },
     {
-      "id": "4d2bbec6-1a38-4991-9082-fad76da6de1c",
+      "id": "c60fe5a2-d37c-429a-820f-c2b87e24e1c9",
       "name": "New?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -125,7 +125,7 @@
           },
           "conditions": [
             {
-              "id": "83de009a-722b-4d69-b2c1-abe05742ab1b",
+              "id": "ccf1ec6e-58f8-4777-8ad4-917ef17adad7",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -141,7 +141,7 @@
       }
     },
     {
-      "id": "af56ea05-32af-4163-9d1a-f1f9df591ca2",
+      "id": "eb86fd27-63f9-4b75-a6f1-f55125d155b3",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -154,7 +154,7 @@
       }
     },
     {
-      "id": "3ed2d906-05dd-4e74-a03c-af94319a0f09",
+      "id": "f0b2dcc7-1ee9-4856-8175-78bf2d0e5f33",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -178,7 +178,7 @@
       }
     },
     {
-      "id": "088eef4f-45ed-4add-b986-c85c6ac3c464",
+      "id": "debe8b43-85d0-4fc1-8575-fb9d3f2caa2e",
       "name": "Upload URL photo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -202,7 +202,7 @@
       }
     },
     {
-      "id": "d6a84f72-d579-4466-876b-78379772456a",
+      "id": "ea418e6a-5fec-4401-a121-8e623feef5d4",
       "name": "Attach photo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -215,7 +215,7 @@
       }
     },
     {
-      "id": "825cc295-c764-4434-9984-75ad3b294260",
+      "id": "68a97636-8e18-4440-945a-36e9877d1f6c",
       "name": "Upload photo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -264,7 +264,7 @@
       "waitBetweenTries": 1000
     },
     {
-      "id": "d01d5faa-1232-4766-8639-e038eca717ba",
+      "id": "1b56582b-5b8b-401f-8c35-07117e072233",
       "name": "photo uploaded?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -282,7 +282,7 @@
           },
           "conditions": [
             {
-              "id": "b952e4fe-da0e-4178-a03f-6150901aa8a0",
+              "id": "ed5487be-3b9b-42e6-abc5-f65054111042",
               "leftValue": "={{ $json.statusCode === 200 }}",
               "rightValue": "",
               "operator": {
@@ -298,7 +298,7 @@
       }
     },
     {
-      "id": "fcabf05a-9bcf-44fc-bc8c-cbc39992dd6a",
+      "id": "fd469fc0-14fc-42ae-8271-a35182192318",
       "name": "Upload URL payment",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -322,7 +322,7 @@
       }
     },
     {
-      "id": "a76e093d-571d-4895-8891-57fc1359f0d8",
+      "id": "fadead44-0ae8-4439-b116-e4069e62a051",
       "name": "Attach payment",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -335,7 +335,7 @@
       }
     },
     {
-      "id": "9de52091-6809-4c91-8a8b-531f148529dc",
+      "id": "599b42a5-e1cf-4e85-9f54-6abb191e6d35",
       "name": "Upload payment",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -384,7 +384,7 @@
       "waitBetweenTries": 1000
     },
     {
-      "id": "93449b0c-e2e0-45f2-983e-6ed2b38bc5f4",
+      "id": "1039ba84-3393-4b51-b5d8-6b31b15dfd82",
       "name": "payment uploaded?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -402,7 +402,7 @@
           },
           "conditions": [
             {
-              "id": "ee3f7852-7d77-4a98-802c-1c4060b04854",
+              "id": "1af53a3d-72ee-4da6-b631-145340db9744",
               "leftValue": "={{ $json.statusCode === 200 }}",
               "rightValue": "",
               "operator": {
@@ -418,7 +418,7 @@
       }
     },
     {
-      "id": "d77ed747-36ac-4b42-8350-1a7c0508e1fb",
+      "id": "0c839230-e8a2-4a5b-867d-e1547161dd34",
       "name": "Upload Failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -431,7 +431,7 @@
       }
     },
     {
-      "id": "6f8cd855-d8f4-4057-888a-5369bca7db3f",
+      "id": "bdcdd942-70c3-40b3-9cfa-b529754be5df",
       "name": "Save",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -455,7 +455,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "b3900e0c-ef9c-4e21-bee4-d4d5fc961387",
+      "id": "c05e579d-46fd-4408-9164-829385705f56",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -468,7 +468,7 @@
       }
     },
     {
-      "id": "71f912ae-b134-4bb9-8f39-c45a82932271",
+      "id": "6bd653f2-8115-45ac-abf6-dea75067b767",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
