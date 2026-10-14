@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "0a528167-3201-4ee0-ae72-9cab2e49ca1a",
+      "id": "d7a3eafc-350c-4e25-8572-cbfb5844408c",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -20,10 +20,10 @@
           "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
         }
       },
-      "webhookId": "db37cf61-53e9-41a5-9035-fb56398a2351"
+      "webhookId": "ef6bd4b7-3403-476b-9fb0-e3ac760471f3"
     },
     {
-      "id": "dda7289d-291a-4c51-9b5a-acd92490808b",
+      "id": "c3082025-5b1a-4e75-a860-d98a3420448b",
       "name": "Check Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -36,7 +36,7 @@
       }
     },
     {
-      "id": "a01b4290-942d-49a3-bb51-3002c3fb964b",
+      "id": "38f4c850-da57-4a1d-84c3-3a09dad44a05",
       "name": "Token OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "6984d520-0fec-45ed-870d-aa587aa4eccb",
+              "id": "30d53ff1-a0dc-4401-9365-d5a24e0c45bf",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "d6bcac9f-ff06-4b98-a735-62a74a91f924",
+      "id": "5e8df62d-13ac-401d-ab91-e7c1f89c5ab4",
       "name": "Load Staff",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -94,7 +94,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "3b5e8ef0-bf93-4501-8fbd-c89d1f28cd84",
+      "id": "308bf657-3f9d-4583-996b-862ce1f12f4b",
       "name": "Is Superadmin",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -107,7 +107,7 @@
       }
     },
     {
-      "id": "02bcf9f3-a63b-4011-a21b-c42c41a9cea0",
+      "id": "0b17c5b0-cdcf-449e-93a2-c9851f098729",
       "name": "Allowed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -125,7 +125,7 @@
           },
           "conditions": [
             {
-              "id": "38502379-456c-4c6b-9427-12184b1a2194",
+              "id": "94bce9ce-425e-4487-a977-a91a6c558a8b",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -141,7 +141,7 @@
       }
     },
     {
-      "id": "5fa6628b-50eb-4ed7-874c-a38077783bd6",
+      "id": "e906a6d5-8df8-4401-a3de-f6c290c4fdcc",
       "name": "Load Registrations",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -151,7 +151,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, phone, category, jersey_size, jersey_name, jersey_number, food, photo_key, payment_key, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS created_at FROM event_registrations WHERE event_slug = $1 ORDER BY id",
+        "query": "SELECT id, name, phone, category, jersey_size, jersey_name, jersey_number, food, photo_key, payment_key, DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i') AS created_at FROM event_registrations WHERE event_slug = $1 ORDER BY id",
         "options": {
           "queryReplacement": "={{ [$('Check Token').first().json.slug] }}"
         }
@@ -165,7 +165,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "12e9b536-6131-4153-a724-f24a6cb943a0",
+      "id": "c12422f0-fb81-4cfd-8cbf-785695b22266",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -178,7 +178,7 @@
       }
     },
     {
-      "id": "84942e2d-c581-4cc4-bc4e-db3c996ed7c6",
+      "id": "59a1be76-1ac4-4209-8191-46a5995c055f",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -203,7 +203,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "3d3850fd-5b44-451c-8eac-e436d2907775",
+      "id": "ac5b38ac-93bf-455c-848c-0edcc6f527a5",
       "name": "Files Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -235,7 +235,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "33ef20b5-d3b5-4966-95e6-e49472f3ad77",
+      "id": "951b882e-2d41-40a7-bc08-dc763133596d",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -248,7 +248,7 @@
       }
     },
     {
-      "id": "9ff0e743-7935-4bab-9089-3177a6cba7cd",
+      "id": "174412b6-bb5f-4b6e-b4c6-370c5e66edb1",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
