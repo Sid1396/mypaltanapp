@@ -376,6 +376,13 @@ class TournamentController extends GetxController with LoggerMixin {
         key: 'entry-withdraw-confirm',
       );
 
+  Future<void> openYoutube(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication).catchError((_) => false)) {
+      AppSnackbar.error('YouTube', "Couldn't open the stream.");
+    }
+  }
+
   Future<void> callNumber(String phone) async {
     final ok = await launchUrl(Uri.parse('tel:$phone')).catchError((_) => false);
     if (!ok) AppSnackbar.info('Phone', phone);

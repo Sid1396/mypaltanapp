@@ -77,6 +77,7 @@ Widget stepFor(String step) {
       'divisions' => const DivisionsStep(),
       'payment' => const PaymentStep(),
       'extras' => const ExtrasStep(),
+      'officials' => const OfficialsStep(),
       'registration' => const RegistrationStep(),
       'media' => const MediaStep(),
       _ => const ReviewStep(),
@@ -1043,6 +1044,107 @@ class ExtrasStep extends GetView<CreateTournamentController> {
   }
 }
 
+// ─── Officials & streaming ──────────────────────────────────────
+
+class OfficialsStep extends GetView<CreateTournamentController> {
+  const OfficialsStep({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    final umpireWord = c.sport.value == 'FOOTBALL' ? 'referees' : 'umpires';
+    return _StepBody(
+      title: 'Officials & streaming',
+      subtitle: 'Need help on the day? MyPaltan arranges trained people for you.',
+      children: [
+        Obx(() => FormCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SwitchRow(
+                    key: const ValueKey('t-need-scorer'),
+                    label: 'Need a scorer?',
+                    hint: 'Scores every match live in the app.',
+                    value: c.needScorer.value,
+                    onChanged: (v) => c.needScorer.value = v,
+                  ),
+                  if (c.needScorer.value)
+                    NumberStepper(label: 'Scorers per day', value: c.scorers.value, min: 1, max: 10, onChanged: (v) => c.scorers.value = v),
+                  Divider(height: SizeConfig.h(16), color: Colors.white.withAlpha(14)),
+                  SwitchRow(
+                    key: const ValueKey('t-need-umpires'),
+                    label: 'Need $umpireWord?',
+                    hint: 'Run the matches on the field.',
+                    value: c.needUmpires.value,
+                    onChanged: (v) => c.needUmpires.value = v,
+                  ),
+                  if (c.needUmpires.value)
+                    NumberStepper(label: '${umpireWord.capitalizeFirst} per day', value: c.umpires.value, min: 1, max: 10, onChanged: (v) => c.umpires.value = v),
+                  Divider(height: SizeConfig.h(16), color: Colors.white.withAlpha(14)),
+                  SwitchRow(
+                    key: const ValueKey('t-need-stream'),
+                    label: 'Need live streaming?',
+                    hint: 'Matches streamed on YouTube.',
+                    value: c.needStream.value,
+                    onChanged: (v) => c.needStream.value = v,
+                  ),
+                ],
+              ),
+            )),
+        Obx(() {
+          if (!c.needScorer.value && !c.needUmpires.value && !c.needStream.value) {
+            return Padding(
+              padding: EdgeInsets.only(top: SizeConfig.h(12)),
+              child: const InfoNote('No problem. You can score the matches yourself in the app.', icon: Icons.edit_note_rounded),
+            );
+          }
+          final (lo, hi) = c.officialsEstimate;
+          final days = c.matchDayCount;
+          final people = c.officialPeople;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              gapH(12),
+              FormCard(
+                key: const ValueKey('t-officials-estimate'),
+                padding: EdgeInsets.all(SizeConfig.r(14)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ESTIMATED COST', style: tfStyle(11, weight: FontWeight.w800, color: AppColors.primary).copyWith(letterSpacing: 0.8)),
+                    gapH(6),
+                    if (people > 0) ...[
+                      Text('${rupees(lo)} – ${rupees(hi)}', style: tfStyle(22, weight: FontWeight.w900)),
+                      Text('$people ${people == 1 ? 'person' : 'people'} × $days match ${days == 1 ? 'day' : 'days'} × ₹1,000–1,500 a day',
+                          style: tfStyle(12.5, color: Colors.white.withAlpha(160))),
+                    ],
+                    if (c.needStream.value) ...[
+                      gapH(people > 0 ? 6 : 0),
+                      Text(people > 0 ? '+ live streaming: price on call' : 'Live streaming: price on call', style: tfStyle(13.5, weight: FontWeight.w700)),
+                    ],
+                    gapH(8),
+                    Text('You pay the officials directly. MyPaltan calls you to confirm the details.',
+                        style: tfStyle(12, color: Colors.white.withAlpha(140), height: 1.4)),
+                  ],
+                ),
+              ),
+              gapH(16),
+              const FormLabel('Anything MyPaltan should know?', optional: true),
+              FieldTextInput(
+                key: const ValueKey('t-officials-note'),
+                controller: c.officialsNoteCtrl,
+                hint: 'e.g. Streaming for the finals only',
+                maxLines: 3,
+                maxLength: 300,
+              ),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+}
+
 // ─── 10. Registration ───────────────────────────────────────────
 
 class RegistrationStep extends GetView<CreateTournamentController> {
@@ -1278,6 +1380,13 @@ class ReviewStep extends GetView<CreateTournamentController> {
                 ? 'Jerseys: ${label(TournamentOptions.jerseyPrints, c.jerseyPrint.value).toLowerCase()}'
                     '${c.jerseyFee > 0 ? ' (${rupees(c.jerseyFee)} of the fee)' : ''}'
                 : 'No jerseys',
+          ]),
+          _ReviewSection(step: 'officials', title: 'Officials & streaming', lines: [
+            if (!c.needScorer.value && !c.needUmpires.value && !c.needStream.value) 'Not needed: you score the matches yourself',
+            if (c.needScorer.value) '${c.scorers.value} scorer${c.scorers.value == 1 ? '' : 's'} a day',
+            if (c.needUmpires.value) '${c.umpires.value} ${c.sport.value == 'FOOTBALL' ? 'referee' : 'umpire'}${c.umpires.value == 1 ? '' : 's'} a day',
+            if (c.needStream.value) 'Live streaming',
+            if (c.officialPeople > 0) 'About ${rupees(c.officialsEstimate.$1)}–${rupees(c.officialsEstimate.$2)}, paid to the officials',
           ]),
           _ReviewSection(step: 'registration', title: 'Registration', lines: [
             'Closes ${fmtDateTime(c.registrationDeadline.value)}',

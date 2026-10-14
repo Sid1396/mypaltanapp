@@ -84,6 +84,7 @@ class CreateTournamentController extends GetxController with LoggerMixin {
     'fees': 'Entry fee & prize',
     'payment': 'Payment',
     'extras': 'Food & jerseys',
+    'officials': 'Officials & streaming',
     'registration': 'Registration',
     'media': 'Documents & sponsors',
     'review': 'Review',
@@ -137,6 +138,14 @@ class CreateTournamentController extends GetxController with LoggerMixin {
   final jerseyPrint = 'NAME_NUMBER'.obs;
   final jerseyFeeCtrl = TextEditingController();
 
+  // Officials MyPaltan arranges (paid directly to them, outside the app)
+  final needScorer = false.obs;
+  final scorers = 1.obs;
+  final needUmpires = false.obs;
+  final umpires = 1.obs;
+  final needStream = false.obs;
+  final officialsNoteCtrl = TextEditingController();
+
   // Registration
   final registrationDeadline = Rx<DateTime?>(null);
   final checklistDeadline = Rx<DateTime?>(null);
@@ -147,7 +156,7 @@ class CreateTournamentController extends GetxController with LoggerMixin {
   final docBusy = false.obs;
 
   List<TextEditingController> get _controllers =>
-      [nameCtrl, descCtrl, areaCtrl, cityCtrl, groundCtrl, upiCtrl, upiNameCtrl, payNoteCtrl, jerseyFeeCtrl];
+      [nameCtrl, descCtrl, areaCtrl, cityCtrl, groundCtrl, upiCtrl, upiNameCtrl, payNoteCtrl, jerseyFeeCtrl, officialsNoteCtrl];
 
   @override
   void onInit() {
@@ -175,6 +184,23 @@ class CreateTournamentController extends GetxController with LoggerMixin {
   // ─── Steps ────────────────────────────────────────────────────
 
   int get jerseyFee => int.tryParse(jerseyFeeCtrl.text.trim()) ?? 0;
+
+  /// Days with matches between the dates (weekend-only tournaments count Saturdays and Sundays).
+  int get matchDayCount {
+    final s = startDate.value, e = endDate.value;
+    if (s == null || e == null || e.isBefore(s)) return 1;
+    var n = 0;
+    for (var d = s; !d.isAfter(e); d = d.add(const Duration(days: 1))) {
+      final weekend = d.weekday >= DateTime.saturday;
+      if (matchDays.value == 'WEEKEND' ? weekend : matchDays.value == 'WEEKDAYS' ? !weekend : true) n++;
+    }
+    return n < 1 ? 1 : n;
+  }
+
+  /// Scorers and umpires cost ₹1,000-1,500 per person per day, paid directly to them.
+  static const officialDayRate = (1000, 1500);
+  int get officialPeople => (needScorer.value ? scorers.value : 0) + (needUmpires.value ? umpires.value : 0);
+  (int, int) get officialsEstimate => (officialPeople * matchDayCount * officialDayRate.$1, officialPeople * matchDayCount * officialDayRate.$2);
   bool get hasExtras => foodProvided.value || jerseyProvided.value;
 
   /// Highest and lowest entry fee across divisions (UPI is needed when any division charges).
@@ -208,6 +234,7 @@ class CreateTournamentController extends GetxController with LoggerMixin {
       ],
       if (maxEntryFee > 0) 'payment',
       'extras',
+      'officials',
       'registration',
       'media',
       'review',
@@ -286,6 +313,7 @@ class CreateTournamentController extends GetxController with LoggerMixin {
     for (final d in divisions) {
       d.applySportDefaults(code);
     }
+    if (!needUmpires.value) umpires.value = code == 'CRICKET' ? 2 : 1;
   }
 
   // ─── Divisions ────────────────────────────────────────────────
@@ -431,6 +459,9 @@ class CreateTournamentController extends GetxController with LoggerMixin {
             return multiDivision.value ? "Jersey fee must be included in every division's entry fee." : 'Jersey fee must be included in the entry fee.';
           }
         }
+        return null;
+      case 'officials':
+        if (officialsNoteCtrl.text.trim().length > 300) return 'Keep the note for MyPaltan under 300 characters.';
         return null;
       case 'registration':
         final reg = registrationDeadline.value;
@@ -625,6 +656,14 @@ class CreateTournamentController extends GetxController with LoggerMixin {
         'jersey_provided': jerseyProvided.value,
         'jersey_print': jerseyProvided.value ? jerseyPrint.value : null,
         'jersey_fee': jerseyProvided.value ? jerseyFee : 0,
+        'officials': {
+          'need_scorer': needScorer.value,
+          'scorers': scorers.value,
+          'need_umpires': needUmpires.value,
+          'umpires': umpires.value,
+          'need_stream': needStream.value,
+          'note': (needScorer.value || needUmpires.value || needStream.value) ? _opt(officialsNoteCtrl) : null,
+        },
         'registration_deadline': registrationDeadline.value == null ? null : _dt(registrationDeadline.value!),
         'checklist_deadline': hasExtras && checklistDeadline.value != null ? _dt(checklistDeadline.value!) : null,
         'documents': [
@@ -752,6 +791,15 @@ class CreateTournamentController extends GetxController with LoggerMixin {
     jerseyProvided.value = t.jerseyProvided;
     jerseyPrint.value = t.jerseyPrint ?? 'NAME_NUMBER';
     jerseyFeeCtrl.text = t.jerseyFee > 0 ? '${t.jerseyFee}' : '';
+    final o = t.officials;
+    if (o != null) {
+      needScorer.value = o.needScorer;
+      scorers.value = o.scorers;
+      needUmpires.value = o.needUmpires;
+      umpires.value = o.umpires;
+      needStream.value = o.needStream;
+      officialsNoteCtrl.text = o.note ?? '';
+    }
     registrationDeadline.value = t.registrationDeadline;
     checklistDeadline.value = t.checklistDeadline;
     documents.assignAll(t.documents.where((d) => d.fileKey != null).map((d) => DocumentDraft(

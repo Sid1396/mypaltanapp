@@ -197,6 +197,7 @@ class Tournament {
   final List<String> meals;
   final bool jerseyProvided;
   final String? jerseyPrint;
+  final TournamentOfficials? officials;
   final DateTime? registrationDeadline;
   final DateTime? checklistDeadline;
   final String visibility;
@@ -264,6 +265,7 @@ class Tournament {
     this.logoKey,
     this.bannerKey,
     this.payment,
+    this.officials,
   });
 
   bool get isDraft => status == 'DRAFT';
@@ -306,6 +308,7 @@ class Tournament {
       meals: (j['meals'] as List? ?? []).map((m) => '$m').where((m) => m.isNotEmpty).toList(),
       jerseyProvided: _bool(j['jersey_provided']),
       jerseyPrint: _str(j['jersey_print']),
+      officials: j['officials'] is Map ? TournamentOfficials.fromJson(Map<String, dynamic>.from(j['officials'] as Map)) : null,
       registrationDeadline: _date(j['registration_deadline']),
       checklistDeadline: _date(j['checklist_deadline']),
       visibility: j['visibility']?.toString() ?? 'PRIVATE',
@@ -400,5 +403,50 @@ class VerificationStatus {
         status: j['status']?.toString() ?? 'NOT_SUBMITTED',
         rejectReason: _str(j['reject_reason']),
         submittedAt: _str(j['submitted_at']),
+      );
+}
+
+/// Scorers, umpires and live streaming the organiser asked MyPaltan to arrange.
+class TournamentOfficials {
+  final bool needScorer;
+  final int scorers;
+  final bool needUmpires;
+  final int umpires;
+  final bool needStream;
+  final String? note;
+  final String status; // NOT_NEEDED, REQUESTED, CONFIRMED, CANCELLED
+  final String? staffNote;
+  final String? youtubeUrl;
+  final List<({String role, String name, String? phone})> people;
+
+  const TournamentOfficials({
+    required this.needScorer,
+    this.scorers = 1,
+    required this.needUmpires,
+    this.umpires = 1,
+    required this.needStream,
+    this.note,
+    required this.status,
+    this.staffNote,
+    this.youtubeUrl,
+    this.people = const [],
+  });
+
+  bool get needsAny => needScorer || needUmpires || needStream;
+
+  factory TournamentOfficials.fromJson(Map<String, dynamic> j) => TournamentOfficials(
+        needScorer: _bool(j['need_scorer']),
+        scorers: _int(j['scorers'], 1),
+        needUmpires: _bool(j['need_umpires']),
+        umpires: _int(j['umpires'], 1),
+        needStream: _bool(j['need_stream']),
+        note: _str(j['note']),
+        status: j['status']?.toString() ?? 'NOT_NEEDED',
+        staffNote: _str(j['staff_note']),
+        youtubeUrl: _str(j['youtube_url']),
+        people: [
+          for (final p in (j['people'] as List? ?? []).whereType<Map>())
+            (role: p['role']?.toString() ?? '', name: p['name']?.toString() ?? '', phone: _str(p['phone'])),
+        ],
       );
 }

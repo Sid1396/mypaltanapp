@@ -501,6 +501,8 @@ class _AboutTab extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const NextMatchCard(),
+        if (t.officials != null && (t.isOwner ? t.officials!.needsAny : t.officials!.status == 'CONFIRMED' && t.officials!.people.isNotEmpty))
+          Padding(padding: EdgeInsets.only(bottom: SizeConfig.h(16)), child: _OfficialsCard(t: t)),
         if (!t.isOwner)
           Obx(() {
             final mine = Get.find<TournamentController>().myEntry;
@@ -561,6 +563,80 @@ List<Widget> _divisionRows(TournamentDivision? d, Tournament t, bool isRacket) {
     _InfoRow(Icons.currency_rupee_rounded, 'Entry fee', (d?.entryFee ?? t.entryFee) > 0 ? '${rupees(d?.entryFee ?? t.entryFee)} per team' : 'Free'),
     if (prizeType != 'NONE') _InfoRow(Icons.emoji_events_rounded, 'Prize', prizeDetails ?? _l(TournamentOptions.prizeTypes, prizeType)),
   ];
+}
+
+/// Scorers, umpires and streaming MyPaltan arranges. The organiser sees the request status and phone numbers.
+class _OfficialsCard extends GetView<TournamentController> {
+  final Tournament t;
+  const _OfficialsCard({required this.t});
+
+  static const _roles = {'SCORER': 'Scorer', 'UMPIRE': 'Umpire', 'STREAMER': 'Live streaming'};
+
+  @override
+  Widget build(BuildContext context) {
+    final o = t.officials!;
+    final umpire = t.sport == 'FOOTBALL' ? 'Referee' : 'Umpire';
+    final asked = [
+      if (o.needScorer) '${o.scorers} scorer${o.scorers == 1 ? '' : 's'}',
+      if (o.needUmpires) '${o.umpires} ${umpire.toLowerCase()}${o.umpires == 1 ? '' : 's'}',
+      if (o.needStream) 'live streaming',
+    ].join(', ');
+    final (String title, String body, Color color) = switch (o.status) {
+      'CONFIRMED' => ('Officials confirmed', o.staffNote ?? 'MyPaltan has arranged your officials.', AppColors.positive),
+      'CANCELLED' => ('Officials not arranged', o.staffNote ?? 'MyPaltan could not arrange officials this time.', AppColors.negative),
+      _ => ('MyPaltan is arranging your officials', 'You asked for $asked. We will call you to confirm.', const Color(0xFFFFB74D)),
+    };
+    return Container(
+      key: const ValueKey('officials-card'),
+      padding: EdgeInsets.all(SizeConfig.r(14)),
+      decoration: BoxDecoration(
+        color: t.isOwner ? color.withAlpha(16) : const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(SizeConfig.r(14)),
+        border: Border.all(color: t.isOwner ? color.withAlpha(70) : Colors.white.withAlpha(12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t.isOwner ? title : 'MATCH OFFICIALS', style: t.isOwner ? tfStyle(15, weight: FontWeight.w800) : tfStyle(11, weight: FontWeight.w800, color: AppColors.primary).copyWith(letterSpacing: 0.8)),
+          if (t.isOwner) ...[gapH(4), Text(body, style: tfStyle(12.5, color: Colors.white.withAlpha(185), height: 1.4))],
+          for (final p in o.people)
+            Padding(
+              padding: EdgeInsets.only(top: SizeConfig.h(8)),
+              child: Row(children: [
+                Icon(p.role == 'STREAMER' ? Icons.videocam_rounded : (p.role == 'SCORER' ? Icons.edit_note_rounded : Icons.sports_rounded),
+                    size: SizeConfig.r(18), color: AppColors.primary),
+                SizedBox(width: SizeConfig.w(10)),
+                Expanded(
+                  child: Text('${p.name} · ${p.role == 'UMPIRE' ? umpire : _roles[p.role]}', style: tfStyle(13.5, weight: FontWeight.w700)),
+                ),
+                if (t.isOwner && p.phone != null)
+                  GestureDetector(
+                    onTap: () => controller.callNumber(p.phone!),
+                    child: Icon(Icons.call_rounded, size: SizeConfig.r(18), color: Colors.white.withAlpha(170)),
+                  ),
+              ]),
+            ),
+          if (o.youtubeUrl != null) ...[
+            gapH(12),
+            GestureDetector(
+              key: const ValueKey('watch-live'),
+              onTap: () => controller.openYoutube(o.youtubeUrl!),
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: SizeConfig.h(10)),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: const Color(0xFFE62117), borderRadius: BorderRadius.circular(SizeConfig.r(10))),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.play_arrow_rounded, color: Colors.white, size: SizeConfig.r(20)),
+                  SizedBox(width: SizeConfig.w(6)),
+                  Text('Watch live on YouTube', style: tfStyle(13.5, weight: FontWeight.w800)),
+                ]),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _DivisionCard extends StatelessWidget {
