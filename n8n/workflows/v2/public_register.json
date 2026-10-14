@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "0d55e15f-7f4d-4719-93c0-4d36ce5781db",
+      "id": "00313ed7-e4ab-427e-8507-d7bf43326e30",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -20,10 +20,10 @@
           "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
         }
       },
-      "webhookId": "eee5ea69-f14a-4e33-90a3-f8e1805c08e4"
+      "webhookId": "3422aa84-fd9a-4a43-a2ac-e7c0031b3e92"
     },
     {
-      "id": "c12c6734-07d4-4622-89cf-19e4948b6f8a",
+      "id": "23c1fbbf-6950-4f46-b9ad-1bfbe17b4c3c",
       "name": "Check Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -36,7 +36,7 @@
       }
     },
     {
-      "id": "e4a54454-aa16-4374-a588-fdf7a4a611d4",
+      "id": "3d4d85fc-e411-4cd9-87b4-618fdf933cdd",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "5d944657-ad7a-4f23-891e-0c55f0f0292c",
+              "id": "1a746139-2470-44e5-8d5a-8c5e0b1d07cd",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "3d560511-3316-4fd7-86da-b264cbe44ed3",
+      "id": "23f1854d-717b-4947-ade9-099ee9e5c796",
       "name": "Find Phone",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -94,7 +94,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "45b66c5a-e189-410d-a2eb-39048dc1f33a",
+      "id": "fabcfcc7-1572-4ce7-a2e4-3f2306b10e5a",
       "name": "Check New",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -107,7 +107,7 @@
       }
     },
     {
-      "id": "c60fe5a2-d37c-429a-820f-c2b87e24e1c9",
+      "id": "a1539efe-31bf-434f-a114-fcee5a8e1e03",
       "name": "New?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -125,7 +125,7 @@
           },
           "conditions": [
             {
-              "id": "ccf1ec6e-58f8-4777-8ad4-917ef17adad7",
+              "id": "63cba5b7-6455-4037-afbb-e8d47b70cf43",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -141,7 +141,7 @@
       }
     },
     {
-      "id": "eb86fd27-63f9-4b75-a6f1-f55125d155b3",
+      "id": "c8d76e27-1e63-40dd-9389-f931bc197400",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -154,7 +154,7 @@
       }
     },
     {
-      "id": "f0b2dcc7-1ee9-4856-8175-78bf2d0e5f33",
+      "id": "abad5b0a-7860-4b29-a25b-51982b714b76",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -178,7 +178,7 @@
       }
     },
     {
-      "id": "debe8b43-85d0-4fc1-8575-fb9d3f2caa2e",
+      "id": "96e86d2c-5d1c-44c9-b204-c7fa0d3d37dc",
       "name": "Upload URL photo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -202,7 +202,7 @@
       }
     },
     {
-      "id": "ea418e6a-5fec-4401-a121-8e623feef5d4",
+      "id": "8671a26b-ad13-4fcd-aa78-bedb8e727da3",
       "name": "Attach photo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -215,7 +215,7 @@
       }
     },
     {
-      "id": "68a97636-8e18-4440-945a-36e9877d1f6c",
+      "id": "349c694c-bc81-4cd3-bd57-beb4dee8b054",
       "name": "Upload photo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -264,7 +264,7 @@
       "waitBetweenTries": 1000
     },
     {
-      "id": "1b56582b-5b8b-401f-8c35-07117e072233",
+      "id": "8851caf8-e335-484a-b8f1-d50fe840f52c",
       "name": "photo uploaded?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -282,7 +282,7 @@
           },
           "conditions": [
             {
-              "id": "ed5487be-3b9b-42e6-abc5-f65054111042",
+              "id": "e677e04d-b6ba-4d1c-a997-5229f93bd774",
               "leftValue": "={{ $json.statusCode === 200 }}",
               "rightValue": "",
               "operator": {
@@ -298,7 +298,7 @@
       }
     },
     {
-      "id": "fd469fc0-14fc-42ae-8271-a35182192318",
+      "id": "79ea2053-bf99-47a7-be4f-fb7c56172ea8",
       "name": "Upload URL payment",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -322,7 +322,7 @@
       }
     },
     {
-      "id": "fadead44-0ae8-4439-b116-e4069e62a051",
+      "id": "8c462db3-cf5f-4bfd-a1c4-f09d9bfcdcb4",
       "name": "Attach payment",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -335,7 +335,7 @@
       }
     },
     {
-      "id": "599b42a5-e1cf-4e85-9f54-6abb191e6d35",
+      "id": "da5dec95-778b-4cbb-8bd1-8b8dc73b37da",
       "name": "Upload payment",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -384,7 +384,7 @@
       "waitBetweenTries": 1000
     },
     {
-      "id": "1039ba84-3393-4b51-b5d8-6b31b15dfd82",
+      "id": "759d3e8c-a509-4f93-88c5-44a36f4c8951",
       "name": "payment uploaded?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -402,7 +402,7 @@
           },
           "conditions": [
             {
-              "id": "1af53a3d-72ee-4da6-b631-145340db9744",
+              "id": "942a9811-a86b-408d-aaad-536f37c5c085",
               "leftValue": "={{ $json.statusCode === 200 }}",
               "rightValue": "",
               "operator": {
@@ -418,7 +418,7 @@
       }
     },
     {
-      "id": "0c839230-e8a2-4a5b-867d-e1547161dd34",
+      "id": "e4f444dd-dce5-4098-8f75-aff7987536b5",
       "name": "Upload Failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -431,7 +431,7 @@
       }
     },
     {
-      "id": "bdcdd942-70c3-40b3-9cfa-b529754be5df",
+      "id": "7c31ed09-f3a4-4b54-a376-72e73b137b9a",
       "name": "Save",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -455,7 +455,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "c05e579d-46fd-4408-9164-829385705f56",
+      "id": "ac25d4e5-28d6-45e5-b0d3-73606a0edc1e",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -468,7 +468,7 @@
       }
     },
     {
-      "id": "6bd653f2-8115-45ac-abf6-dea75067b767",
+      "id": "ecf12319-cf3f-471a-8bd3-65036db5c13b",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -533,11 +533,6 @@
     "photo uploaded?": {
       "main": [
         [
-          {
-            "node": "Upload URL payment",
-            "type": "main",
-            "index": 0
-          },
           {
             "node": "Upload URL payment",
             "type": "main",
