@@ -136,7 +136,7 @@ class FixturesTabBody extends GetView<TournamentController> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (f.isOwner) ...[_OwnerBar(f: f), gapH(16)],
+          if (f.isOwner) ...[_OwnerBar(f: f), gapH(12), const ScoringPinCard(), gapH(16)],
           if (f.divisions.length > 1 || f.myEntryIds.isNotEmpty) ...[
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -360,7 +360,7 @@ class _MatchRow extends GetView<TournamentController> {
         );
     return GestureDetector(
       key: ValueKey('match-${m.divisionId}-${m.matchNo}'),
-      onTap: f.isOwner && m.status == 'SCHEDULED' ? () => showEditMatchSheet(m) : null,
+      onTap: () => controller.openMatch(m),
       child: Container(
         margin: EdgeInsets.only(bottom: SizeConfig.h(8)),
         padding: EdgeInsets.all(SizeConfig.r(12)),
@@ -373,7 +373,14 @@ class _MatchRow extends GetView<TournamentController> {
           SizedBox(
             width: SizeConfig.w(62),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(fmtFixtureTime(m.at), style: tfStyle(13, weight: FontWeight.w800)),
+              if (m.isLive)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(6), vertical: SizeConfig.h(2)),
+                  decoration: BoxDecoration(color: AppColors.negative, borderRadius: BorderRadius.circular(SizeConfig.r(100))),
+                  child: Text('LIVE', style: tfStyle(10, weight: FontWeight.w900)),
+                )
+              else
+                Text(m.isDone ? 'FT' : fmtFixtureTime(m.at), style: tfStyle(13, weight: FontWeight.w800)),
               Text('Pitch ${m.pitch}', style: tfStyle(11, color: Colors.white.withAlpha(130))),
             ]),
           ),
@@ -389,12 +396,29 @@ class _MatchRow extends GetView<TournamentController> {
                 Padding(padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(6)), child: Text('v', style: tfStyle(12, color: Colors.white.withAlpha(110)))),
                 side(away, m.awayLabel, right: true),
               ]),
+              if (m.summary.isNotEmpty) ...[
+                gapH(4),
+                Row(children: [
+                  Expanded(child: Text(m.scoreOf(m.homeEntryId) ?? '', style: tfStyle(12.5, weight: FontWeight.w800, color: m.winnerEntryId == m.homeEntryId && m.isDone ? AppColors.primary : Colors.white))),
+                  Text(m.scoreOf(m.awayEntryId) ?? '', style: tfStyle(12.5, weight: FontWeight.w800, color: m.winnerEntryId == m.awayEntryId && m.isDone ? AppColors.primary : Colors.white)),
+                ]),
+              ],
+              if (m.resultText != null) ...[
+                gapH(2),
+                Text(m.resultText!, style: tfStyle(11.5, weight: FontWeight.w700, color: AppColors.primary)),
+              ],
             ]),
           ),
-          if (f.isOwner && m.status == 'SCHEDULED') ...[
-            SizedBox(width: SizeConfig.w(6)),
-            Icon(Icons.edit_rounded, size: SizeConfig.r(14), color: Colors.white.withAlpha(80)),
-          ],
+          if (f.isOwner && m.status == 'SCHEDULED')
+            GestureDetector(
+              key: ValueKey('match-edit-${m.divisionId}-${m.matchNo}'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => showEditMatchSheet(m),
+              child: Padding(
+                padding: EdgeInsets.only(left: SizeConfig.w(8)),
+                child: Icon(Icons.edit_rounded, size: SizeConfig.r(16), color: Colors.white.withAlpha(110)),
+              ),
+            ),
         ]),
       ),
     );
@@ -480,4 +504,61 @@ void showEditMatchSheet(FixtureMatch m) {
         ]))),
     isScrollControlled: true,
   );
+}
+
+// ─── Scoring PIN (organiser) ────────────────────────────────────
+
+/// The tournament's 6-digit scoring PIN: anyone with the app who enters it can score matches.
+class ScoringPinCard extends GetView<TournamentController> {
+  const ScoringPinCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final pin = controller.scoringPin.value;
+      return FormCard(
+        key: const ValueKey('scoring-pin-card'),
+        padding: EdgeInsets.all(SizeConfig.r(14)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text('SCORING PIN', style: tfStyle(11, weight: FontWeight.w800, color: AppColors.primary).copyWith(letterSpacing: 0.8))),
+            if (pin != null)
+              GestureDetector(
+                key: const ValueKey('scoring-pin-share'),
+                onTap: controller.shareScoringPin,
+                child: Icon(Icons.ios_share_rounded, size: SizeConfig.r(18), color: Colors.white.withAlpha(170)),
+              ),
+          ]),
+          gapH(6),
+          if (pin == null)
+            GestureDetector(
+              key: const ValueKey('scoring-pin-show'),
+              onTap: controller.loadScoringPin,
+              child: Text('Show PIN', style: tfStyle(15, weight: FontWeight.w800)),
+            )
+          else ...[
+            Text(pin.split('').join(' '), key: const ValueKey('scoring-pin-value'), style: tfStyle(26, weight: FontWeight.w900).copyWith(letterSpacing: 2)),
+            Text('Give this to your scorers. They enter it once on any match in this tournament.', style: tfStyle(12, color: Colors.white.withAlpha(150), height: 1.4)),
+            if (controller.scorers.isNotEmpty) ...[
+              gapH(10),
+              for (final s in controller.scorers)
+                Row(children: [
+                  Expanded(child: Text('${s['name'] ?? 'Scorer'} · ${s['phone'] ?? ''}', style: tfStyle(13, weight: FontWeight.w600))),
+                  TextButton(
+                    onPressed: () => controller.removeScorer(s['user_id'] as int),
+                    child: Text('Remove', style: tfStyle(12.5, weight: FontWeight.w700, color: AppColors.negative)),
+                  ),
+                ]),
+            ],
+            gapH(4),
+            GestureDetector(
+              key: const ValueKey('scoring-pin-reset'),
+              onTap: controller.confirmResetScoringPin,
+              child: Text('Change PIN', style: tfStyle(13, weight: FontWeight.w700, color: AppColors.primary)),
+            ),
+          ],
+        ]),
+      );
+    });
+  }
 }

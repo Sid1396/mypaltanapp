@@ -202,6 +202,37 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  // ─── Live scoring ─────────────────────────────────────────────
+
+  /// light: skip squads and events (for people watching).
+  Future<Map<String, dynamic>> getMatch(int id, {bool light = false}) => _send(
+        () => http.get(Uri.parse('$_base/matches/detail?id=$id${light ? '&light=1' : ''}'), headers: _authHeaders),
+        authed: true,
+      );
+
+  Future<Map<String, dynamic>> setupMatch(Map<String, dynamic> body) => _send(
+        () => http.post(Uri.parse('$_base/matches/setup'), headers: _authHeaders, body: jsonEncode(body)),
+        authed: true,
+      );
+
+  /// Sends scoring events and the live score. Status 409 comes back as a normal response (LOCKED or CONFLICT).
+  Future<Map<String, dynamic>> syncMatch(Map<String, dynamic> body) => _send(
+        () => http.post(Uri.parse('$_base/matches/sync'), headers: _authHeaders, body: jsonEncode(body)).timeout(const Duration(seconds: 20)),
+        authed: true,
+      );
+
+  /// action: GET (makes the PIN on first use), RESET or REMOVE (with userId). Organiser only.
+  Future<Map<String, dynamic>> scoringPin(String code, {String action = 'GET', int? userId}) => _send(
+        () => http.post(Uri.parse('$_base/scoring/pin'),
+            headers: _authHeaders, body: jsonEncode({'code': code, 'action': action, if (userId != null) 'user_id': userId})),
+        authed: true,
+      );
+
+  Future<Map<String, dynamic>> joinScoring(String code, String pin) => _send(
+        () => http.post(Uri.parse('$_base/scoring/join'), headers: _authHeaders, body: jsonEncode({'code': code, 'pin': pin})),
+        authed: true,
+      );
+
   // ─── Fixtures ─────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getFixtures(String tournamentCode) => _send(

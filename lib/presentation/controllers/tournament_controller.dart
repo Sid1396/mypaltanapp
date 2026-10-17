@@ -41,6 +41,10 @@ class TournamentController extends GetxController with LoggerMixin {
   final fixturesLoaded = false.obs;
   final fixtureFilter = 0.obs; // 0 = all, -1 = my matches, otherwise a division id
   final isPublishingFixtures = false.obs;
+
+  // Scoring
+  final scoringPin = Rx<String?>(null);
+  final scorers = <Map<String, dynamic>>[].obs;
   final busyEntry = 0.obs;
 
   // Sponsor impressions, sent in batches. The organiser's own views are not counted.
@@ -98,6 +102,48 @@ class TournamentController extends GetxController with LoggerMixin {
     } finally {
       fixturesLoaded.value = true;
     }
+  }
+
+  /// Match page for everyone; the scores in the list refresh when coming back.
+  Future<void> openMatch(FixtureMatch m) async {
+    await Get.toNamed(AppRoutes.match, arguments: {'id': m.id});
+    loadFixtures();
+  }
+
+  Future<void> _pinAction(String action, {int? userId}) async {
+    try {
+      final res = await _api.scoringPin(code, action: action, userId: userId);
+      if (res['success'] != true) {
+        AppSnackbar.error('Scoring PIN', res['message']?.toString() ?? 'Please try again.');
+        return;
+      }
+      scoringPin.value = res['pin']?.toString();
+      scorers.assignAll((res['scorers'] as List? ?? []).whereType<Map>().map((m) => Map<String, dynamic>.from(m)));
+      if (res['message'] != null) AppSnackbar.success('Scoring PIN', res['message'].toString());
+    } on ApiException catch (e) {
+      AppSnackbar.error('Scoring PIN', e.message);
+    }
+  }
+
+  Future<void> loadScoringPin() => _pinAction('GET');
+  Future<void> removeScorer(int userId) => _pinAction('REMOVE', userId: userId);
+
+  void confirmResetScoringPin() => _confirm(
+        'Change the scoring PIN?',
+        'Everyone who used the old PIN can no longer score until you give them the new one.',
+        'Change PIN',
+        () => _pinAction('RESET'),
+        danger: true,
+        key: 'scoring-pin-reset-confirm',
+      );
+
+  Future<void> shareScoringPin() async {
+    final t = tournament.value;
+    final pin = scoringPin.value;
+    if (t == null || pin == null) return;
+    await SharePlus.instance.share(ShareParams(
+      text: 'Scoring PIN for ${t.name}: $pin\n\nOpen the match in the MyPaltan app, tap "Score this match" and enter the PIN.\n${DeepLinkService.tournamentUrl(code)}',
+    ));
   }
 
   Future<void> openFixturesSetup() async {

@@ -33,6 +33,9 @@ class DivisionDraft {
   final oversPerBowler = 2.obs;
   final powerplayOvers = 0.obs;
   final lastBatter = false.obs;
+  final wideRuns = 1.obs;
+  final noBallRuns = 1.obs;
+  final freeHit = true.obs;
   // Football
   final footballPlayers = 7.obs;
   final halfMinutes = 20.obs;
@@ -144,6 +147,9 @@ class DivisionDraft {
     oversPerBowler.value = o.oversPerBowler.value;
     powerplayOvers.value = o.powerplayOvers.value;
     lastBatter.value = o.lastBatter.value;
+    wideRuns.value = o.wideRuns.value;
+    noBallRuns.value = o.noBallRuns.value;
+    freeHit.value = o.freeHit.value;
     footballPlayers.value = o.footballPlayers.value;
     halfMinutes.value = o.halfMinutes.value;
     rollingSubs.value = o.rollingSubs.value;
@@ -207,6 +213,9 @@ class DivisionDraft {
             if (pitchType.value.isNotEmpty) 'pitch_type': pitchType.value,
             'players_per_side': playersPerSide.value,
             'last_batter': lastBatter.value,
+            'wide_runs': wideRuns.value,
+            'no_ball_runs': noBallRuns.value,
+            'free_hit': freeHit.value,
             if (matchType.value != 'TEST') ...{
               'overs': overs.value,
               'overs_per_bowler': oversPerBowler.value,
@@ -275,6 +284,9 @@ class DivisionDraft {
       oversPerBowler.value = ri('overs_per_bowler', 2);
       powerplayOvers.value = ri('powerplay_overs', 0);
       lastBatter.value = rb('last_batter', false);
+      wideRuns.value = ri('wide_runs', 1);
+      noBallRuns.value = ri('no_ball_runs', 1);
+      freeHit.value = rb('free_hit', true);
     } else if (sport == 'FOOTBALL') {
       footballPlayers.value = ri('players_per_side', 7);
       halfMinutes.value = ri('half_minutes', 20);

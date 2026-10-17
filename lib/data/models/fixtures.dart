@@ -55,6 +55,9 @@ class FixtureMatch {
   final String status;
   final int? homeScore;
   final int? awayScore;
+  final String? resultText;
+  final int? winnerEntryId;
+  final Map<String, String> summary; // entry id → "124/5 (12.3)"
 
   const FixtureMatch({
     required this.id,
@@ -73,7 +76,14 @@ class FixtureMatch {
     required this.status,
     this.homeScore,
     this.awayScore,
+    this.resultText,
+    this.winnerEntryId,
+    this.summary = const {},
   });
+
+  bool get isLive => status == 'LIVE';
+  bool get isDone => status == 'COMPLETED';
+  String? scoreOf(int? entry) => entry == null ? null : summary['$entry'];
 
   bool get isKnockout => stage == 'KNOCKOUT';
   bool involves(Set<int> entries) => entries.contains(homeEntryId) || entries.contains(awayEntryId);
@@ -99,6 +109,9 @@ class FixtureMatch {
         status: j['status']?.toString() ?? 'SCHEDULED',
         homeScore: _intOrNull(j['home_score']),
         awayScore: _intOrNull(j['away_score']),
+        resultText: _str(j['result_text']),
+        winnerEntryId: _intOrNull(j['winner_entry_id']),
+        summary: j['summary'] is Map ? (j['summary'] as Map).map((k, v) => MapEntry('$k', '$v')) : const {},
       );
 }
 
