@@ -233,6 +233,12 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  /// Player stats and leaderboards per division.
+  Future<Map<String, dynamic>> getTournamentStats(String tournamentCode) => _send(
+        () => http.get(Uri.parse('$_base/tournaments/stats?code=${Uri.encodeQueryComponent(tournamentCode)}'), headers: _authHeaders),
+        authed: true,
+      );
+
   // ─── Fixtures ─────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getFixtures(String tournamentCode) => _send(

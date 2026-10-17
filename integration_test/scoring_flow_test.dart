@@ -174,6 +174,21 @@ void main() {
       await pumpUntil(t, find.byKey(const ValueKey('match-tab-1')), timeout: const Duration(seconds: 60));
       await tap('match-tab-1');
       await shot('scorecard');
+    } else if (phase == 'stats') {
+      // After the scored match: leaderboards in the Stats tab.
+      Get.toNamed(AppRoutes.tournament, arguments: {'code': code});
+      await pumpUntil(t, find.byKey(const ValueKey('tournament-tab-3')), timeout: const Duration(seconds: 60));
+      await tap('tournament-tab-3');
+      await pumpUntil(t, find.byKey(const ValueKey('stats-most_runs')), timeout: const Duration(seconds: 60));
+      await t.drag(find.byType(CustomScrollView), const Offset(0, -500));
+      await pumpFor(t, const Duration(milliseconds: 600));
+      await shot('stats');
+      // In the scored match, Eshan made 22 (6, 6, 6, 4) and Chirag 8.
+      expect(find.descendant(of: find.byKey(const ValueKey('stats-most_runs')), matching: find.text('22')), findsOneWidget);
+      expect(find.byKey(const ValueKey('stats-most_sixes')), findsOneWidget);
+      await t.tap(find.byKey(const ValueKey('stats-most_runs')));
+      await pumpFor(t, const Duration(seconds: 1));
+      await shot('stats_all_runs');
     } else if (phase == 'table') {
       // Both group matches scored: points tables and the final filled with the group winners.
       Get.toNamed(AppRoutes.tournament, arguments: {'code': code});

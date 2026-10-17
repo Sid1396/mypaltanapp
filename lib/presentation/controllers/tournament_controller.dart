@@ -42,6 +42,11 @@ class TournamentController extends GetxController with LoggerMixin {
   final fixtureFilter = 0.obs; // 0 = all, -1 = my matches, otherwise a division id
   final isPublishingFixtures = false.obs;
 
+  // Player stats (loaded when the Stats tab opens)
+  final stats = Rx<Map<String, dynamic>?>(null);
+  final statsLoading = false.obs;
+  final statsDivision = 0.obs; // division id, 0 = first
+
   // Scoring
   final scoringPin = Rx<String?>(null);
   final scorers = <Map<String, dynamic>>[].obs;
@@ -56,6 +61,9 @@ class TournamentController extends GetxController with LoggerMixin {
   @override
   void onInit() {
     super.onInit();
+    ever(tab, (int t) {
+      if (t == 3) loadStats();
+    });
     final args = Get.arguments;
     code = (args is Map ? args['code'] as String? : null) ?? '';
     load();
@@ -88,6 +96,20 @@ class TournamentController extends GetxController with LoggerMixin {
       AppSnackbar.error('Tournament', e.message);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  // ─── Stats ────────────────────────────────────────────────────
+
+  Future<void> loadStats() async {
+    statsLoading.value = stats.value == null;
+    try {
+      final res = await _api.getTournamentStats(code);
+      if (res['success'] == true) stats.value = res;
+    } on ApiException catch (e) {
+      logError('Stats failed', e);
+    } finally {
+      statsLoading.value = false;
     }
   }
 

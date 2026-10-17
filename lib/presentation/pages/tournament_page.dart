@@ -14,6 +14,7 @@ import '../widgets/tournament_form_widgets.dart';
 import '../widgets/tournament_media_editors.dart' show fileSizeLabel;
 import '../widgets/tournament_entries.dart';
 import '../widgets/tournament_fixtures.dart';
+import '../widgets/tournament_stats.dart';
 import '../widgets/tournament_share.dart';
 
 String _l(List<(String, String)> o, String? c) => Sports.labelOf(o, c);
@@ -66,7 +67,8 @@ class TournamentPage extends GetView<TournamentController> {
                           0 => _AboutTab(t: t),
                           1 => _TeamsTab(t: t),
                           2 => FixturesTabBody(t: t),
-                          3 => _SponsorsTab(t: t),
+                          3 => StatsTabBody(t: t),
+                          4 => _SponsorsTab(t: t),
                           _ => _DocumentsTab(t: t),
                         },
                       ),
@@ -418,7 +420,7 @@ class _Tabs extends GetView<TournamentController> {
 
   @override
   Widget build(BuildContext context) {
-    final labels = ['About', 'Teams', 'Fixtures', 'Sponsors${t.sponsors.isEmpty ? '' : ' ${t.sponsors.length}'}', 'Documents${t.documents.isEmpty ? '' : ' ${t.documents.length}'}'];
+    final labels = ['About', 'Teams', 'Fixtures', 'Stats', 'Sponsors${t.sponsors.isEmpty ? '' : ' ${t.sponsors.length}'}', 'Documents${t.documents.isEmpty ? '' : ' ${t.documents.length}'}'];
     return Padding(
       padding: EdgeInsets.only(top: SizeConfig.h(18)),
       child: SingleChildScrollView(
