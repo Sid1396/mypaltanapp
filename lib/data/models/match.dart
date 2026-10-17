@@ -1,4 +1,7 @@
 import '../../scoring/cricket_engine.dart';
+import '../../scoring/football_engine.dart';
+import '../../scoring/match_engine.dart';
+import '../../scoring/racket_engine.dart';
 
 int _int(dynamic v, [int fallback = 0]) => v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? fallback;
 int? _intOrNull(dynamic v) => v == null ? null : _int(v);
@@ -108,7 +111,29 @@ class MatchDetail {
     this.events = const [],
   });
 
-  bool get hasSetup => tossWinner != null && lineups.isNotEmpty;
+  bool get isCricket => sport == 'CRICKET';
+  bool get isFootball => sport == 'FOOTBALL';
+  bool get isRacket => sport == 'BADMINTON' || sport == 'PICKLEBALL';
+
+  /// Cricket needs the toss too; other sports only the players.
+  bool get hasSetup => lineups.isNotEmpty && (!isCricket || tossWinner != null);
+
+  Map<int, List<PlayerRef>> get _players => {
+        for (final t in [home!, away!])
+          t.entryId: [for (final p in lineups.where((p) => p.entryId == t.entryId)) PlayerRef(p.memberId, p.name)],
+      };
+
+  /// Replays [events] with this sport's engine.
+  EngineState replay(List<MatchEvent> events) {
+    if (isFootball) {
+      return FootballEngine.replay(
+          FootballSetup(homeEntry: home!.entryId, awayEntry: away!.entryId, players: _players, knockout: isKnockout), FootballRules.fromJson(matchRules), events);
+    }
+    if (isRacket) {
+      return RacketEngine.replay(RacketSetup(homeEntry: home!.entryId, awayEntry: away!.entryId, players: _players), RacketRules.fromJson(sport, matchRules), events);
+    }
+    return CricketEngine.replay(cricketSetup(), cricketRules(), events);
+  }
   bool get isKnockout => stage == 'KNOCKOUT';
   String get liveStatus => live?['status']?.toString() ?? 'NOT_STARTED';
   MatchTeam? team(int? entryId) => entryId == null ? null : (home?.entryId == entryId ? home : (away?.entryId == entryId ? away : null));

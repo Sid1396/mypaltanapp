@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../config/app_colors.dart';
 import '../../scoring/cricket_engine.dart';
+import '../../scoring/football_engine.dart';
+import '../../scoring/racket_engine.dart';
+import '../widgets/scoring_other_sports.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/scoring_controller.dart';
 import '../widgets/cricket_scorecard.dart';
@@ -27,11 +30,17 @@ class ScoringPage extends GetView<ScoringController> {
           if (m == null || s == null) {
             return Center(child: EmptyCard(icon: Icons.sports_cricket, title: 'Scoring', message: c.error.value ?? 'Set the toss and Playing XI first.'));
           }
-          final live = s.toJson();
+          final top = [
+            _TopBar(title: '${m.home?.short ?? ''} vs ${m.away?.short ?? ''}'),
+            if (c.lockedBy.value != null) _LockBanner(name: c.lockedBy.value!),
+          ];
+          if (s is FootballState) return Column(children: [...top, Expanded(child: FootballScoring(s: s))]);
+          if (s is RacketState) return Column(children: [...top, Expanded(child: RacketScoring(s: s))]);
+          final cs = s as CricketState;
+          final live = cs.toJson();
           return Column(
             children: [
-              _TopBar(title: '${m.home?.short ?? ''} vs ${m.away?.short ?? ''}'),
-              if (c.lockedBy.value != null) _LockBanner(name: c.lockedBy.value!),
+              ...top,
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(SizeConfig.w(16), SizeConfig.h(4), SizeConfig.w(16), SizeConfig.h(16)),
@@ -39,11 +48,11 @@ class ScoringPage extends GetView<ScoringController> {
                     LiveScoreHeader(live: live, teamName: c.teamName, fill: c.fill),
                     if (live['current'] is Map) ...[gapH(10), CurrentPlayers(current: Map<String, dynamic>.from(live['current'] as Map))],
                     gapH(12),
-                    _ActionPanel(s: s),
+                    _ActionPanel(s: cs),
                   ],
                 ),
               ),
-              if (s.status == 'IN_PROGRESS' && s.pending == null) _ScorePad(s: s),
+              if (cs.status == 'IN_PROGRESS' && cs.pending == null) _ScorePad(s: cs),
             ],
           );
         }),

@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "8f7f6867-3002-419b-b96d-adcff16370df",
+      "id": "0fd7d444-817d-4739-b64b-3e4f4ccd1f5d",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -18,10 +18,10 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "webhookId": "d2b4ef63-f66d-467d-81d6-df300899979b"
+      "webhookId": "4b501f2d-989d-4797-9854-e41978a517ac"
     },
     {
-      "id": "8cc7766c-2f66-48c2-8f51-5782765ccabe",
+      "id": "44f28abd-c022-4c0b-b7c0-e58cd9daa292",
       "name": "Check Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -30,11 +30,11 @@
         0
       ],
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction hmacSha256(key,msg){\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let kB=toB(key);if(kB.length>64)kB=sha256bytes(kB);\n  const kP=new Array(64).fill(0);kB.forEach((v,i)=>kP[i]=v);\n  const ipad=kP.map(v=>v^0x36);const opad=kP.map(v=>v^0x5c);\n  const mB=toB(msg);\n  return sha256bytes([...opad,...sha256bytes([...ipad,...mB])]);\n}\nfunction b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, ''); }\nfunction signToken(phone) {\n  const now = Math.floor(Date.now() / 1000);\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const body = b64url(Buffer.from(JSON.stringify({ phone, iat: now, exp: now + 30 * 24 * 60 * 60 })));\n  return `${header}.${body}.${b64url(hmacSha256($env.JWT_SECRET, `${header}.${body}`))}`;\n}\nfunction verifyToken(headers) {\n  const auth = String((headers || {}).authorization || '').trim();\n  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\n  if (!token) return { ok: false, error: 'Please log in again.' };\n  const parts = token.split('.');\n  if (parts.length !== 3) return { ok: false, error: 'Please log in again.' };\n  const [h, p, s] = parts;\n  if (b64url(hmacSha256($env.JWT_SECRET, `${h}.${p}`)) !== s) return { ok: false, error: 'Please log in again.' };\n  let claims;\n  try { claims = JSON.parse(Buffer.from(p, 'base64').toString('utf8')); } catch { return { ok: false, error: 'Please log in again.' }; }\n  if (!claims.exp || claims.exp < Math.floor(Date.now() / 1000)) return { ok: false, error: 'Your session expired. Please log in again.' };\n  if (!/^[6-9]\\d{9}$/.test(String(claims.phone || ''))) return { ok: false, error: 'Please log in again.' };\n  return { ok: true, phone: String(claims.phone) };\n}\n\nconst auth = verifyToken($in.headers);\nif (!auth.ok) return [{ json: { ok: false, status: 401, body: { success: false, message: auth.error } } }];\n\nconst b = $in.body || {};\nconst id = Number(b.match_id), toss = Number(b.toss_winner_entry_id), decision = String(b.toss_decision ?? '').toUpperCase();\nif (!(Number.isInteger(id) && id > 0)) return [{ json: { ok: false, status: 404, body: { success: false, message: \"Match not found.\" } } }];\nif (!(Number.isInteger(toss) && toss > 0) || !['BAT', 'BOWL'].includes(decision)) return [{ json: { ok: false, status: 422, body: { success: false, message: \"Enter who won the toss and what they chose.\" } } }];\nconst lineups = b.lineups && typeof b.lineups === 'object' ? b.lineups : {};\nreturn [{ json: { ok: true, phone: auth.phone, id, toss, decision, lineups } }];"
+        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction hmacSha256(key,msg){\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let kB=toB(key);if(kB.length>64)kB=sha256bytes(kB);\n  const kP=new Array(64).fill(0);kB.forEach((v,i)=>kP[i]=v);\n  const ipad=kP.map(v=>v^0x36);const opad=kP.map(v=>v^0x5c);\n  const mB=toB(msg);\n  return sha256bytes([...opad,...sha256bytes([...ipad,...mB])]);\n}\nfunction b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, ''); }\nfunction signToken(phone) {\n  const now = Math.floor(Date.now() / 1000);\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const body = b64url(Buffer.from(JSON.stringify({ phone, iat: now, exp: now + 30 * 24 * 60 * 60 })));\n  return `${header}.${body}.${b64url(hmacSha256($env.JWT_SECRET, `${header}.${body}`))}`;\n}\nfunction verifyToken(headers) {\n  const auth = String((headers || {}).authorization || '').trim();\n  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\n  if (!token) return { ok: false, error: 'Please log in again.' };\n  const parts = token.split('.');\n  if (parts.length !== 3) return { ok: false, error: 'Please log in again.' };\n  const [h, p, s] = parts;\n  if (b64url(hmacSha256($env.JWT_SECRET, `${h}.${p}`)) !== s) return { ok: false, error: 'Please log in again.' };\n  let claims;\n  try { claims = JSON.parse(Buffer.from(p, 'base64').toString('utf8')); } catch { return { ok: false, error: 'Please log in again.' }; }\n  if (!claims.exp || claims.exp < Math.floor(Date.now() / 1000)) return { ok: false, error: 'Your session expired. Please log in again.' };\n  if (!/^[6-9]\\d{9}$/.test(String(claims.phone || ''))) return { ok: false, error: 'Please log in again.' };\n  return { ok: true, phone: String(claims.phone) };\n}\n\nconst auth = verifyToken($in.headers);\nif (!auth.ok) return [{ json: { ok: false, status: 401, body: { success: false, message: auth.error } } }];\n\nconst b = $in.body || {};\nconst id = Number(b.match_id);\n// Only cricket needs the toss; other sports may leave it out.\nconst toss = b.toss_winner_entry_id == null ? null : Number(b.toss_winner_entry_id);\nconst decision = b.toss_decision == null ? null : String(b.toss_decision).toUpperCase();\nif (!(Number.isInteger(id) && id > 0)) return [{ json: { ok: false, status: 404, body: { success: false, message: \"Match not found.\" } } }];\nif ((toss !== null && !(Number.isInteger(toss) && toss > 0)) || (decision !== null && !['BAT', 'BOWL'].includes(decision))) return [{ json: { ok: false, status: 422, body: { success: false, message: \"Enter who won the toss and what they chose.\" } } }];\nconst lineups = b.lineups && typeof b.lineups === 'object' ? b.lineups : {};\nreturn [{ json: { ok: true, phone: auth.phone, id, toss, decision, lineups } }];"
       }
     },
     {
-      "id": "03d455a8-dec0-4350-bae7-4f5b9b7b7b4e",
+      "id": "69dd94a4-d311-447c-88d1-f3150f6f487d",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -52,7 +52,7 @@
           },
           "conditions": [
             {
-              "id": "5e1d1ffd-f082-4df8-a1e8-d20de0d873b3",
+              "id": "e1ff003b-462d-418b-abc6-5ee4c26e8398",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -68,7 +68,7 @@
       }
     },
     {
-      "id": "e74788d6-a0dd-4513-bd59-12b26f931fa8",
+      "id": "7754231f-2afd-4ba4-b5a4-8e4e5358b9de",
       "name": "Load",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -78,7 +78,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT m.id, m.status, m.event_count, m.home_entry_id, m.away_entry_id, m.scorer_user_id, TIMESTAMPDIFF(SECOND, m.scorer_seen_at, NOW()) AS scorer_idle, viewer.id AS viewer_id, (t.organizer_user_id = viewer.id) AS is_owner, (t.organizer_user_id = viewer.id OR EXISTS (SELECT 1 FROM tournament_scorers sc WHERE sc.tournament_id = t.id AND sc.user_id = viewer.id) OR EXISTS (SELECT 1 FROM tournament_officials f JOIN tournament_officials_requests q ON q.tournament_id = f.tournament_id WHERE f.tournament_id = t.id AND f.user_id = viewer.id AND f.role = 'SCORER' AND q.status = 'CONFIRMED')) AS can_score, d.match_rules, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', ep.entry_id, 'member_id', ep.team_member_id)) FROM tournament_entry_players ep  WHERE ep.entry_id IN (m.home_entry_id, m.away_entry_id)) AS squads FROM tournament_matches m JOIN tournaments t ON t.id = m.tournament_id JOIN tournament_divisions d ON d.id = m.division_id JOIN app_users viewer ON viewer.phone = $1 WHERE m.id = $2",
+        "query": "SELECT m.id, m.status, m.event_count, m.home_entry_id, m.away_entry_id, m.scorer_user_id, TIMESTAMPDIFF(SECOND, m.scorer_seen_at, NOW()) AS scorer_idle, viewer.id AS viewer_id, (t.organizer_user_id = viewer.id) AS is_owner, t.sport, (t.organizer_user_id = viewer.id OR EXISTS (SELECT 1 FROM tournament_scorers sc WHERE sc.tournament_id = t.id AND sc.user_id = viewer.id) OR EXISTS (SELECT 1 FROM tournament_officials f JOIN tournament_officials_requests q ON q.tournament_id = f.tournament_id WHERE f.tournament_id = t.id AND f.user_id = viewer.id AND f.role = 'SCORER' AND q.status = 'CONFIRMED')) AS can_score, d.match_rules, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', ep.entry_id, 'member_id', ep.team_member_id)) FROM tournament_entry_players ep  WHERE ep.entry_id IN (m.home_entry_id, m.away_entry_id)) AS squads FROM tournament_matches m JOIN tournaments t ON t.id = m.tournament_id JOIN tournament_divisions d ON d.id = m.division_id JOIN app_users viewer ON viewer.phone = $1 WHERE m.id = $2",
         "options": {
           "queryReplacement": "={{ [$json.phone, $json.id] }}"
         }
@@ -92,7 +92,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "13298241-f1b0-4f58-ba81-5458fe2ccd04",
+      "id": "60566593-8f6c-4a65-a22c-9bd2c0bec103",
       "name": "Plan",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -101,11 +101,11 @@
         -100
       ],
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (st, m) => [{ json: { ok: false, status: st, body: { success: false, message: m } } }];\nconst parse = v => { try { return typeof v === 'string' ? JSON.parse(v) : (v || null); } catch { return null; } };\nif (!s.id) return fail(404, 'Match not found.');\nif (Number(s.can_score) !== 1) return fail(403, 'Enter the scoring PIN to score this match.');\nif (!s.home_entry_id || !s.away_entry_id) return fail(409, 'Both teams must be known before the match starts.');\nif (Number(s.event_count) > 0) return fail(409, 'The match has started, so the toss and Playing XI cannot change.');\nif (s.scorer_user_id && Number(s.scorer_idle) < 180 && Number(s.scorer_user_id) !== Number(s.viewer_id) && Number(s.is_owner) !== 1)\n  return fail(409, 'Someone else is scoring this match.');\nif (![s.home_entry_id, s.away_entry_id].includes(r.toss)) return fail(422, 'The toss winner must be one of the two teams.');\nconst rules = parse(s.match_rules) || {};\nconst maxPlayers = Number(rules.players_per_side) || 11;\nconst squads = parse(s.squads) || [];\nconst p = [], stmts = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nstmts.push(`DELETE FROM match_players WHERE match_id = ${add(s.id)}`);\nfor (const entry of [s.home_entry_id, s.away_entry_id]) {\n  const list = Array.isArray(r.lineups[entry]) ? r.lineups[entry] : [];\n  const allowed = new Set(squads.filter(x => x.entry_id === entry).map(x => Number(x.member_id)));\n  const ids = list.map(x => Number(x.member_id));\n  if (ids.length < 2) return fail(422, 'Pick at least 2 players for each team.');\n  if (ids.length > maxPlayers) return fail(422, `Pick at most ${maxPlayers} players for each team.`);\n  if (new Set(ids).size !== ids.length || ids.some(id => !allowed.has(id))) return fail(422, 'Pick players from each team\\'s squad.');\n  if (list.filter(x => x.captain).length > 1 || list.filter(x => x.keeper).length > 1) return fail(422, 'Pick one captain and one wicket-keeper per team.');\n  for (const x of list)\n    stmts.push(`INSERT INTO match_players (match_id, entry_id, team_member_id, user_id, name, is_captain, is_keeper) ` +\n      `SELECT ${add(s.id)}, ${add(entry)}, tm.id, tm.user_id, COALESCE(u.name, tm.guest_name), ${add(x.captain ? 1 : 0)}, ${add(x.keeper ? 1 : 0)} ` +\n      `FROM team_members tm LEFT JOIN app_users u ON u.id = tm.user_id WHERE tm.id = ${add(Number(x.member_id))}`);\n}\nstmts.push(`UPDATE tournament_matches SET toss_winner_entry_id = ${add(r.toss)}, toss_decision = ${add(r.decision)}, scorer_user_id = ${add(s.viewer_id)}, scorer_seen_at = NOW() WHERE id = ${add(s.id)}`);\nreturn [{ json: { ok: true, sql: stmts.join('; '), params: p } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (st, m) => [{ json: { ok: false, status: st, body: { success: false, message: m } } }];\nconst parse = v => { try { return typeof v === 'string' ? JSON.parse(v) : (v || null); } catch { return null; } };\nif (!s.id) return fail(404, 'Match not found.');\nif (Number(s.can_score) !== 1) return fail(403, 'Enter the scoring PIN to score this match.');\nif (!s.home_entry_id || !s.away_entry_id) return fail(409, 'Both teams must be known before the match starts.');\nif (Number(s.event_count) > 0) return fail(409, 'The match has started, so the toss and Playing XI cannot change.');\nif (s.scorer_user_id && Number(s.scorer_idle) < 180 && Number(s.scorer_user_id) !== Number(s.viewer_id) && Number(s.is_owner) !== 1)\n  return fail(409, 'Someone else is scoring this match.');\nif (s.sport === 'CRICKET' && (r.toss === null || r.decision === null)) return fail(422, 'Enter who won the toss and what they chose.');\nif (r.toss !== null && ![s.home_entry_id, s.away_entry_id].includes(r.toss)) return fail(422, 'The toss winner must be one of the two teams.');\nconst rules = parse(s.match_rules) || {};\n// Cricket: the playing XI. Football: the matchday squad incl. substitutes. Racket: singles 1, doubles 2.\nconst maxPlayers = s.sport === 'CRICKET' ? (Number(rules.players_per_side) || 11) : s.sport === 'FOOTBALL' ? 25 : (rules.event === 'SINGLES' ? 1 : 2);\nconst minPlayers = s.sport === 'CRICKET' || s.sport === 'FOOTBALL' ? 2 : 1;\nconst squads = parse(s.squads) || [];\nconst p = [], stmts = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nstmts.push(`DELETE FROM match_players WHERE match_id = ${add(s.id)}`);\nfor (const entry of [s.home_entry_id, s.away_entry_id]) {\n  const list = Array.isArray(r.lineups[entry]) ? r.lineups[entry] : [];\n  const allowed = new Set(squads.filter(x => x.entry_id === entry).map(x => Number(x.member_id)));\n  const ids = list.map(x => Number(x.member_id));\n  if (ids.length < minPlayers) return fail(422, `Pick at least ${minPlayers} player${minPlayers === 1 ? '' : 's'} for each team.`);\n  if (ids.length > maxPlayers) return fail(422, `Pick at most ${maxPlayers} player${maxPlayers === 1 ? '' : 's'} for each team.`);\n  if (new Set(ids).size !== ids.length || ids.some(id => !allowed.has(id))) return fail(422, 'Pick players from each team\\'s squad.');\n  if (list.filter(x => x.captain).length > 1 || list.filter(x => x.keeper).length > 1) return fail(422, 'Pick one captain and one wicket-keeper per team.');\n  for (const x of list)\n    stmts.push(`INSERT INTO match_players (match_id, entry_id, team_member_id, user_id, name, is_captain, is_keeper) ` +\n      `SELECT ${add(s.id)}, ${add(entry)}, tm.id, tm.user_id, COALESCE(u.name, tm.guest_name), ${add(x.captain ? 1 : 0)}, ${add(x.keeper ? 1 : 0)} ` +\n      `FROM team_members tm LEFT JOIN app_users u ON u.id = tm.user_id WHERE tm.id = ${add(Number(x.member_id))}`);\n}\nstmts.push(`UPDATE tournament_matches SET toss_winner_entry_id = ${add(r.toss)}, toss_decision = ${add(r.decision)}, scorer_user_id = ${add(s.viewer_id)}, scorer_seen_at = NOW() WHERE id = ${add(s.id)}`);\nreturn [{ json: { ok: true, sql: stmts.join('; '), params: p } }];"
       }
     },
     {
-      "id": "1497d057-4b7c-4ea2-9d78-73f8e5422d10",
+      "id": "1a2a2a37-73fd-4631-a9db-f6aaf2f4efd5",
       "name": "Allowed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -123,7 +123,7 @@
           },
           "conditions": [
             {
-              "id": "cdbc6f93-5b93-48b2-9860-21f72245351c",
+              "id": "5f944651-1576-40a4-9239-9d5c2e5cdd4a",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -139,7 +139,7 @@
       }
     },
     {
-      "id": "9deb3b3c-4bbb-4ed0-beb9-03786006beaf",
+      "id": "5363cde0-0ca6-4563-84e2-7866b16c9e1d",
       "name": "Run",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -163,7 +163,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "e8535820-9180-4092-a742-815dd348b640",
+      "id": "f310da57-ac33-4cc7-bf1e-50aa9bd6e3ec",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -176,7 +176,7 @@
       }
     },
     {
-      "id": "5dcfd655-54b2-4911-b498-3313ffec2508",
+      "id": "1ef09355-f177-47f3-9880-2256c89e55d2",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,

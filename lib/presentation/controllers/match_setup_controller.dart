@@ -18,7 +18,15 @@ class MatchSetupController extends GetxController {
   final captain = <int, int>{}.obs; // entry → member id
   final keeper = <int, int>{}.obs;
 
-  int get maxPlayers => (match.value?.matchRules['players_per_side'] as num?)?.toInt() ?? 11;
+  bool get isCricket => match.value?.isCricket ?? true;
+
+  /// Cricket: the playing XI. Football: matchday squad with substitutes. Racket: singles 1, doubles 2.
+  int get maxPlayers {
+    final m = match.value;
+    if (m == null || m.isCricket) return (m?.matchRules['players_per_side'] as num?)?.toInt() ?? 11;
+    if (m.isFootball) return 25;
+    return m.matchRules['event'] == 'SINGLES' ? 1 : 2;
+  }
 
   @override
   void onInit() {
@@ -83,11 +91,11 @@ class MatchSetupController extends GetxController {
 
   String? validate() {
     final m = match.value!;
-    if (tossWinner.value == null) return 'Who won the toss?';
-    if (decision.value == null) return 'Did they choose to bat or bowl?';
+    if (isCricket && tossWinner.value == null) return 'Who won the toss?';
+    if (isCricket && decision.value == null) return 'Did they choose to bat or bowl?';
     for (final t in [m.home!, m.away!]) {
       final n = picked[t.entryId]?.length ?? 0;
-      if (n < 2) return 'Pick the Playing XI for ${t.name}.';
+      if (n < (m.isRacket ? 1 : 2)) return 'Pick the players for ${t.name}.';
     }
     return null;
   }
@@ -104,8 +112,8 @@ class MatchSetupController extends GetxController {
     try {
       final res = await _api.setupMatch({
         'match_id': id,
-        'toss_winner_entry_id': tossWinner.value,
-        'toss_decision': decision.value,
+        if (isCricket) 'toss_winner_entry_id': tossWinner.value,
+        if (isCricket) 'toss_decision': decision.value,
         'lineups': {
           for (final t in [m.home!, m.away!])
             '${t.entryId}': [

@@ -5,6 +5,7 @@ import 'package:get_storage/get_storage.dart';
 import '../../data/models/match.dart';
 import '../../data/services/api_service.dart';
 import '../../scoring/cricket_engine.dart';
+import '../../scoring/match_engine.dart';
 import '../../utils/helpers/snackbar_helper.dart';
 import '../../utils/mixins/logger_mixin.dart';
 
@@ -18,7 +19,10 @@ class ScoringController extends GetxController with LoggerMixin {
 
   late final int matchId;
   final match = Rx<MatchDetail?>(null);
-  final state = Rx<CricketState?>(null);
+  final state = Rx<EngineState?>(null);
+
+  /// The cricket state, for the cricket scoring screen.
+  CricketState? get cricket => state.value is CricketState ? state.value as CricketState : null;
   final isLoading = true.obs;
   final error = Rx<String?>(null);
 
@@ -119,7 +123,7 @@ class ScoringController extends GetxController with LoggerMixin {
     final m = match.value;
     if (m == null || !m.hasSetup) return;
     try {
-      state.value = CricketEngine.replay(m.cricketSetup(), m.cricketRules(), allEvents);
+      state.value = m.replay(allEvents);
     } on ScoringError catch (e) {
       logError('Replay failed', e);
       error.value = 'The score could not be rebuilt: ${e.message}';
@@ -141,7 +145,7 @@ class ScoringController extends GetxController with LoggerMixin {
     }
     final e = MatchEvent(_newId(), type, data);
     try {
-      state.value = CricketEngine.tryAdd(m.cricketSetup(), m.cricketRules(), allEvents, e);
+      state.value = m.replay([...allEvents, e]);
     } on ScoringError catch (err) {
       AppSnackbar.error('Not allowed', err.message);
       return false;
@@ -168,8 +172,36 @@ class ScoringController extends GetxController with LoggerMixin {
   void endInnings(String reason) => add('END_INNINGS', {'reason': reason});
   void endMatch({int? winner, required String text}) => add('END_MATCH', {if (winner != null) 'winner': winner, 'text': text});
 
+  // Football
+  void kickOff() => add('KICK_OFF', {'at': DateTime.now().millisecondsSinceEpoch});
+  void goal(int team, {int? scorer, int? assist, bool ownGoal = false, bool penalty = false}) => add('GOAL', {
+        'team': team,
+        if (scorer != null) 'scorer': scorer,
+        if (assist != null) 'assist': assist,
+        if (ownGoal) 'own_goal': true,
+        if (penalty) 'penalty': true,
+        'minute': footballMinute,
+      });
+  void card(int team, int player, String color) => add('CARD', {'team': team, 'player': player, 'color': color, 'minute': footballMinute});
+  void periodEnd() => add('PERIOD_END');
+  void startPeriod() => add('START_PERIOD', {'at': DateTime.now().millisecondsSinceEpoch});
+  void shootoutKick(int team, {required bool scored}) => add('SHOOTOUT_KICK', {'team': team, 'scored': scored});
+
+  /// Match minute from the clock: minutes before this period plus time since it started (at least 1).
+  int get footballMinute {
+    final j = state.value?.toJson() ?? const {};
+    final started = j['period_started_at'] as int?;
+    final offset = (j['period_offset'] as int?) ?? 0;
+    if (started == null) return offset;
+    return offset + (DateTime.now().millisecondsSinceEpoch - started) ~/ 60000 + 1;
+  }
+
+  // Badminton / pickleball
+  void startRacket(int server) => add('START', {'server': server});
+  void point(int team) => add('POINT', {'team': team});
+
   void undo() {
-    if (CricketEngine.effective(allEvents).isEmpty) return AppSnackbar.info('Undo', 'Nothing to undo.');
+    if (effectiveEvents(allEvents).isEmpty) return AppSnackbar.info('Undo', 'Nothing to undo.');
     add('UNDO');
   }
 

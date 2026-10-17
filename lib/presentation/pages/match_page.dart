@@ -5,6 +5,7 @@ import '../../data/models/match.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/match_controller.dart';
 import '../widgets/cricket_scorecard.dart';
+import '../widgets/scoring_other_sports.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/home_widgets.dart';
 import '../widgets/tournament_fixtures.dart' show fmtFixtureDay, fmtFixtureTime;
@@ -30,7 +31,7 @@ class MatchPage extends GetView<MatchController> {
             );
           }
           final live = m.live;
-          final showScore = live != null && (live['innings'] as List? ?? []).isNotEmpty;
+          final showScore = live != null && (m.isCricket ? (live['innings'] as List? ?? []).isNotEmpty : live['status'] != 'NOT_STARTED');
           return Column(
             children: [
               Padding(
@@ -38,7 +39,8 @@ class MatchPage extends GetView<MatchController> {
                 child: Row(children: [
                   IconButton(key: const ValueKey('match-back'), onPressed: Get.back, icon: const Icon(Icons.arrow_back_rounded, color: Colors.white)),
                   Expanded(
-                    child: Text('${m.tournamentName} · ${m.division}', maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(13, color: Colors.white.withAlpha(160))),
+                    child: Text('${m.tournamentName} · ${m.division}',
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(13, color: Colors.white.withAlpha(160))),
                   ),
                   if (m.status == 'LIVE')
                     Container(
@@ -57,7 +59,13 @@ class MatchPage extends GetView<MatchController> {
                     children: [
                       _Teams(m: m),
                       gapH(14),
-                      if (showScore) ...[
+                      if (showScore && m.isFootball) ...[
+                        FootballBoard(live: live, teamName: m.teamName, fill: m.fill),
+                        gapH(14),
+                        FootballTimeline(live: live),
+                      ] else if (showScore && m.isRacket) ...[
+                        RacketBoard(live: live, teamName: m.teamName, fill: m.fill),
+                      ] else if (showScore) ...[
                         LiveScoreHeader(live: live, teamName: m.teamName, fill: m.fill),
                         gapH(14),
                         Row(children: [
@@ -80,9 +88,7 @@ class MatchPage extends GetView<MatchController> {
                         ]),
                         gapH(14),
                         switch (c.tab.value) {
-                          0 => live['current'] is Map
-                              ? CurrentPlayers(current: Map<String, dynamic>.from(live['current'] as Map))
-                              : Commentary(live: live),
+                          0 => live['current'] is Map ? CurrentPlayers(current: Map<String, dynamic>.from(live['current'] as Map)) : Commentary(live: live),
                           1 => Scorecard(live: live, teamName: m.teamName),
                           _ => Commentary(live: live),
                         },
@@ -100,10 +106,12 @@ class MatchPage extends GetView<MatchController> {
                   ),
                 ),
               ),
-              if (m.sport == 'CRICKET' && m.status != 'COMPLETED')
+              if (m.status != 'COMPLETED')
                 StepBottomButton(
                   key: const ValueKey('match-score'),
-                  label: !m.canScore ? 'Score this match' : (m.hasSetup ? (m.status == 'LIVE' ? 'Continue scoring' : 'Start scoring') : 'Toss & Playing XI'),
+                  label: !m.canScore
+                      ? 'Score this match'
+                      : (m.hasSetup ? (m.status == 'LIVE' ? 'Continue scoring' : 'Start scoring') : (m.isCricket ? 'Toss & Playing XI' : 'Pick the players')),
                   onPressed: c.score,
                 ),
             ],
@@ -139,13 +147,16 @@ class _Teams extends StatelessWidget {
     final at = m.scheduledAt;
     return Column(children: [
       Text(
-        [m.isKnockout ? (m.label ?? 'Knockout') : 'Round ${m.roundNo}', if (at != null) '${fmtFixtureDay(at)} · ${fmtFixtureTime(at)}', 'Pitch ${m.pitch}'].join(' · '),
+        [m.isKnockout ? (m.label ?? 'Knockout') : 'Round ${m.roundNo}', if (at != null) '${fmtFixtureDay(at)} · ${fmtFixtureTime(at)}', 'Pitch ${m.pitch}']
+            .join(' · '),
         style: tfStyle(12, color: Colors.white.withAlpha(150)),
       ),
       gapH(12),
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         team(m.home),
-        Padding(padding: EdgeInsets.only(top: SizeConfig.h(18)), child: Text('vs', style: tfStyle(14, weight: FontWeight.w800, color: Colors.white.withAlpha(120)))),
+        Padding(
+            padding: EdgeInsets.only(top: SizeConfig.h(18)),
+            child: Text('vs', style: tfStyle(14, weight: FontWeight.w800, color: Colors.white.withAlpha(120)))),
         team(m.away),
       ]),
     ]);

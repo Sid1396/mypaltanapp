@@ -14,6 +14,8 @@
 //   END_MATCH     {winner?: entryId, text}  ties in knockouts, abandoned matches
 //   UNDO          {}                        cancels the latest event that is still in effect
 
+import 'match_engine.dart';
+
 class ScoringError implements Exception {
   final String message;
   const ScoringError(this.message);
@@ -168,7 +170,7 @@ class Innings {
   int get battersIn => [striker, nonStriker].whereType<int>().length;
 }
 
-class CricketState {
+class CricketState implements EngineState {
   final CricketSetup setup;
   final CricketRules rules;
   final innings = <Innings>[];
@@ -183,6 +185,7 @@ class CricketState {
   Innings? get current => innings.isEmpty ? null : innings.last;
 
   /// NOT_STARTED, IN_PROGRESS, INNINGS_BREAK, TIE_DECISION or COMPLETED.
+  @override
   String get status {
     if (finished) return 'COMPLETED';
     if (tieNeedsDecision) return 'TIE_DECISION';
@@ -232,6 +235,7 @@ class CricketState {
     }).toList();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     final c = current;
     Map<String, dynamic> inn(Innings i) => {

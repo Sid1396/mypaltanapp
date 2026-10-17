@@ -35,20 +35,24 @@ class MatchSetupPage extends GetView<MatchSetupController> {
                   padding: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(24)),
                   children: [
                     StepIntro(title: 'Before the match', subtitle: '${m.home!.name} vs ${m.away!.name}'),
-                    gapH(20),
-                    const FormLabel('Who won the toss?'),
-                    ChoiceChips(
-                      options: [for (final t in [m.home!, m.away!]) ('${t.entryId}', t.name)],
-                      selected: '${c.tossWinner.value ?? ''}',
-                      onSelected: (v) => c.tossWinner.value = int.tryParse(v),
-                    ),
-                    gapH(16),
-                    const FormLabel('They chose to'),
-                    ChoiceChips(
-                      options: const [('BAT', 'Bat first'), ('BOWL', 'Bowl first')],
-                      selected: c.decision.value ?? '',
-                      onSelected: (v) => c.decision.value = v,
-                    ),
+                    gapH(c.isCricket ? 20 : 4),
+                    if (c.isCricket) ...[
+                      const FormLabel('Who won the toss?'),
+                      ChoiceChips(
+                        options: [
+                          for (final t in [m.home!, m.away!]) ('${t.entryId}', t.name)
+                        ],
+                        selected: '${c.tossWinner.value ?? ''}',
+                        onSelected: (v) => c.tossWinner.value = int.tryParse(v),
+                      ),
+                      gapH(16),
+                      const FormLabel('They chose to'),
+                      ChoiceChips(
+                        options: const [('BAT', 'Bat first'), ('BOWL', 'Bowl first')],
+                        selected: c.decision.value ?? '',
+                        onSelected: (v) => c.decision.value = v,
+                      ),
+                    ],
                     for (final t in [m.home!, m.away!]) ...[gapH(24), _XiPicker(t: t)],
                   ],
                 ),
@@ -82,10 +86,22 @@ class _XiPicker extends GetView<MatchSetupController> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Expanded(child: Text('${t.name} · Playing XI', style: tfStyle(15, weight: FontWeight.w800))),
+            Expanded(
+              child: Text(
+                '${t.name} · ${controller.isCricket ? 'Playing XI' : (controller.match.value!.isFootball ? 'Matchday squad' : 'Players')}',
+                style: tfStyle(15, weight: FontWeight.w800),
+              ),
+            ),
             Text('${picked.length}/${controller.maxPlayers}', style: tfStyle(13, weight: FontWeight.w800, color: AppColors.primary)),
           ]),
-          Text('Tick who plays. Tap C for captain and WK for wicket-keeper.', style: tfStyle(12, color: Colors.white.withAlpha(130))),
+          Text(
+            controller.isCricket
+                ? 'Tick who plays. Tap C for captain and WK for wicket-keeper.'
+                : controller.match.value!.isFootball
+                    ? 'Tick the players and substitutes for this match. Tap C for captain, GK for goalkeeper.'
+                    : 'Tick who plays this match.',
+            style: tfStyle(12, color: Colors.white.withAlpha(130)),
+          ),
           gapH(8),
           if (t.squad.isEmpty) Text('No squad yet. The team adds players before the match.', style: tfStyle(13, color: const Color(0xFFFFB74D))),
           for (final p in t.squad)
@@ -102,7 +118,12 @@ class _XiPicker extends GetView<MatchSetupController> {
                   Expanded(child: Text(p.name, style: tfStyle(14, weight: FontWeight.w600))),
                   _Tag(label: 'C', on: controller.captain[t.entryId] == p.memberId, onTap: () => controller.setCaptain(t.entryId, p.memberId)),
                   SizedBox(width: SizeConfig.w(6)),
-                  _Tag(label: 'WK', on: controller.keeper[t.entryId] == p.memberId, onTap: () => controller.setKeeper(t.entryId, p.memberId)),
+                  if (!(controller.match.value?.isRacket ?? false))
+                    _Tag(
+                      label: controller.isCricket ? 'WK' : 'GK',
+                      on: controller.keeper[t.entryId] == p.memberId,
+                      onTap: () => controller.setKeeper(t.entryId, p.memberId),
+                    ),
                 ]),
               ),
             ),
