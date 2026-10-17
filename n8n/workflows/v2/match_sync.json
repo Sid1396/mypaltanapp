@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "d647dd49-5373-4eca-bf51-daeded78d418",
+      "id": "2eaf14eb-8cf0-4de4-96f3-2d054b890ad0",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -18,10 +18,10 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "webhookId": "2682bdbf-b46c-4806-893c-86e415469cda"
+      "webhookId": "b4c203ee-59e0-4b8e-935d-18aaf4b4419e"
     },
     {
-      "id": "36c08a2b-3221-4926-9e62-3319ef79afdf",
+      "id": "75a5e572-2f23-48dc-9d6c-26ae5d2e8abe",
       "name": "Check Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -34,7 +34,7 @@
       }
     },
     {
-      "id": "519026d8-6860-4eee-9168-09c9a49ab4d9",
+      "id": "d07daecc-dfd4-4ce1-abe7-06767cd7c5cc",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -52,7 +52,7 @@
           },
           "conditions": [
             {
-              "id": "97909a4c-748f-4cdd-9479-440bc04a09d7",
+              "id": "4d5dc73d-5eb8-49c4-a691-3788ad8f72c4",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -68,7 +68,7 @@
       }
     },
     {
-      "id": "6701c7cc-16e4-4c59-8ab6-a4d01cb6bf6b",
+      "id": "c76b1285-cc01-4b46-8ade-08eafdb7b4cf",
       "name": "Load",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -78,7 +78,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT m.id, m.tournament_id, m.division_id, m.match_no, m.status, m.event_count, m.home_entry_id, m.away_entry_id, m.scorer_user_id, TIMESTAMPDIFF(SECOND, m.scorer_seen_at, NOW()) AS scorer_idle, sc.name AS scorer_name, viewer.id AS viewer_id, (t.organizer_user_id = viewer.id) AS is_owner, (t.organizer_user_id = viewer.id OR EXISTS (SELECT 1 FROM tournament_scorers sc WHERE sc.tournament_id = t.id AND sc.user_id = viewer.id) OR EXISTS (SELECT 1 FROM tournament_officials f JOIN tournament_officials_requests q ON q.tournament_id = f.tournament_id WHERE f.tournament_id = t.id AND f.user_id = viewer.id AND f.role = 'SCORER' AND q.status = 'CONFIRMED')) AS can_score, hm.name AS home_name, aw.name AS away_name FROM tournament_matches m JOIN tournaments t ON t.id = m.tournament_id JOIN app_users viewer ON viewer.phone = $1 LEFT JOIN app_users sc ON sc.id = m.scorer_user_id LEFT JOIN tournament_entries he ON he.id = m.home_entry_id LEFT JOIN teams hm ON hm.id = he.team_id LEFT JOIN tournament_entries ae ON ae.id = m.away_entry_id LEFT JOIN teams aw ON aw.id = ae.team_id WHERE m.id = $2",
+        "query": "SELECT m.id, m.tournament_id, m.division_id, m.match_no, m.stage, m.group_no, m.status, m.event_count, m.home_entry_id, m.away_entry_id, m.scorer_user_id, t.sport, d.points AS division_points, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', x.id, 'stage', x.stage, 'group_no', x.group_no, 'status', x.status, 'home_entry_id', x.home_entry_id,   'away_entry_id', x.away_entry_id, 'winner_entry_id', x.winner_entry_id, 'home_score', x.home_score, 'away_score', x.away_score,   'outcome', JSON_UNQUOTE(JSON_EXTRACT(x.live, '$.outcome')), 'standing', JSON_EXTRACT(x.live, '$.standing')))  FROM tournament_matches x WHERE x.division_id = m.division_id) AS division_matches, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'group_no', e.group_no)) FROM tournament_entries e  WHERE e.division_id = m.division_id AND e.status = 'APPROVED') AS division_teams, TIMESTAMPDIFF(SECOND, m.scorer_seen_at, NOW()) AS scorer_idle, sc.name AS scorer_name, viewer.id AS viewer_id, (t.organizer_user_id = viewer.id) AS is_owner, (t.organizer_user_id = viewer.id OR EXISTS (SELECT 1 FROM tournament_scorers sc WHERE sc.tournament_id = t.id AND sc.user_id = viewer.id) OR EXISTS (SELECT 1 FROM tournament_officials f JOIN tournament_officials_requests q ON q.tournament_id = f.tournament_id WHERE f.tournament_id = t.id AND f.user_id = viewer.id AND f.role = 'SCORER' AND q.status = 'CONFIRMED')) AS can_score, hm.name AS home_name, aw.name AS away_name FROM tournament_matches m JOIN tournaments t ON t.id = m.tournament_id JOIN tournament_divisions d ON d.id = m.division_id JOIN app_users viewer ON viewer.phone = $1 LEFT JOIN app_users sc ON sc.id = m.scorer_user_id LEFT JOIN tournament_entries he ON he.id = m.home_entry_id LEFT JOIN teams hm ON hm.id = he.team_id LEFT JOIN tournament_entries ae ON ae.id = m.away_entry_id LEFT JOIN teams aw ON aw.id = ae.team_id WHERE m.id = $2",
         "options": {
           "queryReplacement": "={{ [$json.phone, $json.id] }}"
         }
@@ -92,7 +92,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "358d8e24-838c-4946-ba6f-18372818d4d7",
+      "id": "a5795fec-7a06-48a8-945e-980efce92b8b",
       "name": "Plan",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -101,11 +101,11 @@
         -100
       ],
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (st, m, extra = {}) => [{ json: { ok: false, status: st, body: { success: false, message: m, ...extra } } }];\nif (!s.id) return fail(404, 'Match not found.');\nif (Number(s.can_score) !== 1) return fail(403, 'Enter the scoring PIN to score this match.');\nconst mine = Number(s.scorer_user_id) === Number(s.viewer_id);\nconst busy = s.scorer_user_id && !mine && Number(s.scorer_idle) < 180;\nif (busy && !r.takeOver) return fail(409, `${s.scorer_name || 'Someone'} is scoring this match.`, { code: 'LOCKED', scorer: s.scorer_name });\nconst p = [], stmts = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nif (r.release) {\n  if (mine) stmts.push(`UPDATE tournament_matches SET scorer_user_id = NULL WHERE id = ${add(s.id)}`);\n  return [{ json: { ok: true, sql: stmts.join('; ') || 'SELECT 1', params: p, count: Number(s.event_count) } }];\n}\nif (r.base !== Number(s.event_count)) return fail(409, 'The score changed on another phone. Reloading.', { code: 'CONFLICT', event_count: Number(s.event_count) });\nif (r.events.length && !r.live) return fail(422, 'Send the live score with the events.');\nlet count = Number(s.event_count);\nfor (const e of r.events) {\n  count++;\n  stmts.push(`INSERT INTO match_events (match_id, seq, client_id, type, data, scored_by) VALUES (${add(s.id)}, ${add(count)}, ${add(String(e.client_id))}, ${add(e.type)}, ${add(JSON.stringify(e.data || {}))}, ${add(s.viewer_id)})`);\n}\n// Result texts come with {entryId} placeholders; swap in team names.\nconst names = { [s.home_entry_id]: s.home_name || 'Home', [s.away_entry_id]: s.away_name || 'Away' };\nconst fill = t => t == null ? null : String(t).replace(/\\{(\\d+)\\}/g, (_, id) => names[id] || 'Team').slice(0, 120);\nconst live = r.live;\nconst done = live && live.status === 'COMPLETED';\nconst runsOf = entry => { const i = (live?.innings || []).find(x => x.batting_entry_id === entry); return i ? Number(i.runs) : null; };\nconst winner = done && live.winner_entry_id && [s.home_entry_id, s.away_entry_id].includes(Number(live.winner_entry_id)) ? Number(live.winner_entry_id) : null;\nif (live) {\n  const status = done ? 'COMPLETED' : (count > 0 ? 'LIVE' : s.status);\n  stmts.push(`UPDATE tournament_matches SET event_count = ${add(count)}, live = ${add(JSON.stringify({ ...live, result: fill(live.result) }))}, status = ${add(status)}, ` +\n    `home_score = ${add(runsOf(s.home_entry_id))}, away_score = ${add(runsOf(s.away_entry_id))}, ` +\n    `result_text = ${add(done || live.status === 'TIE_DECISION' ? fill(live.result) : null)}, winner_entry_id = ${add(winner)}, ` +\n    `started_at = IF(${add(count)} > 0, COALESCE(started_at, NOW()), started_at), ended_at = ${done ? 'COALESCE(ended_at, NOW())' : 'NULL'}, ` +\n    `scorer_user_id = ${add(s.viewer_id)}, scorer_seen_at = NOW() WHERE id = ${add(s.id)}`);\n  if (count > 0) stmts.push(`UPDATE tournaments SET status = 'LIVE' WHERE id = ${add(s.tournament_id)} AND status IN ('REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'FIXTURES_READY')`);\n  // The winner moves into the knockout match that was waiting for \"Winner of match N\".\n  if (winner) {\n    stmts.push(`UPDATE tournament_matches SET home_entry_id = ${add(winner)} WHERE division_id = ${add(s.division_id)} AND home_ref = ${add('W#' + s.match_no)} AND status = 'SCHEDULED'`);\n    stmts.push(`UPDATE tournament_matches SET away_entry_id = ${add(winner)} WHERE division_id = ${add(s.division_id)} AND away_ref = ${add('W#' + s.match_no)} AND status = 'SCHEDULED'`);\n  }\n} else {\n  stmts.push(`UPDATE tournament_matches SET scorer_user_id = ${add(s.viewer_id)}, scorer_seen_at = NOW() WHERE id = ${add(s.id)}`);\n}\nreturn [{ json: { ok: true, sql: stmts.join('; '), params: p, count } }];"
+        "jsCode": "const $in = $input.first().json;\n// \u2500\u2500 Points tables (embedded in n8n Code nodes; also unit-tested in node) \u2500\u2500\n// division: { points: {win, tie, no_result, loss, tiebreakers}, format }, sport: 'CRICKET' | 'FOOTBALL' | ...\n// teams: [{ entry_id, group_no }], matches: [{ stage, group_no, status, home_entry_id, away_entry_id, winner_entry_id,\n//   home_score, away_score, outcome, standing: [{batting, runs, balls}] }]\n// Returns [{ group_no, rows: [...], complete }] with rows in finishing order.\nfunction computeStandings(division, sport, teams, matches) {\n  const pts = division.points || {};\n  const P = { win: pts.win ?? 2, tie: pts.tie ?? 1, nr: pts.no_result ?? 1, loss: pts.loss ?? 0 };\n  const breakers = Array.isArray(pts.tiebreakers) && pts.tiebreakers.length ? pts.tiebreakers : (sport === 'CRICKET' ? ['NRR', 'HEAD_TO_HEAD'] : ['GOAL_DIFF', 'GOALS_FOR', 'HEAD_TO_HEAD']);\n  const groupMatches = matches.filter(m => m.stage === 'GROUP');\n  const groupNos = [...new Set(teams.map(t => t.group_no || 1))].sort((a, b) => a - b);\n  return groupNos.map(g => {\n    const rows = new Map(teams.filter(t => (t.group_no || 1) === g).map(t => [t.entry_id, {\n      entry_id: t.entry_id, played: 0, won: 0, lost: 0, tied: 0, no_result: 0, points: 0,\n      runs_for: 0, balls_for: 0, runs_against: 0, balls_against: 0, nrr: 0, goals_for: 0, goals_against: 0, goal_diff: 0 }]));\n    const inGroup = groupMatches.filter(m => (m.group_no || 1) === g);\n    const results = []; // for head-to-head\n    for (const m of inGroup) {\n      if (m.status !== 'COMPLETED') continue;\n      const h = rows.get(m.home_entry_id), a = rows.get(m.away_entry_id);\n      if (!h || !a) continue;\n      h.played++; a.played++;\n      const outcome = m.outcome || (m.winner_entry_id ? 'WIN' : (m.home_score != null && m.home_score === m.away_score ? 'TIE' : 'NO_RESULT'));\n      if (outcome === 'WIN' && m.winner_entry_id) {\n        const w = rows.get(m.winner_entry_id), l = w === h ? a : h;\n        if (w) { w.won++; w.points += P.win; l.lost++; l.points += P.loss; results.push([w.entry_id, l.entry_id]); }\n      } else if (outcome === 'TIE') {\n        h.tied++; a.tied++; h.points += P.tie; a.points += P.tie;\n      } else {\n        h.no_result++; a.no_result++; h.points += P.nr; a.points += P.nr;\n      }\n      if (sport === 'CRICKET' && outcome !== 'NO_RESULT') {\n        // Net run rate uses runs and overs from both innings; abandoned matches are left out.\n        for (const inn of m.standing || []) {\n          const bat = rows.get(inn.batting), bowl = bat === h ? a : h;\n          if (!bat) continue;\n          bat.runs_for += inn.runs; bat.balls_for += inn.balls;\n          bowl.runs_against += inn.runs; bowl.balls_against += inn.balls;\n        }\n      } else if (sport !== 'CRICKET' && m.home_score != null && m.away_score != null) {\n        h.goals_for += m.home_score; h.goals_against += m.away_score;\n        a.goals_for += m.away_score; a.goals_against += m.home_score;\n      }\n    }\n    for (const r of rows.values()) {\n      const rate = (runs, balls) => balls > 0 ? runs * 6 / balls : 0;\n      r.nrr = Math.round((rate(r.runs_for, r.balls_for) - rate(r.runs_against, r.balls_against)) * 1000) / 1000;\n      r.goal_diff = r.goals_for - r.goals_against;\n    }\n    const beat = (x, y) => results.some(([w, l]) => w === x && l === y);\n    const key = {\n      NRR: r => r.nrr, WINS: r => r.won, GOAL_DIFF: r => r.goal_diff, GOALS_FOR: r => r.goals_for,\n      GAMES_DIFF: r => r.goal_diff, POINT_DIFF: r => r.goal_diff,\n    };\n    const sorted = [...rows.values()].sort((x, y) => {\n      if (y.points !== x.points) return y.points - x.points;\n      for (const b of breakers) {\n        if (b === 'HEAD_TO_HEAD') {\n          if (beat(x.entry_id, y.entry_id) && !beat(y.entry_id, x.entry_id)) return -1;\n          if (beat(y.entry_id, x.entry_id) && !beat(x.entry_id, y.entry_id)) return 1;\n          continue;\n        }\n        const f = key[b];\n        if (f && f(y) !== f(x)) return f(y) - f(x);\n      }\n      return 0;\n    });\n    sorted.forEach((r, i) => { r.position = i + 1; });\n    const complete = inGroup.length > 0 && inGroup.every(m => m.status === 'COMPLETED');\n    return { group_no: g, rows: sorted, complete };\n  });\n}\n\n/** When every group match is done: { 'G1#1': entryId, ... } for the knockout places. */\nfunction qualifiers(groups) {\n  const out = {};\n  if (!groups.length || !groups.every(g => g.complete)) return out;\n  for (const g of groups) g.rows.forEach(r => { out[`G${g.group_no}#${r.position}`] = r.entry_id; });\n  return out;\n}\n\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (st, m, extra = {}) => [{ json: { ok: false, status: st, body: { success: false, message: m, ...extra } } }];\nif (!s.id) return fail(404, 'Match not found.');\nif (Number(s.can_score) !== 1) return fail(403, 'Enter the scoring PIN to score this match.');\nconst mine = Number(s.scorer_user_id) === Number(s.viewer_id);\nconst busy = s.scorer_user_id && !mine && Number(s.scorer_idle) < 180;\nif (busy && !r.takeOver) return fail(409, `${s.scorer_name || 'Someone'} is scoring this match.`, { code: 'LOCKED', scorer: s.scorer_name });\nconst p = [], stmts = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nif (r.release) {\n  if (mine) stmts.push(`UPDATE tournament_matches SET scorer_user_id = NULL WHERE id = ${add(s.id)}`);\n  return [{ json: { ok: true, sql: stmts.join('; ') || 'SELECT 1', params: p, count: Number(s.event_count) } }];\n}\nif (r.base !== Number(s.event_count)) return fail(409, 'The score changed on another phone. Reloading.', { code: 'CONFLICT', event_count: Number(s.event_count) });\nif (r.events.length && !r.live) return fail(422, 'Send the live score with the events.');\nlet count = Number(s.event_count);\nfor (const e of r.events) {\n  count++;\n  stmts.push(`INSERT INTO match_events (match_id, seq, client_id, type, data, scored_by) VALUES (${add(s.id)}, ${add(count)}, ${add(String(e.client_id))}, ${add(e.type)}, ${add(JSON.stringify(e.data || {}))}, ${add(s.viewer_id)})`);\n}\n// Result texts come with {entryId} placeholders; swap in team names.\nconst names = { [s.home_entry_id]: s.home_name || 'Home', [s.away_entry_id]: s.away_name || 'Away' };\nconst fill = t => t == null ? null : String(t).replace(/\\{(\\d+)\\}/g, (_, id) => names[id] || 'Team').slice(0, 120);\nconst live = r.live;\nconst done = live && live.status === 'COMPLETED';\nconst runsOf = entry => { const i = (live?.innings || []).find(x => x.batting_entry_id === entry); return i ? Number(i.runs) : null; };\nconst winner = done && live.winner_entry_id && [s.home_entry_id, s.away_entry_id].includes(Number(live.winner_entry_id)) ? Number(live.winner_entry_id) : null;\nif (live) {\n  const status = done ? 'COMPLETED' : (count > 0 ? 'LIVE' : s.status);\n  stmts.push(`UPDATE tournament_matches SET event_count = ${add(count)}, live = ${add(JSON.stringify({ ...live, result: fill(live.result) }))}, status = ${add(status)}, ` +\n    `home_score = ${add(runsOf(s.home_entry_id))}, away_score = ${add(runsOf(s.away_entry_id))}, ` +\n    `result_text = ${add(done || live.status === 'TIE_DECISION' ? fill(live.result) : null)}, winner_entry_id = ${add(winner)}, ` +\n    `started_at = IF(${add(count)} > 0, COALESCE(started_at, NOW()), started_at), ended_at = ${done ? 'COALESCE(ended_at, NOW())' : 'NULL'}, ` +\n    `scorer_user_id = ${add(s.viewer_id)}, scorer_seen_at = NOW() WHERE id = ${add(s.id)}`);\n  if (count > 0) stmts.push(`UPDATE tournaments SET status = 'LIVE' WHERE id = ${add(s.tournament_id)} AND status IN ('REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'FIXTURES_READY')`);\n  // When the last group match finishes, the group places (\"1st Group A\") move into the knockouts.\n  if (done && s.stage === 'GROUP') {\n    const parse = v => { try { return typeof v === 'string' ? JSON.parse(v) : (v || []); } catch { return []; } };\n    const all = parse(s.division_matches).map(x => x.id === s.id\n      ? { ...x, status: 'COMPLETED', winner_entry_id: winner, outcome: live.outcome || (winner ? 'WIN' : 'NO_RESULT'), standing: live.standing || [],\n          home_score: runsOf(s.home_entry_id), away_score: runsOf(s.away_entry_id) }\n      : { ...x, outcome: x.outcome && x.outcome !== 'null' ? x.outcome : null, standing: parse(x.standing) });\n    const places = qualifiers(computeStandings({ points: parse(s.division_points) }, s.sport, parse(s.division_teams), all));\n    for (const [ref, entry] of Object.entries(places)) {\n      stmts.push(`UPDATE tournament_matches SET home_entry_id = ${add(entry)} WHERE division_id = ${add(s.division_id)} AND home_ref = ${add(ref)} AND status = 'SCHEDULED'`);\n      stmts.push(`UPDATE tournament_matches SET away_entry_id = ${add(entry)} WHERE division_id = ${add(s.division_id)} AND away_ref = ${add(ref)} AND status = 'SCHEDULED'`);\n    }\n  }\n  // The winner moves into the knockout match that was waiting for \"Winner of match N\".\n  if (winner) {\n    stmts.push(`UPDATE tournament_matches SET home_entry_id = ${add(winner)} WHERE division_id = ${add(s.division_id)} AND home_ref = ${add('W#' + s.match_no)} AND status = 'SCHEDULED'`);\n    stmts.push(`UPDATE tournament_matches SET away_entry_id = ${add(winner)} WHERE division_id = ${add(s.division_id)} AND away_ref = ${add('W#' + s.match_no)} AND status = 'SCHEDULED'`);\n  }\n} else {\n  stmts.push(`UPDATE tournament_matches SET scorer_user_id = ${add(s.viewer_id)}, scorer_seen_at = NOW() WHERE id = ${add(s.id)}`);\n}\nreturn [{ json: { ok: true, sql: stmts.join('; '), params: p, count } }];"
       }
     },
     {
-      "id": "3a956deb-2faf-468f-a50a-3ea8e263aee3",
+      "id": "100982cd-e9b9-4680-b1d2-fe1098fe62a5",
       "name": "Allowed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -123,7 +123,7 @@
           },
           "conditions": [
             {
-              "id": "93e38ecb-734f-4d13-bf3e-e10f063e412d",
+              "id": "51b5da0c-f0b2-4bb3-b85a-47a05ee3ea5c",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -139,7 +139,7 @@
       }
     },
     {
-      "id": "f2a203dc-7292-4175-b427-8c6f8f4a51ec",
+      "id": "d13d8ba4-eaec-48f5-90b2-a49ea7c0986d",
       "name": "Run",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -163,7 +163,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "92b85919-de3e-4335-83fc-c8d54a5ca6e1",
+      "id": "8620d9cf-ff28-4edf-b3ef-4513103593f5",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -176,7 +176,7 @@
       }
     },
     {
-      "id": "77233c54-50cf-473e-ac78-6c241381fe87",
+      "id": "c1ad0a94-a30f-40de-ad55-4fac79509fe8",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,

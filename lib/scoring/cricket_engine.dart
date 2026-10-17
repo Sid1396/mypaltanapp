@@ -176,6 +176,7 @@ class CricketState {
   String? result;
   bool finished = false;
   bool tieNeedsDecision = false;
+  String? outcome; // WIN, TIE or NO_RESULT once finished
 
   CricketState(this.setup, this.rules);
 
@@ -261,6 +262,12 @@ class CricketState {
       'innings': [for (final i in innings) inn(i)],
       'result': result,
       'winner_entry_id': winner,
+      'outcome': outcome,
+      // What the points table needs. For net run rate, a team bowled out counts as having faced its full overs.
+      'standing': [
+        for (final i in innings)
+          {'batting': i.batting, 'runs': i.runs, 'balls': i.wickets >= rules.allOutAt ? rules.overs * 6 : i.legalBalls}
+      ],
       // Short scores for lists, e.g. {"12": "124/5 (12.3)"}.
       'summary': {for (final i in innings) '${i.batting}': '${i.runs}/${i.wickets} (${i.overs})'},
     };
@@ -353,6 +360,7 @@ class CricketEngine {
         s.winner = w is num ? w.toInt() : int.tryParse('${w ?? ''}');
         s.result = (d['text']?.toString().trim().isNotEmpty ?? false) ? d['text'].toString().trim() : 'Match ended';
         s.finished = true;
+        s.outcome = s.winner != null ? 'WIN' : 'NO_RESULT';
         s.tieNeedsDecision = false;
         final c = s.current;
         if (c != null && !c.complete) {
@@ -669,6 +677,7 @@ class CricketEngine {
       s.winner = second.batting;
       s.result = '{${second.batting}} won by $left wicket${left == 1 ? '' : 's'}${balls > 0 ? ' with $balls ball${balls == 1 ? '' : 's'} left' : ''}';
       s.finished = true;
+      s.outcome = 'WIN';
     } else if (second.runs == target - 1) {
       if (s.setup.knockout) {
         s.tieNeedsDecision = true;
@@ -677,12 +686,14 @@ class CricketEngine {
         s.winner = null;
         s.result = 'Match tied';
         s.finished = true;
+        s.outcome = 'TIE';
       }
     } else {
       final by = target - 1 - second.runs;
       s.winner = first.batting;
       s.result = '{${first.batting}} won by $by run${by == 1 ? '' : 's'}';
       s.finished = true;
+      s.outcome = 'WIN';
     }
   }
 }

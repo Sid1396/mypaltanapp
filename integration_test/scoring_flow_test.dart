@@ -85,18 +85,20 @@ void main() {
     if (phase == 'scorer') {
       Get.toNamed(AppRoutes.match, arguments: {'id': matchId});
       await pumpUntil(t, find.byKey(const ValueKey('match-score')), timeout: const Duration(seconds: 60));
-      expect(find.text('Score this match'), findsOneWidget);
+      final needsPin = find.text('Score this match').evaluate().isNotEmpty;
       await shot('match_before');
       await tap('match-score');
 
-      // PIN
-      await pumpUntil(t, find.byKey(const ValueKey('scoring-pin')));
-      await t.enterText(find.byKey(const ValueKey('scoring-pin')), '000000');
-      await tap('scoring-pin-go');
-      await pumpUntil(t, find.textContaining('Wrong PIN'), timeout: const Duration(seconds: 30));
-      await t.enterText(find.byKey(const ValueKey('scoring-pin')), pin);
-      await shot('pin');
-      await tap('scoring-pin-go');
+      // PIN (only the first time in this tournament)
+      if (needsPin) {
+        await pumpUntil(t, find.byKey(const ValueKey('scoring-pin')));
+        await t.enterText(find.byKey(const ValueKey('scoring-pin')), '000000');
+        await tap('scoring-pin-go');
+        await pumpUntil(t, find.textContaining('Wrong PIN'), timeout: const Duration(seconds: 30));
+        await t.enterText(find.byKey(const ValueKey('scoring-pin')), pin);
+        await shot('pin');
+        await tap('scoring-pin-go');
+      }
 
       // Toss and Playing XI
       await pumpUntil(t, find.text('Before the match'), timeout: const Duration(seconds: 60));
@@ -167,9 +169,27 @@ void main() {
       expect(sc.pending, isEmpty);
       await shot('result');
       await tap('score-done');
+      await pumpFor(t, const Duration(seconds: 3));
+      await shot('after_done');
       await pumpUntil(t, find.byKey(const ValueKey('match-tab-1')), timeout: const Duration(seconds: 60));
       await tap('match-tab-1');
       await shot('scorecard');
+    } else if (phase == 'table') {
+      // Both group matches scored: points tables and the final filled with the group winners.
+      Get.toNamed(AppRoutes.tournament, arguments: {'code': code});
+      await pumpUntil(t, find.byKey(const ValueKey('tournament-tab-2')), timeout: const Duration(seconds: 60));
+      await tap('tournament-tab-2');
+      await pumpUntil(t, find.textContaining('POINTS TABLE'), timeout: const Duration(seconds: 60));
+      await t.drag(find.byType(CustomScrollView), const Offset(0, -600));
+      await pumpFor(t, const Duration(milliseconds: 600));
+      await shot('points_table');
+      expect(find.byWidgetPredicate((w) => w.key is ValueKey && '${(w.key as ValueKey).value}'.startsWith('q-')), findsNWidgets(2),
+          reason: 'one qualifier per group, marked once the groups are done');
+      await t.drag(find.byType(CustomScrollView), const Offset(0, -500));
+      await pumpFor(t, const Duration(milliseconds: 600));
+      expect(find.textContaining('Group A'), findsWidgets);
+      expect(find.text('1st Group A'), findsNothing, reason: 'the final shows the real teams now');
+      await shot('final_filled');
     } else {
       Get.toNamed(AppRoutes.tournament, arguments: {'code': code});
       await pumpUntil(t, find.byKey(const ValueKey('tournament-tab-2')), timeout: const Duration(seconds: 60));

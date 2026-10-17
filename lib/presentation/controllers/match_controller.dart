@@ -75,8 +75,11 @@ class MatchController extends GetxController {
     }
     final fresh = match.value!;
     if (!fresh.canScore) return;
-    final route = fresh.hasSetup ? AppRoutes.matchScore : AppRoutes.matchSetup;
-    await Get.toNamed(route, arguments: {'id': id});
+    if (!fresh.hasSetup) {
+      final saved = await Get.toNamed(AppRoutes.matchSetup, arguments: {'id': id});
+      if (saved != true) return load();
+    }
+    await Get.toNamed(AppRoutes.matchScore, arguments: {'id': id});
     await load();
   }
 

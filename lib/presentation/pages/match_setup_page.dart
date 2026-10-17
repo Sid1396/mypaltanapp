@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../config/app_colors.dart';
-import '../../config/app_routes.dart';
 import '../../data/models/match.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/match_setup_controller.dart';
@@ -59,7 +58,8 @@ class MatchSetupPage extends GetView<MatchSetupController> {
                 label: 'Save and start scoring',
                 loading: c.isSaving.value,
                 onPressed: () async {
-                  if (await c.save()) Get.offNamed(AppRoutes.matchScore, arguments: {'id': c.id});
+                  // Back to the match page, which opens scoring and refreshes when scoring closes.
+                  if (await c.save() && context.mounted) Navigator.of(context).pop(true);
                 },
               ),
             ],

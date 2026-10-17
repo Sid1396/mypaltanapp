@@ -38,6 +38,54 @@ class FixtureTeam {
       );
 }
 
+/// One team's line in a points table.
+class StandingRow {
+  final int entryId;
+  final int position;
+  final int played, won, lost, tied, noResult, points;
+  final double nrr;
+  final int goalDiff;
+
+  const StandingRow({
+    required this.entryId,
+    required this.position,
+    required this.played,
+    required this.won,
+    required this.lost,
+    required this.tied,
+    required this.noResult,
+    required this.points,
+    required this.nrr,
+    required this.goalDiff,
+  });
+
+  factory StandingRow.fromJson(Map<String, dynamic> j) => StandingRow(
+        entryId: _int(j['entry_id']),
+        position: _int(j['position']),
+        played: _int(j['played']),
+        won: _int(j['won']),
+        lost: _int(j['lost']),
+        tied: _int(j['tied']),
+        noResult: _int(j['no_result']),
+        points: _int(j['points']),
+        nrr: (j['nrr'] as num?)?.toDouble() ?? 0,
+        goalDiff: _int(j['goal_diff']),
+      );
+}
+
+class GroupStanding {
+  final int groupNo;
+  final bool complete;
+  final List<StandingRow> rows;
+  const GroupStanding({required this.groupNo, required this.complete, required this.rows});
+
+  factory GroupStanding.fromJson(Map<String, dynamic> j) => GroupStanding(
+        groupNo: _int(j['group_no'], 1),
+        complete: j['complete'] == true,
+        rows: _maps(j['rows']).map(StandingRow.fromJson).toList(),
+      );
+}
+
 class FixtureMatch {
   final int id;
   final int divisionId;
@@ -142,6 +190,7 @@ class FixtureDivision {
   final FixtureSettings? settings;
   final List<FixtureTeam> teams;
   final List<FixtureMatch> matches;
+  final List<GroupStanding> standings;
 
   const FixtureDivision({
     required this.id,
@@ -153,7 +202,11 @@ class FixtureDivision {
     this.settings,
     required this.teams,
     required this.matches,
+    this.standings = const [],
   });
+
+  /// Places per group that go through to the knockouts (0 when there are none).
+  int get qualifiersPerGroup => matches.any((m) => m.isKnockout) ? (qualifyPerGroup ?? (groupsInSchedule == 1 ? 2 : 1)) : 0;
 
   /// Groups the server will make for [teamCount] confirmed teams (0 for straight knockouts).
   int groupsFor(int teamCount) => format == 'KNOCKOUT'
@@ -176,6 +229,7 @@ class FixtureDivision {
       settings: j['settings'] is Map ? FixtureSettings.fromJson(Map<String, dynamic>.from(j['settings'] as Map)) : null,
       teams: _maps(j['teams']).map(FixtureTeam.fromJson).toList(),
       matches: _maps(j['matches']).map((m) => FixtureMatch.fromJson(m, id)).toList(),
+      standings: _maps(j['standings']).map(GroupStanding.fromJson).toList(),
     );
   }
 }

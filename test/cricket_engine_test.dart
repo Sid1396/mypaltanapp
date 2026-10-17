@@ -111,6 +111,21 @@ void main() {
     expect(s.status, 'COMPLETED');
     expect(s.winner, 2);
     expect(s.result, '{2} won by 5 wickets with 9 balls left');
+    final j = s.toJson();
+    expect(j['outcome'], 'WIN');
+    expect(j['standing'], [
+      {'batting': 1, 'runs': 12, 'balls': 12},
+      {'batting': 2, 'runs': 13, 'balls': 3},
+    ]);
+  });
+
+  test('net run rate counts the full overs for a team bowled out', () {
+    MatchEvent out(int id) => ball(0, wicket: {'how': 'BOWLED', 'out': id});
+    final s = play([
+      start(11, 12, 21), ball(4, four: true), out(11), ev('NEW_BATTER', {'id': 13}), out(13), ev('NEW_BATTER', {'id': 14}),
+      out(14), ev('NEW_BATTER', {'id': 15}), out(15), ev('NEW_BATTER', {'id': 16}), out(16),
+    ]);
+    expect((s.toJson()['standing'] as List).first, {'batting': 1, 'runs': 4, 'balls': 12});
   });
 
   test('defending: won by runs, and a tie in a league', () {
@@ -120,6 +135,7 @@ void main() {
     expect(short.result, '{1} won by 6 runs');
     final tie = play([...first, start(21, 22, 11), ...over, ev('NEW_BOWLER', {'id': 12}), ...over]);
     expect(tie.result, 'Match tied');
+    expect(tie.outcome, 'TIE');
     expect(tie.winner, isNull);
   });
 

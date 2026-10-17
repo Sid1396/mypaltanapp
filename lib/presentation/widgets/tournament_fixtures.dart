@@ -152,7 +152,10 @@ class FixturesTabBody extends GetView<TournamentController> {
             gapH(14),
           ],
           if (filter != -1)
-            for (final d in divisions.where((d) => d.groupsInSchedule >= 1 && d.matches.any((m) => !m.isKnockout))) ...[_GroupsCard(d: d, showName: f.divisions.length > 1), gapH(14)],
+            for (final d in divisions.where((d) => d.groupsInSchedule >= 1 && d.matches.any((m) => !m.isKnockout))) ...[
+              d.standings.isNotEmpty ? _PointsTable(d: d, f: f, showName: f.divisions.length > 1) : _GroupsCard(d: d, showName: f.divisions.length > 1),
+              gapH(14),
+            ],
           if (matches.isEmpty) Text('No matches here.', style: tfStyle(13, color: Colors.white.withAlpha(130))),
           for (final e in byDay.entries) ...[
             Padding(
@@ -560,5 +563,90 @@ class ScoringPinCard extends GetView<TournamentController> {
         ]),
       );
     });
+  }
+}
+
+// ─── Points table ───────────────────────────────────────────────
+
+class _PointsTable extends StatelessWidget {
+  final FixtureDivision d;
+  final Fixtures f;
+  final bool showName;
+  const _PointsTable({required this.d, required this.f, required this.showName});
+
+  @override
+  Widget build(BuildContext context) {
+    final cricket = d.matchRules.containsKey('overs') || d.matchRules.containsKey('match_type');
+    final q = d.qualifiersPerGroup;
+    final head = tfStyle(10.5, weight: FontWeight.w800, color: Colors.white.withAlpha(120));
+    Widget cols(List<String> v, {TextStyle? style}) => Row(children: [
+          for (final (i, x) in v.indexed)
+            SizedBox(
+              width: SizeConfig.w(i == v.length - 1 ? 58 : (i == v.length - 2 ? 32 : (i == 3 ? 32 : 22))),
+              child: Text(x, textAlign: TextAlign.right, maxLines: 1, softWrap: false, style: style ?? tfStyle(12.5, weight: FontWeight.w600)),
+            ),
+        ]);
+    // Ties and no results share a column for cricket to fit a phone screen.
+    final labels = cricket ? ['P', 'W', 'L', 'T/NR', 'Pts', 'NRR'] : ['P', 'W', 'D', 'L', 'Pts', 'GD'];
+    String fmt(double v) => '${v > 0 ? '+' : ''}${v.toStringAsFixed(3)}';
+    return FormCard(
+      key: ValueKey('points-table-${d.id}'),
+      padding: EdgeInsets.all(SizeConfig.r(14)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('${showName ? '${d.name.toUpperCase()} · ' : ''}POINTS TABLE',
+            style: tfStyle(11.5, weight: FontWeight.w800, color: AppColors.primary).copyWith(letterSpacing: 0.6)),
+        for (final g in d.standings) ...[
+          gapH(10),
+          Row(children: [
+            Expanded(child: Text(d.standings.length > 1 ? 'Group ${groupLetters[g.groupNo - 1]}' : 'Team', style: head)),
+            cols(labels, style: head),
+          ]),
+          for (final r in g.rows) ...[
+            gapH(8),
+            Row(children: [
+              Container(
+                width: 3,
+                height: SizeConfig.h(22),
+                margin: EdgeInsets.only(right: SizeConfig.w(6)),
+                color: r.position <= q ? AppColors.primary : Colors.transparent,
+              ),
+              SizedBox(width: SizeConfig.w(16), child: Text('${r.position}', style: tfStyle(12, color: Colors.white.withAlpha(140)))),
+              ClipOval(child: _logo(f.team(r.entryId)?.logoUrl, SizeConfig.r(20))),
+              SizedBox(width: SizeConfig.w(6)),
+              Expanded(
+                child: Row(children: [
+                  Flexible(
+                    child: Text(
+                      f.team(r.entryId)?.short.isNotEmpty == true ? f.team(r.entryId)!.short : (f.team(r.entryId)?.name ?? 'Team'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: tfStyle(13, weight: FontWeight.w700, color: f.myEntryIds.contains(r.entryId) ? AppColors.primary : Colors.white),
+                    ),
+                  ),
+                  if (g.complete && r.position <= q)
+                    Container(
+                      key: ValueKey('q-${r.entryId}'),
+                      margin: EdgeInsets.only(left: SizeConfig.w(4)),
+                      padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(4), vertical: SizeConfig.h(1)),
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(SizeConfig.r(4))),
+                      child: Text('Q', style: tfStyle(10, weight: FontWeight.w900)),
+                    ),
+                ]),
+              ),
+              cols(cricket
+                  ? ['${r.played}', '${r.won}', '${r.lost}', '${r.noResult + r.tied}', '${r.points}', fmt(r.nrr)]
+                  : ['${r.played}', '${r.won}', '${r.tied}', '${r.lost}', '${r.points}', '${r.goalDiff > 0 ? '+' : ''}${r.goalDiff}']),
+            ]),
+          ],
+        ],
+        if (q > 0) ...[
+          gapH(10),
+          Text(
+            d.standings.length > 1 ? 'Top $q of each group go through.' : 'Top $q go through.',
+            style: tfStyle(11.5, color: Colors.white.withAlpha(130)),
+          ),
+        ],
+      ]),
+    );
   }
 }
