@@ -19,6 +19,16 @@ final _boards = <(String, String, String Function(Map<String, dynamic>), String 
   ('best_economy', 'Best economy', (p) => '${p['economy']}', (p) => '${p['overs']} overs'),
 ];
 
+final _footballBoards = <(String, String, String Function(Map<String, dynamic>), String Function(Map<String, dynamic>)?)>[
+  ('mvp', 'MVP points', (p) => '${p['points']}', (p) => '${p['goals']} G · ${p['assists']} A · ${p['potm']} POTM'),
+  ('top_scorers', 'Top scorers', (p) => '${p['goals']}', (p) => '${p['assists']} assists'),
+  ('most_assists', 'Most assists', (p) => '${p['assists']}', null),
+  ('clean_sheets', 'Clean sheets', (p) => '${p['clean_sheets']}', null),
+  ('player_of_match', 'Player of the Match awards', (p) => '${p['potm']}', null),
+  ('yellow_cards', 'Yellow cards', (p) => '${p['yellow']}', null),
+  ('red_cards', 'Red cards', (p) => '${p['red']}', null),
+];
+
 class StatsTabBody extends GetView<TournamentController> {
   final Tournament t;
   const StatsTabBody({super.key, required this.t});
@@ -31,7 +41,8 @@ class StatsTabBody extends GetView<TournamentController> {
       if (controller.statsLoading.value || s == null) {
         return Padding(padding: EdgeInsets.only(top: SizeConfig.h(30)), child: const Center(child: CircularProgressIndicator(color: AppColors.primary)));
       }
-      if (t.sport != 'CRICKET') return _note('Player stats for ${t.sport.toLowerCase()} are coming soon.');
+      if (t.sport != 'CRICKET' && t.sport != 'FOOTBALL') return _note('Player stats for ${t.sport.toLowerCase()} are coming soon.');
+      final football = t.sport == 'FOOTBALL';
       final divisions = _maps(s['divisions']);
       if (divisions.every((d) => (d['matches'] as num? ?? 0) == 0)) {
         return _note('Stats appear here once the first match is scored: top run-scorers, wicket-takers and more.');
@@ -67,7 +78,11 @@ class StatsTabBody extends GetView<TournamentController> {
             ),
             gapH(14),
           ],
-          for (final (key, title, value, detail) in _boards)
+          if (football && selected['player_of_tournament'] is Map) ...[
+            _AwardCard(p: Map<String, dynamic>.from(selected['player_of_tournament'] as Map), teams: teams),
+            gapH(12),
+          ],
+          for (final (key, title, value, detail) in football ? _footballBoards : _boards)
             if (_maps(leaders[key]).isNotEmpty) ...[
               _Board(
                 key: ValueKey('stats-$key'),
@@ -80,7 +95,12 @@ class StatsTabBody extends GetView<TournamentController> {
               ),
               gapH(12),
             ],
-          Text('Strike rate needs 10 balls faced; economy needs 2 overs bowled.', style: tfStyle(11.5, color: Colors.white.withAlpha(120))),
+          Text(
+            football
+                ? 'MVP points: goal 3, assist 2, clean sheet 3, Player of the Match 3, yellow −1, red −3.'
+                : 'Strike rate needs 10 balls faced; economy needs 2 overs bowled.',
+            style: tfStyle(11.5, color: Colors.white.withAlpha(120), height: 1.4),
+          ),
         ],
       );
     });
@@ -94,6 +114,47 @@ class StatsTabBody extends GetView<TournamentController> {
           Expanded(child: Text(text, style: tfStyle(13, color: Colors.white.withAlpha(160), height: 1.45))),
         ]),
       );
+}
+
+/// Player of the Tournament (official once every match in the division is finished; until then the MVP race leader).
+class _AwardCard extends StatelessWidget {
+  final Map<String, dynamic> p;
+  final Map<int, Map<String, dynamic>> teams;
+  const _AwardCard({required this.p, required this.teams});
+
+  @override
+  Widget build(BuildContext context) {
+    final official = p['final'] == true;
+    final team = teams[p['entry_id']];
+    return Container(
+      key: const ValueKey('player-of-tournament'),
+      padding: EdgeInsets.all(SizeConfig.r(16)),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [AppColors.primary.withAlpha(official ? 110 : 50), AppColors.primary.withAlpha(15)]),
+        borderRadius: BorderRadius.circular(SizeConfig.r(16)),
+        border: Border.all(color: AppColors.primary.withAlpha(official ? 160 : 70)),
+      ),
+      child: Row(children: [
+        Icon(official ? Icons.emoji_events_rounded : Icons.trending_up_rounded, color: AppColors.primary, size: SizeConfig.r(34)),
+        SizedBox(width: SizeConfig.w(12)),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(official ? 'PLAYER OF THE TOURNAMENT' : 'MVP RACE · LEADING NOW',
+                style: tfStyle(11, weight: FontWeight.w800, color: AppColors.primary).copyWith(letterSpacing: 0.6)),
+            gapH(2),
+            Text('${p['name']}', style: tfStyle(18, weight: FontWeight.w900)),
+            Text(
+                '${team?['name'] ?? ''} · ${p['goals']} goal${p['goals'] == 1 ? '' : 's'} · ${p['assists']} assist${p['assists'] == 1 ? '' : 's'} · ${p['potm']} POTM',
+                style: tfStyle(12, color: Colors.white.withAlpha(170))),
+          ]),
+        ),
+        Column(children: [
+          Text('${p['points']}', style: tfStyle(24, weight: FontWeight.w900)),
+          Text('pts', style: tfStyle(11, color: Colors.white.withAlpha(150))),
+        ]),
+      ]),
+    );
+  }
 }
 
 class _Board extends StatelessWidget {
@@ -138,7 +199,9 @@ class _Board extends StatelessWidget {
               SizedBox(width: SizeConfig.w(20), child: Text('${i + 2}', style: tfStyle(12, color: Colors.white.withAlpha(120)))),
               Expanded(
                 child: Text('${p['name']} · ${teams[p['entry_id']]?['short'] ?? ''}',
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(13, weight: FontWeight.w600, color: mine.contains(p['entry_id']) ? AppColors.primary : Colors.white)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: tfStyle(13, weight: FontWeight.w600, color: mine.contains(p['entry_id']) ? AppColors.primary : Colors.white)),
               ),
               Text(value(p), style: tfStyle(14, weight: FontWeight.w800)),
             ]),

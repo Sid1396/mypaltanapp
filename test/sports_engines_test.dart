@@ -68,6 +68,28 @@ void main() {
       expect(() => fb([ev('KICK_OFF'), ev('CARD', {'team': 1, 'player': 11, 'color': 'RED'}), goal(1, 11)]), throwsA(isA<ScoringError>()));
     });
 
+    test('player stats, clean sheet and player of the match', () {
+      const keepers = FootballSetup(homeEntry: 1, awayEntry: 2, players: fPlayers, keepers: {1: 12, 2: 22});
+      final s = fb([
+        ev('KICK_OFF'),
+        ev('GOAL', {'team': 1, 'scorer': 11, 'assist': 12, 'minute': 5}),
+        ev('GOAL', {'team': 1, 'scorer': 11, 'minute': 9}),
+        ev('CARD', {'team': 2, 'player': 21, 'color': 'YELLOW'}),
+        ev('CARD', {'team': 2, 'player': 21, 'color': 'YELLOW'}),
+        ev('PERIOD_END'), ev('START_PERIOD'), ev('PERIOD_END'),
+      ], s: keepers);
+      final stats = {for (final r in s.playerStats()) r['id']: r};
+      expect(stats[11]!['goals'], 2);
+      expect(stats[12]!['assists'], 1);
+      expect(stats[12]!['clean_sheet'], 1, reason: 'H2 kept goal and the home side conceded nothing');
+      expect(stats[21]!['red'], 1);
+      expect(stats[21]!['yellow'], 1, reason: 'two yellows show as one yellow and one red');
+      expect(stats[22], isNull, reason: 'the away keeper conceded');
+      expect(stats[11]!['points'], 6);
+      expect(stats[12]!['points'], 5);
+      expect(s.toJson()['potm'], {'id': 11, 'name': 'H1', 'team': 1, 'points': 6, 'reason': '2 goals'});
+    });
+
     test('undo', () {
       final s = fb([ev('KICK_OFF'), goal(1), goal(1), ev('UNDO')]);
       expect(s.home, 1);

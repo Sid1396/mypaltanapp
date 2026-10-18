@@ -34,7 +34,13 @@ class FootballSetup {
   final int awayEntry;
   final Map<int, List<PlayerRef>> players;
   final bool knockout;
-  const FootballSetup({required this.homeEntry, required this.awayEntry, required this.players, this.knockout = false});
+  final Map<int, int> keepers; // entry → goalkeeper (team_members.id), for clean sheets
+  const FootballSetup({required this.homeEntry, required this.awayEntry, required this.players, this.knockout = false, this.keepers = const {}});
+}
+
+/// MVP points used for Player of the Match and Player of the Tournament.
+class FootballPoints {
+  static const goal = 3, assist = 2, cleanSheet = 3, playerOfMatch = 3, yellow = -1, red = -3;
 }
 
 /// NOT_STARTED, FIRST_HALF, HALF_TIME, SECOND_HALF, ET_BREAK, ET_FIRST, ET_HALF, ET_SECOND, PENALTIES, TIE_DECISION, COMPLETED
@@ -83,6 +89,59 @@ class FootballState implements EngineState {
   List<PlayerRef> playersOf(int entry) => setup.players[entry] ?? const [];
   int other(int entry) => entry == setup.homeEntry ? setup.awayEntry : setup.homeEntry;
 
+  /// Goals, assists, cards and clean sheets per player in this match (only players who did something).
+  List<Map<String, dynamic>> playerStats() {
+    final rows = <int, Map<String, dynamic>>{};
+    Map<String, dynamic> row(int id, int team) =>
+        rows.putIfAbsent(id, () => {'id': id, 'name': nameOf(id), 'team': team, 'goals': 0, 'assists': 0, 'yellow': 0, 'red': 0, 'clean_sheet': 0});
+    for (final e in timeline) {
+      final team = e['team'] as int?;
+      if (team == null) continue;
+      if (e['type'] == 'GOAL' && e['own_goal'] != true) {
+        if (e['player_id'] != null) row(e['player_id'] as int, team)['goals']++;
+        if (e['assist_id'] != null) row(e['assist_id'] as int, team)['assists']++;
+      } else if (e['type'] == 'CARD' && e['player_id'] != null) {
+        row(e['player_id'] as int, team)[e['color'] == 'RED' ? 'red' : 'yellow']++;
+      }
+    }
+    // A second yellow is shown as a red; count it once as a red, like a referee's report.
+    for (final r in rows.values) {
+      if (r['red'] > 0 && r['yellow'] > 1) r['yellow'] = 1;
+    }
+    if (phase == 'COMPLETED' && outcome != 'NO_RESULT') {
+      for (final entry in [setup.homeEntry, setup.awayEntry]) {
+        final keeper = setup.keepers[entry];
+        final conceded = entry == setup.homeEntry ? away : home;
+        if (keeper != null && conceded == 0) row(keeper, entry)['clean_sheet'] = 1;
+      }
+    }
+    for (final r in rows.values) {
+      r['points'] = r['goals'] * FootballPoints.goal + r['assists'] * FootballPoints.assist + r['clean_sheet'] * FootballPoints.cleanSheet +
+          r['yellow'] * FootballPoints.yellow + r['red'] * FootballPoints.red;
+    }
+    return rows.values.toList();
+  }
+
+  /// Highest MVP points; ties go to the winning team, then more goals. Null when nobody earned points.
+  Map<String, dynamic>? playerOfMatch() {
+    final rows = playerStats().where((r) => (r['points'] as int) > 0).toList();
+    if (rows.isEmpty) return null;
+    rows.sort((a, b) {
+      final p = (b['points'] as int).compareTo(a['points'] as int);
+      if (p != 0) return p;
+      final w = (b['team'] == winner ? 1 : 0).compareTo(a['team'] == winner ? 1 : 0);
+      if (w != 0) return w;
+      return (b['goals'] as int).compareTo(a['goals'] as int);
+    });
+    final top = rows.first;
+    final why = [
+      if (top['goals'] > 0) '${top['goals']} goal${top['goals'] == 1 ? '' : 's'}',
+      if (top['assists'] > 0) '${top['assists']} assist${top['assists'] == 1 ? '' : 's'}',
+      if (top['clean_sheet'] > 0) 'clean sheet',
+    ].join(', ');
+    return {'id': top['id'], 'name': top['name'], 'team': top['team'], 'points': top['points'], 'reason': why};
+  }
+
   int get shootoutGoalsHome => shootoutHome.where((x) => x).length;
   int get shootoutGoalsAway => shootoutAway.where((x) => x).length;
 
@@ -113,6 +172,8 @@ class FootballState implements EngineState {
         'result': result,
         'winner_entry_id': winner,
         'outcome': outcome,
+        'player_stats': playerStats(),
+        if (phase == 'COMPLETED') 'potm': playerOfMatch(),
         'summary': {
           '${setup.homeEntry}': shootoutHome.isEmpty ? '$home' : '$home ($shootoutGoalsHome)',
           '${setup.awayEntry}': shootoutAway.isEmpty ? '$away' : '$away ($shootoutGoalsAway)',
@@ -165,6 +226,7 @@ class FootballEngine {
           'player': scorer == null ? null : s.nameOf(scorer),
           'player_id': scorer,
           if (assist != null) 'assist': s.nameOf(assist),
+          if (assist != null) 'assist_id': assist,
           if (own) 'own_goal': true,
           if (d['penalty'] == true) 'penalty': true,
           'score': '${s.home}-${s.away}',

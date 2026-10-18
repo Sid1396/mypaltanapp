@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "59344733-bb7f-427c-813c-391cefb79059",
+      "id": "e0254c26-aacc-4d0c-bb46-37e2406a48f9",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -18,10 +18,10 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "webhookId": "72b1a841-9fa2-42bb-b005-5e726c044416"
+      "webhookId": "cb0c4927-995b-42e0-ae95-6ae9b82433eb"
     },
     {
-      "id": "aaf60c3b-2028-4b3d-aaac-b72c4c560db9",
+      "id": "69ec8428-2747-4a9d-97d8-8447be983ceb",
       "name": "Check Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -34,7 +34,7 @@
       }
     },
     {
-      "id": "eeb5c29a-377b-4635-a368-c2d65a7762eb",
+      "id": "fcaaf108-8bc5-4672-8a6c-0f3371abb3bd",
       "name": "Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -52,7 +52,7 @@
           },
           "conditions": [
             {
-              "id": "f55cd34c-6494-4fa4-837e-ae1a134ecc1b",
+              "id": "3c9289fd-f928-494a-9411-6e2a75c13fa5",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -68,7 +68,7 @@
       }
     },
     {
-      "id": "298b239e-d831-4af1-89ba-4a2e205031c2",
+      "id": "715fe4ab-931f-4cdf-9be1-8e4426ec8198",
       "name": "Load",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -78,7 +78,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.id, t.code, t.name, t.sport, (t.organizer_user_id = viewer.id) AS is_owner, (t.fixtures_published_at IS NOT NULL) AS published, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'sort_order', d.sort_order)) FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, (SELECT JSON_ARRAYAGG(JSON_OBJECT('division_id', m.division_id, 'status', m.status, 'innings', JSON_EXTRACT(m.live, '$.innings')))  FROM tournament_matches m WHERE m.tournament_id = t.id AND m.status IN ('LIVE', 'COMPLETED') AND m.live IS NOT NULL) AS matches, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'name', tm.name, 'short', tm.short_name, 'logo_key', tm.logo_key))  FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id WHERE e.tournament_id = t.id AND e.status = 'APPROVED') AS teams, (SELECT JSON_ARRAYAGG(e.id) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'APPROVED' AND (  EXISTS (SELECT 1 FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.user_id = viewer.id) OR   EXISTS (SELECT 1 FROM team_members mm WHERE mm.team_id = e.team_id AND mm.user_id = viewer.id AND mm.status = 'ACTIVE'))) AS my_entries FROM tournaments t LEFT JOIN app_users viewer ON viewer.phone = $1 WHERE t.code = $2 AND t.status <> 'DRAFT'",
+        "query": "SELECT t.id, t.code, t.name, t.sport, (t.organizer_user_id = viewer.id) AS is_owner, (t.fixtures_published_at IS NOT NULL) AS published, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'sort_order', d.sort_order,   'total_matches', (SELECT COUNT(*) FROM tournament_matches x WHERE x.division_id = d.id),   'completed_matches', (SELECT COUNT(*) FROM tournament_matches x WHERE x.division_id = d.id AND x.status = 'COMPLETED')))  FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, (SELECT JSON_ARRAYAGG(JSON_OBJECT('division_id', m.division_id, 'status', m.status, 'innings', JSON_EXTRACT(m.live, '$.innings'),   'player_stats', JSON_EXTRACT(m.live, '$.player_stats'), 'potm', JSON_EXTRACT(m.live, '$.potm')))  FROM tournament_matches m WHERE m.tournament_id = t.id AND m.status IN ('LIVE', 'COMPLETED') AND m.live IS NOT NULL) AS matches, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'name', tm.name, 'short', tm.short_name, 'logo_key', tm.logo_key))  FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id WHERE e.tournament_id = t.id AND e.status = 'APPROVED') AS teams, (SELECT JSON_ARRAYAGG(e.id) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'APPROVED' AND (  EXISTS (SELECT 1 FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.user_id = viewer.id) OR   EXISTS (SELECT 1 FROM team_members mm WHERE mm.team_id = e.team_id AND mm.user_id = viewer.id AND mm.status = 'ACTIVE'))) AS my_entries FROM tournaments t LEFT JOIN app_users viewer ON viewer.phone = $1 WHERE t.code = $2 AND t.status <> 'DRAFT'",
         "options": {
           "queryReplacement": "={{ [$json.phone, $json.code] }}"
         }
@@ -92,7 +92,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "13673f5e-2cb5-4567-9d0e-4cda3e1f9a25",
+      "id": "8d60725a-66f3-4735-97a7-0b4aeb6616a0",
       "name": "Check Found",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -105,7 +105,7 @@
       }
     },
     {
-      "id": "8c211244-58ad-49f2-a102-a6762baa96a2",
+      "id": "c7f313d8-0a83-4d47-af3a-2c3b04531a68",
       "name": "Found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -123,7 +123,7 @@
           },
           "conditions": [
             {
-              "id": "1021327b-9866-444a-ba7a-893d5dafb01c",
+              "id": "3c620190-e1e1-47f4-b643-ade059cda2e2",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -139,7 +139,7 @@
       }
     },
     {
-      "id": "0685656a-300a-4e06-a862-b3c58c0a84d1",
+      "id": "3ef5cc97-71a5-45f5-ba49-dd7f2378ba49",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -152,7 +152,7 @@
       }
     },
     {
-      "id": "155e435f-3faa-4531-9a73-94502855e27a",
+      "id": "535e3944-fbb8-40e9-a3d6-e480c08ffe3a",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -177,7 +177,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "90cc41aa-5dde-42f2-82ab-0770350b41e3",
+      "id": "049dda46-37a8-4fb8-ba3a-88d9213b2296",
       "name": "Team Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -209,7 +209,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "48ae0921-a4b0-486f-acf0-8ad22df2518f",
+      "id": "c8ad30db-5e7d-4006-b428-dc8e5fbd6d8e",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -218,11 +218,11 @@
         -100
       ],
       "parameters": {
-        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n// \u2500\u2500 Tournament player stats from scored matches (embedded in n8n; also unit-tested in node) \u2500\u2500\n// matches: [{ division_id, innings: [{ batting_entry_id, bowling_entry_id, batting: [card], bowling: [card] }] }]\n// Batting card: {id, name, runs, balls, fours, sixes, out}. Bowling card: {id, name, legal_balls, runs, wickets, maidens, dots}.\nfunction computeStats(matches) {\n  const players = new Map(); // `${division}:${memberId}` \u2192 totals\n  const get = (div, id, name, entry) => {\n    const k = `${div}:${id}`;\n    if (!players.has(k)) players.set(k, { division_id: div, member_id: id, name, entry_id: entry, matches: new Set(),\n      innings: 0, runs: 0, balls: 0, fours: 0, sixes: 0, outs: 0, high: 0, high_not_out: false, fifties: 0,\n      bowl_innings: 0, legal_balls: 0, runs_conceded: 0, wickets: 0, maidens: 0, dots: 0, best_w: -1, best_r: 0 });\n    return players.get(k);\n  };\n  matches.forEach((m, mi) => {\n    for (const inn of m.innings || []) {\n      for (const b of inn.batting || []) {\n        const p = get(m.division_id, b.id, b.name, inn.batting_entry_id);\n        p.matches.add(mi);\n        p.innings++; p.runs += b.runs; p.balls += b.balls; p.fours += b.fours; p.sixes += b.sixes;\n        if (b.out) p.outs++;\n        if (b.runs > p.high || (b.runs === p.high && !b.out)) { p.high = b.runs; p.high_not_out = !b.out; }\n        if (b.runs >= 50) p.fifties++;\n      }\n      for (const b of inn.bowling || []) {\n        const p = get(m.division_id, b.id, b.name, inn.bowling_entry_id);\n        p.matches.add(mi);\n        p.bowl_innings++; p.legal_balls += b.legal_balls; p.runs_conceded += b.runs; p.wickets += b.wickets;\n        p.maidens += b.maidens || 0; p.dots += b.dots || 0;\n        if (b.wickets > p.best_w || (b.wickets === p.best_w && b.runs < p.best_r)) { p.best_w = b.wickets; p.best_r = b.runs; }\n      }\n    }\n  });\n  const r2 = v => Math.round(v * 100) / 100;\n  return [...players.values()].map(p => ({\n    division_id: p.division_id, member_id: p.member_id, name: p.name, entry_id: p.entry_id, matches: p.matches.size,\n    innings: p.innings, runs: p.runs, balls: p.balls, fours: p.fours, sixes: p.sixes, outs: p.outs,\n    highest: p.innings ? `${p.high}${p.high_not_out ? '*' : ''}` : null, highest_runs: p.high, fifties: p.fifties,\n    average: p.outs ? r2(p.runs / p.outs) : null, strike_rate: p.balls ? r2(p.runs * 100 / p.balls) : null,\n    overs: `${Math.floor(p.legal_balls / 6)}.${p.legal_balls % 6}`, legal_balls: p.legal_balls, runs_conceded: p.runs_conceded,\n    wickets: p.wickets, maidens: p.maidens, dots: p.dots, economy: p.legal_balls ? r2(p.runs_conceded * 6 / p.legal_balls) : null,\n    best: p.best_w >= 0 ? `${p.best_w}/${p.best_r}` : null, best_wickets: Math.max(0, p.best_w), best_runs: p.best_r,\n  }));\n}\n\n/** Top players per category for one division. */\nfunction leaderboards(rows, top = 10) {\n  const take = (filter, sort) => rows.filter(filter).sort(sort).slice(0, top);\n  return {\n    most_runs: take(p => p.runs > 0, (a, b) => b.runs - a.runs || (b.strike_rate || 0) - (a.strike_rate || 0)),\n    most_wickets: take(p => p.wickets > 0, (a, b) => b.wickets - a.wickets || (a.economy ?? 99) - (b.economy ?? 99)),\n    highest_score: take(p => p.innings > 0 && p.highest_runs > 0, (a, b) => b.highest_runs - a.highest_runs),\n    best_bowling: take(p => p.best_wickets > 0, (a, b) => b.best_wickets - a.best_wickets || a.best_runs - b.best_runs),\n    most_sixes: take(p => p.sixes > 0, (a, b) => b.sixes - a.sixes),\n    best_strike_rate: take(p => p.balls >= 10, (a, b) => b.strike_rate - a.strike_rate),\n    best_economy: take(p => p.legal_balls >= 12, (a, b) => a.economy - b.economy),\n  };\n}\n\n\nconst t = $('Check Found').first().json;\nconst show = Number(t.is_owner) === 1 || Number(t.published) === 1;\nconst teams = (parseJ(t.teams) || []).map(x => ({ entry_id: x.entry_id, name: x.name, short: x.short, logo_url: signWith(x.logo_key, 'Team Link') }));\nconst matches = show ? (parseJ(t.matches) || []).map(m => ({ division_id: m.division_id, innings: parseJ(m.innings) || [] })) : [];\nconst rows = t.sport === 'CRICKET' ? computeStats(matches) : [];\nconst divisions = (parseJ(t.divisions) || []).sort((a, b) => a.sort_order - b.sort_order).map(d => {\n  const players = rows.filter(r => r.division_id === d.id);\n  return { id: d.id, name: d.name, matches: matches.filter(m => m.division_id === d.id).length, players, leaders: leaderboards(players) };\n});\nreturn [{ json: { status: 200, body: { success: true, sport: t.sport, teams, divisions, my_entry_ids: parseJ(t.my_entries) || [] } } }];"
+        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n// \u2500\u2500 Tournament player stats from scored matches (embedded in n8n; also unit-tested in node) \u2500\u2500\n// matches: [{ division_id, innings: [{ batting_entry_id, bowling_entry_id, batting: [card], bowling: [card] }] }]\n// Batting card: {id, name, runs, balls, fours, sixes, out}. Bowling card: {id, name, legal_balls, runs, wickets, maidens, dots}.\nfunction computeStats(matches) {\n  const players = new Map(); // `${division}:${memberId}` \u2192 totals\n  const get = (div, id, name, entry) => {\n    const k = `${div}:${id}`;\n    if (!players.has(k)) players.set(k, { division_id: div, member_id: id, name, entry_id: entry, matches: new Set(),\n      innings: 0, runs: 0, balls: 0, fours: 0, sixes: 0, outs: 0, high: 0, high_not_out: false, fifties: 0,\n      bowl_innings: 0, legal_balls: 0, runs_conceded: 0, wickets: 0, maidens: 0, dots: 0, best_w: -1, best_r: 0 });\n    return players.get(k);\n  };\n  matches.forEach((m, mi) => {\n    for (const inn of m.innings || []) {\n      for (const b of inn.batting || []) {\n        const p = get(m.division_id, b.id, b.name, inn.batting_entry_id);\n        p.matches.add(mi);\n        p.innings++; p.runs += b.runs; p.balls += b.balls; p.fours += b.fours; p.sixes += b.sixes;\n        if (b.out) p.outs++;\n        if (b.runs > p.high || (b.runs === p.high && !b.out)) { p.high = b.runs; p.high_not_out = !b.out; }\n        if (b.runs >= 50) p.fifties++;\n      }\n      for (const b of inn.bowling || []) {\n        const p = get(m.division_id, b.id, b.name, inn.bowling_entry_id);\n        p.matches.add(mi);\n        p.bowl_innings++; p.legal_balls += b.legal_balls; p.runs_conceded += b.runs; p.wickets += b.wickets;\n        p.maidens += b.maidens || 0; p.dots += b.dots || 0;\n        if (b.wickets > p.best_w || (b.wickets === p.best_w && b.runs < p.best_r)) { p.best_w = b.wickets; p.best_r = b.runs; }\n      }\n    }\n  });\n  const r2 = v => Math.round(v * 100) / 100;\n  return [...players.values()].map(p => ({\n    division_id: p.division_id, member_id: p.member_id, name: p.name, entry_id: p.entry_id, matches: p.matches.size,\n    innings: p.innings, runs: p.runs, balls: p.balls, fours: p.fours, sixes: p.sixes, outs: p.outs,\n    highest: p.innings ? `${p.high}${p.high_not_out ? '*' : ''}` : null, highest_runs: p.high, fifties: p.fifties,\n    average: p.outs ? r2(p.runs / p.outs) : null, strike_rate: p.balls ? r2(p.runs * 100 / p.balls) : null,\n    overs: `${Math.floor(p.legal_balls / 6)}.${p.legal_balls % 6}`, legal_balls: p.legal_balls, runs_conceded: p.runs_conceded,\n    wickets: p.wickets, maidens: p.maidens, dots: p.dots, economy: p.legal_balls ? r2(p.runs_conceded * 6 / p.legal_balls) : null,\n    best: p.best_w >= 0 ? `${p.best_w}/${p.best_r}` : null, best_wickets: Math.max(0, p.best_w), best_runs: p.best_r,\n  }));\n}\n\n/** Top players per category for one division. */\nfunction leaderboards(rows, top = 10) {\n  const take = (filter, sort) => rows.filter(filter).sort(sort).slice(0, top);\n  return {\n    most_runs: take(p => p.runs > 0, (a, b) => b.runs - a.runs || (b.strike_rate || 0) - (a.strike_rate || 0)),\n    most_wickets: take(p => p.wickets > 0, (a, b) => b.wickets - a.wickets || (a.economy ?? 99) - (b.economy ?? 99)),\n    highest_score: take(p => p.innings > 0 && p.highest_runs > 0, (a, b) => b.highest_runs - a.highest_runs),\n    best_bowling: take(p => p.best_wickets > 0, (a, b) => b.best_wickets - a.best_wickets || a.best_runs - b.best_runs),\n    most_sixes: take(p => p.sixes > 0, (a, b) => b.sixes - a.sixes),\n    best_strike_rate: take(p => p.balls >= 10, (a, b) => b.strike_rate - a.strike_rate),\n    best_economy: take(p => p.legal_balls >= 12, (a, b) => a.economy - b.economy),\n  };\n}\n\n// \u2500\u2500 Football: goals, assists, cards, clean sheets, Player of the Match and MVP points \u2500\u2500\n// matches: [{ division_id, status, player_stats: [{id, name, team, goals, assists, yellow, red, clean_sheet, points}], potm: {id} }]\nconst POTM_POINTS = 3;\nfunction computeFootballStats(matches) {\n  const players = new Map();\n  for (const m of matches) {\n    const potm = m.status === 'COMPLETED' && m.potm ? m.potm.id : null;\n    for (const r of m.player_stats || []) {\n      const k = `${m.division_id}:${r.id}`;\n      if (!players.has(k)) players.set(k, { division_id: m.division_id, member_id: r.id, name: r.name, entry_id: r.team,\n        goals: 0, assists: 0, yellow: 0, red: 0, clean_sheets: 0, potm: 0, points: 0 });\n      const p = players.get(k);\n      p.goals += r.goals || 0; p.assists += r.assists || 0; p.yellow += r.yellow || 0; p.red += r.red || 0;\n      p.clean_sheets += r.clean_sheet || 0; p.points += r.points || 0;\n      if (potm === r.id) { p.potm++; p.points += POTM_POINTS; }\n    }\n  }\n  return [...players.values()];\n}\n\nfunction footballLeaderboards(rows, top = 10) {\n  const take = (filter, sort) => rows.filter(filter).sort(sort).slice(0, top);\n  return {\n    mvp: take(p => p.points > 0, (a, b) => b.points - a.points || b.goals - a.goals || b.potm - a.potm),\n    top_scorers: take(p => p.goals > 0, (a, b) => b.goals - a.goals || b.assists - a.assists),\n    most_assists: take(p => p.assists > 0, (a, b) => b.assists - a.assists || b.goals - a.goals),\n    clean_sheets: take(p => p.clean_sheets > 0, (a, b) => b.clean_sheets - a.clean_sheets),\n    player_of_match: take(p => p.potm > 0, (a, b) => b.potm - a.potm || b.points - a.points),\n    yellow_cards: take(p => p.yellow > 0, (a, b) => b.yellow - a.yellow),\n    red_cards: take(p => p.red > 0, (a, b) => b.red - a.red),\n  };\n}\n\n\nconst t = $('Check Found').first().json;\nconst show = Number(t.is_owner) === 1 || Number(t.published) === 1;\nconst teams = (parseJ(t.teams) || []).map(x => ({ entry_id: x.entry_id, name: x.name, short: x.short, logo_url: signWith(x.logo_key, 'Team Link') }));\nconst matches = show ? (parseJ(t.matches) || []).map(m => ({ division_id: m.division_id, status: m.status, innings: parseJ(m.innings) || [],\n  player_stats: parseJ(m.player_stats) || [], potm: parseJ(m.potm) })) : [];\nconst football = t.sport === 'FOOTBALL';\nconst rows = t.sport === 'CRICKET' ? computeStats(matches) : football ? computeFootballStats(matches) : [];\nconst divisions = (parseJ(t.divisions) || []).sort((a, b) => a.sort_order - b.sort_order).map(d => {\n  const players = rows.filter(r => r.division_id === d.id);\n  const leaders = football ? footballLeaderboards(players) : leaderboards(players);\n  // Player of the Tournament: most MVP points; official once every match in the division is finished.\n  const done = Number(d.total_matches) > 0 && Number(d.completed_matches) === Number(d.total_matches);\n  const pott = football && leaders.mvp.length ? { ...leaders.mvp[0], final: done } : null;\n  return { id: d.id, name: d.name, matches: matches.filter(m => m.division_id === d.id).length, players, leaders, player_of_tournament: pott };\n});\nreturn [{ json: { status: 200, body: { success: true, sport: t.sport, teams, divisions, my_entry_ids: parseJ(t.my_entries) || [] } } }];"
       }
     },
     {
-      "id": "bccbdbb9-c182-42df-b5f6-8fe8a55fbace",
+      "id": "a2395647-cf99-4962-bd37-ec4790f7e555",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,

@@ -8,6 +8,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:mypaltan/config/app_constants.dart';
 import 'package:mypaltan/config/app_routes.dart';
 import 'package:mypaltan/main.dart' as app;
+import 'package:mypaltan/presentation/controllers/match_setup_controller.dart';
 import 'package:mypaltan/presentation/controllers/scoring_controller.dart';
 
 /// Football and badminton scoring on data made by the scratchpad's setup_sport.sh.
@@ -90,6 +91,14 @@ void main() {
     // Players: no toss outside cricket; the whole small squad is ticked already.
     await pumpUntil(t, find.text('Before the match'), timeout: const Duration(seconds: 60));
     expect(find.text('Who won the toss?'), findsNothing);
+    if (phase == 'football') {
+      // Second home player keeps goal (for the clean sheet).
+      final setup = Get.find<MatchSetupController>();
+      final m0 = setup.match.value!;
+      final gk = m0.home!.squad[1].memberId;
+      setup.setKeeper(m0.home!.entryId, gk);
+      await pumpFor(t, const Duration(milliseconds: 400));
+    }
     await shot('setup');
     await tap('setup-save');
 
@@ -113,18 +122,20 @@ void main() {
       await tap('fb-period-end');
       expect(find.text('Half-time'), findsWidgets);
       await tap('fb-start-period');
+      await tap('fb-goal-$home');
+      await tap('fb-goal-save');
       await tap('fb-goal-$away');
       await tap('fb-goal-save');
-      await tap('fb-goal-$home');
-      await tap('fb-goal-save');
-      await tap('fb-goal-$home');
-      await tap('fb-goal-save');
       await tap('fb-undo');
-      expect(find.text('2 - 1'), findsOneWidget, reason: 'undo removed the third home goal');
+      expect(find.text('2 - 0'), findsOneWidget, reason: 'undo removed the away goal');
       await shot('second_half');
       await tap('fb-period-end');
       await pumpUntil(t, find.byKey(const ValueKey('score-done')));
-      expect(sc.state.value!.toJson()['result'], '{$home} won 2-1');
+      final live = sc.state.value!.toJson();
+      expect(live['result'], '{$home} won 2-0');
+      // Arjun scored (3) and the home keeper kept a clean sheet (3): the tie goes to more goals.
+      expect((live['potm'] as Map)['id'], scorer.memberId);
+      expect(find.byKey(const ValueKey('player-of-match')), findsOneWidget);
     } else {
       await tap('rk-serve-$home');
       for (var i = 0; i < 5; i++) {
@@ -151,6 +162,18 @@ void main() {
     await tap('score-done');
     await pumpFor(t, const Duration(seconds: 3));
     await shot('match_page');
+    if (phase == 'football') {
+      // Stats tab: Player of the Tournament (the only match is finished), scorers and clean sheets.
+      Get.toNamed(AppRoutes.tournament, arguments: {'code': m.tournamentCode});
+      await pumpUntil(t, find.byKey(const ValueKey('tournament-tab-3')), timeout: const Duration(seconds: 60));
+      await tap('tournament-tab-3');
+      await pumpUntil(t, find.byKey(const ValueKey('player-of-tournament')), timeout: const Duration(seconds: 60));
+      expect(find.text('PLAYER OF THE TOURNAMENT'), findsOneWidget);
+      expect(find.byKey(const ValueKey('stats-clean_sheets')), findsOneWidget);
+      expect(find.byKey(const ValueKey('stats-yellow_cards')), findsOneWidget);
+      await t.drag(find.byType(CustomScrollView), const Offset(0, -450));
+      await shot('stats');
+    }
     await pumpFor(t, const Duration(seconds: 2));
   });
 }

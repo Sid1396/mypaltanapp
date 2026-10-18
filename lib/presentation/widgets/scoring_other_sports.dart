@@ -109,6 +109,26 @@ class FootballBoard extends StatelessWidget {
           gapH(8),
           Text(fill(live['result']?.toString()), textAlign: TextAlign.center, style: tfStyle(14, weight: FontWeight.w800, color: AppColors.primary)),
         ],
+        if (live['potm'] is Map) ...[
+          gapH(12),
+          Container(
+            key: const ValueKey('player-of-match'),
+            padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(12), vertical: SizeConfig.h(10)),
+            decoration: BoxDecoration(color: AppColors.primary.withAlpha(30), borderRadius: BorderRadius.circular(SizeConfig.r(12))),
+            child: Row(children: [
+              Icon(Icons.star_rounded, color: AppColors.primary, size: SizeConfig.r(22)),
+              SizedBox(width: SizeConfig.w(8)),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('PLAYER OF THE MATCH', style: tfStyle(10.5, weight: FontWeight.w800, color: AppColors.primary)),
+                  Text('${(live['potm'] as Map)['name']} · ${teamName((live['potm'] as Map)['team'] as int?)}', style: tfStyle(14, weight: FontWeight.w800)),
+                  if (((live['potm'] as Map)['reason'] ?? '').toString().isNotEmpty)
+                    Text('${(live['potm'] as Map)['reason']}', style: tfStyle(12, color: Colors.white.withAlpha(160))),
+                ]),
+              ),
+            ]),
+          ),
+        ],
       ]),
     );
   }

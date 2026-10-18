@@ -127,7 +127,15 @@ class MatchDetail {
   EngineState replay(List<MatchEvent> events) {
     if (isFootball) {
       return FootballEngine.replay(
-          FootballSetup(homeEntry: home!.entryId, awayEntry: away!.entryId, players: _players, knockout: isKnockout), FootballRules.fromJson(matchRules), events);
+          FootballSetup(
+            homeEntry: home!.entryId,
+            awayEntry: away!.entryId,
+            players: _players,
+            knockout: isKnockout,
+            keepers: {for (final p in lineups.where((p) => p.keeper)) p.entryId: p.memberId},
+          ),
+          FootballRules.fromJson(matchRules),
+          events);
     }
     if (isRacket) {
       return RacketEngine.replay(RacketSetup(homeEntry: home!.entryId, awayEntry: away!.entryId, players: _players), RacketRules.fromJson(sport, matchRules), events);
