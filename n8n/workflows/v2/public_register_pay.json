@@ -1,0 +1,561 @@
+{
+  "id": "PubEvtPay026mPxD",
+  "name": "MyPaltan v2 - Public Registration Pay Later",
+  "active": false,
+  "nodes": [
+    {
+      "id": "27895c85-074e-48f1-933d-9dde85ecb89e",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "v2/public/register/pay",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180",
+          "binaryPropertyName": "payment"
+        }
+      },
+      "webhookId": "8d9a1363-3d6a-40bf-8b89-36f44cb44b6d"
+    },
+    {
+      "id": "3852d493-a467-4c1f-bf62-5da4c8340f43",
+      "name": "Check Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nconst byteSize = async (key, f) => {\n  try { const buf = await this.helpers.getBinaryDataBuffer(0, key); if (buf && buf.length) return buf.length; } catch (e) {}\n  const m = String(f.fileSize ?? '').trim().match(/^([\\d.]+)\\s*(B|kB|KB|MB|GB)?$/i);\n  if (m) return Math.ceil(parseFloat(m[1]) * ({ b: 1, kb: 1000, mb: 1e6, gb: 1e9 })[(m[2] || 'B').toLowerCase()]);\n  return Buffer.from(f.data || '', 'base64').length;\n};\n\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 20) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\n\nconst EVENTS = {\"sspl\": {\"name\": \"SSPL 2027 Season 07\", \"closes\": \"2026-12-06T23:59:59+05:30\"}};\nconst b = $in.body || {};\nconst bad = m => [{ json: { ok: false, status: 422, body: { success: false, message: m } } }];\nif (b.website) return bad('Please try again.');\nconst slug = String(b.event ?? '').toLowerCase();\nif (!EVENTS[slug]) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This form is not available.' } } }];\nconst phone = String(b.phone ?? '').replace(/\\D/g, '').slice(-10);\nif (!/^[6-9]\\d{9}$/.test(phone)) return bad('Enter a valid 10-digit mobile number.');\n\nconst bin = $input.first().binary || {};\nconst k = bin.payment ? 'payment' : Object.keys(bin)[0];\nconst f = k ? bin[k] : null;\nif (!f) return bad('Add your payment screenshot.');\nconst exts = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic' };\nconst mime = f.mimeType === 'image/jpg' ? 'image/jpeg' : f.mimeType;\nif (!exts[mime]) return bad('The payment screenshot must be a photo (JPG or PNG).');\nif (await byteSize(k, f) > 8 * 1024 * 1024) return bad('The payment screenshot must be under 8 MB.');\nlet head = null;\ntry { head = (await this.helpers.getBinaryDataBuffer(0, k)).subarray(0, 12); } catch (e) { head = Buffer.from(f.data || '', 'base64').subarray(0, 12); }\nconst hex = head ? head.toString('hex') : '';\nif (!(hex.startsWith('ffd8ff') || hex.startsWith('89504e470d0a1a0a') || (hex.startsWith('52494646') && hex.slice(16, 24) === '57454250') || hex.slice(8, 16) === '66747970'))\n  return bad('The payment screenshot must be a photo (JPG or PNG).');\nstore.hits[ip] = [...mine, now];\nreturn [{ json: { ok: true, slug, phone, file: { field: k, mime, key: `event_registrations/${slug}/${phone}_payment_${Date.now()}.${exts[mime]}` } }, binary: bin }];"
+      }
+    },
+    {
+      "id": "aed9a10c-4c1c-4688-9103-d3f370d7f8da",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4c42bc60-3995-44eb-aaa4-073666451662",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a19af5e8-0ed3-4867-a4b5-13bb25eff142",
+      "name": "Find",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, payment_status FROM event_registrations WHERE event_slug = $1 AND phone = $2",
+        "options": {
+          "queryReplacement": "={{ [$json.slug, $json.phone] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "83bdb2f1-8511-4a42-822b-19678dbf268b",
+      "name": "Check Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $in;\nif (!r.id) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This number is not registered yet. Fill the registration form first.' } } }];\nif (r.payment_status !== 'PENDING') return [{ json: { ok: false, status: 409, body: { success: false, message: 'Your payment is already marked as received.' } } }];\nreturn [{ json: { ok: true, id: r.id, first: String(r.name).split(' ')[0] } }];"
+      }
+    },
+    {
+      "id": "2b798f33-acf6-4ef6-9f5d-3bac7feca011",
+      "name": "Row OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "28bc6157-160e-49a2-a5d3-f766a69c6a2f",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b1a12962-348e-44f0-b479-52723827f1e8",
+      "name": "B2 Credentials",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nreturn [{ json: { ...$input.first().json, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: $input.first().binary }];"
+      }
+    },
+    {
+      "id": "2fba1c17-5cca-4dac-b088-632ffaf44d42",
+      "name": "Authorize B2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        -200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.backblazeb2.com/b2api/v4/b2_authorize_account",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.basicAuth }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cd827871-c48f-472a-8667-8379850c63fa",
+      "name": "Upload URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        -200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_upload_url?bucketId=57d8ff72a9534e199bf30918",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1dde2a9a-b195-454f-bf62-ab18f5d8e0be",
+      "name": "Attach",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $('Check Request').first();\nconst f = r.json.file;\nreturn [{ json: { uploadUrl: $in.uploadUrl, uploadToken: $in.authorizationToken, mime: f.mime,\n  name: f.key.split('/').map(encodeURIComponent).join('/') }, binary: { file: r.binary[f.field] } }];"
+      }
+    },
+    {
+      "id": "4274421a-56bb-4f15-8183-d91e7d7529e0",
+      "name": "Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2120,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.uploadUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.uploadToken }}"
+            },
+            {
+              "name": "X-Bz-File-Name",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.mime }}"
+            },
+            {
+              "name": "X-Bz-Content-Sha1",
+              "value": "do_not_verify"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "b39ba176-8743-426b-9026-275d4371bbc2",
+      "name": "Uploaded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2320,
+        -200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "14fec189-d53d-49e8-aaa1-9ca57e872750",
+              "leftValue": "={{ $json.statusCode === 200 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7d1e223f-24cd-45d6-84a7-ae95080fbc51",
+      "name": "Upload Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2540,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { status: 502, body: { success: false, message: 'Could not upload your screenshot. Please check your internet and try again.' } } }];"
+      }
+    },
+    {
+      "id": "fc2eb05e-421a-4ff2-bd51-920cedee4a46",
+      "name": "Save",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        2540,
+        -300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE event_registrations SET payment_status = 'PAID', payment_key = $1 WHERE id = $2 AND payment_status = 'PENDING'",
+        "options": {
+          "queryReplacement": "={{ [$('Check Request').first().json.file.key, $('Check Row').first().json.id] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "09685c2e-27dc-42a8-9b10-10e9ef804427",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2760,
+        -300
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nif ($in.error || /ER_|syntax/i.test(String($in.message || ''))) return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];\nreturn [{ json: { status: 200, body: { success: true, message: `Thanks ${$('Check Row').first().json.first}, your payment is received.` } } }];"
+      }
+    },
+    {
+      "id": "8264cc38-a426-4525-a320-7f8a50097a88",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2980,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Request": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Find",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find": {
+      "main": [
+        [
+          {
+            "node": "Check Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Row": {
+      "main": [
+        [
+          {
+            "node": "Row OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Row OK?": {
+      "main": [
+        [
+          {
+            "node": "B2 Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Credentials": {
+      "main": [
+        [
+          {
+            "node": "Authorize B2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorize B2": {
+      "main": [
+        [
+          {
+            "node": "Upload URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload URL": {
+      "main": [
+        [
+          {
+            "node": "Attach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach": {
+      "main": [
+        [
+          {
+            "node": "Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload": {
+      "main": [
+        [
+          {
+            "node": "Uploaded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uploaded?": {
+      "main": [
+        [
+          {
+            "node": "Save",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upload Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
