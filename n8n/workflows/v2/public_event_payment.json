@@ -1,0 +1,374 @@
+{
+  "id": "PubEvtPay026mPxA",
+  "name": "MyPaltan v2 - Public Event Payment Details",
+  "active": false,
+  "nodes": [
+    {
+      "id": "81e8047d-dbd0-4a2d-94af-8b14b8d348c1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "v2/public/event-payment",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
+        }
+      },
+      "webhookId": "37ac3c9e-b891-4788-9215-c1bb4f3be946"
+    },
+    {
+      "id": "76d41b25-aa91-4239-b278-fdc678308d8d",
+      "name": "Check Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nconst slug = String($in.query?.event ?? '').toLowerCase();\nif (!/^[a-z0-9-]{2,30}$/.test(slug)) return [{ json: { ok: false, status: 422, body: { success: false, message: 'Unknown event.' } } }];\nreturn [{ json: { ok: true, slug } }];"
+      }
+    },
+    {
+      "id": "0c739e41-9117-405e-b053-d9dbdfd7691b",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9fb140bc-2c24-48df-8b70-e0fab5b19e8b",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8dfae781-26b7-4a68-be28-07024386ac84",
+      "name": "Load Settings",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT upi_id, upi_name, qr_key FROM event_payment_settings WHERE event_slug = $1",
+        "options": {
+          "queryReplacement": "={{ [$json.slug] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b92875bf-9728-4409-91a9-6cf01cd961d6",
+      "name": "Use Cache",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst row = $in, slug = $('Check Request').first().json.slug;\n// No row: the website keeps its built-in payment details.\nif (!row.qr_key) return [{ json: { done: true, status: 200, body: { success: true, payment: null } } }];\nconst cached = ($getWorkflowStaticData('global').qr || {})[slug];\nif (cached && cached.key === row.qr_key && cached.exp > Date.now())\n  return [{ json: { done: true, status: 200, body: { success: true, payment: { upi_id: row.upi_id, upi_name: row.upi_name, qr_url: cached.url } } } }];\nreturn [{ json: { done: false } }];"
+      }
+    },
+    {
+      "id": "10828cbb-1928-47dd-b2ec-90cad383cfab",
+      "name": "Done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "af6eb6d6-1ad1-470b-929d-9ee2addb21c9",
+              "leftValue": "={{ $json.done }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3e7a7701-34ab-4fba-9076-f136f978a241",
+      "name": "B2 Credentials",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nreturn [{ json: { ...{}, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: $input.first().binary }];"
+      }
+    },
+    {
+      "id": "46d00139-7bf7-41d6-84a9-e9c619e03803",
+      "name": "Authorize B2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        -100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.backblazeb2.com/b2api/v4/b2_authorize_account",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.basicAuth }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "75a2fbcc-1645-407e-997e-edc65bd4a4bb",
+      "name": "QR Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_download_authorization",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ bucketId: '57d8ff72a9534e199bf30918', fileNamePrefix: 'event_payment/' + $('Check Request').first().json.slug + '/', validDurationInSeconds: 86400 }) }}"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f3629a38-4177-4966-b987-81561a5b113c",
+      "name": "Sign",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst row = $('Load Settings').first().json, slug = $('Check Request').first().json.slug;\nconst url = signWith(row.qr_key, 'QR Link');\nif (!url) return [{ json: { status: 200, body: { success: true, payment: null } } }];\nconst store = $getWorkflowStaticData('global');\nstore.qr = { ...(store.qr || {}), [slug]: { key: row.qr_key, url, exp: Date.now() + 20 * 3600e3 } };\nreturn [{ json: { status: 200, body: { success: true, payment: { upi_id: row.upi_id, upi_name: row.upi_name, qr_url: url } } } }];"
+      }
+    },
+    {
+      "id": "2268e52f-c783-45bd-b48c-55e5bed669c3",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2220,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Done?": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "B2 Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Credentials": {
+      "main": [
+        [
+          {
+            "node": "Authorize B2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorize B2": {
+      "main": [
+        [
+          {
+            "node": "QR Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QR Link": {
+      "main": [
+        [
+          {
+            "node": "Sign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Request": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Load Settings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Settings": {
+      "main": [
+        [
+          {
+            "node": "Use Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Cache": {
+      "main": [
+        [
+          {
+            "node": "Done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

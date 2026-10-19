@@ -4,7 +4,7 @@
   "active": false,
   "nodes": [
     {
-      "id": "d7a3eafc-350c-4e25-8572-cbfb5844408c",
+      "id": "7bbcdf7b-448b-48d5-8108-7e5fc6d6d469",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -20,10 +20,10 @@
           "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
         }
       },
-      "webhookId": "ef6bd4b7-3403-476b-9fb0-e3ac760471f3"
+      "webhookId": "bc2a81c1-d730-4f8d-aebc-2d849a118ba4"
     },
     {
-      "id": "c3082025-5b1a-4e75-a860-d98a3420448b",
+      "id": "7948fa01-ec19-4835-9256-43200d38d62e",
       "name": "Check Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -36,7 +36,7 @@
       }
     },
     {
-      "id": "38f4c850-da57-4a1d-84c3-3a09dad44a05",
+      "id": "6ffa5c10-db58-45f6-8a5d-2acd03578dcd",
       "name": "Token OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -54,7 +54,7 @@
           },
           "conditions": [
             {
-              "id": "30d53ff1-a0dc-4401-9365-d5a24e0c45bf",
+              "id": "633a0c89-1fda-437f-a083-1f453fcc4d36",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -70,7 +70,7 @@
       }
     },
     {
-      "id": "5e8df62d-13ac-401d-ab91-e7c1f89c5ab4",
+      "id": "579c2004-45bb-426b-bce1-f6777e393833",
       "name": "Load Staff",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -94,7 +94,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "308bf657-3f9d-4583-996b-862ce1f12f4b",
+      "id": "27e1fe76-1629-45fb-ad8a-1254ce12f80e",
       "name": "Is Superadmin",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -107,7 +107,7 @@
       }
     },
     {
-      "id": "0b17c5b0-cdcf-449e-93a2-c9851f098729",
+      "id": "e0b32dc8-1860-41c7-a4c5-0a0fe3c81189",
       "name": "Allowed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -125,7 +125,7 @@
           },
           "conditions": [
             {
-              "id": "94bce9ce-425e-4487-a977-a91a6c558a8b",
+              "id": "1e025191-910d-4065-977a-57669e57a49a",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -141,7 +141,7 @@
       }
     },
     {
-      "id": "e906a6d5-8df8-4401-a3de-f6c290c4fdcc",
+      "id": "20f006c1-8b52-4361-90a3-8defc3773528",
       "name": "Load Registrations",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
@@ -151,7 +151,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, phone, category, jersey_size, jersey_name, jersey_number, food, photo_key, payment_key, DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i') AS created_at FROM event_registrations WHERE event_slug = $1 ORDER BY id",
+        "query": "SELECT id, name, phone, category, jersey_size, jersey_name, jersey_number, food, payment_status, photo_key, payment_key, DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i') AS created_at FROM event_registrations WHERE event_slug = $1 ORDER BY id",
         "options": {
           "queryReplacement": "={{ [$('Check Token').first().json.slug] }}"
         }
@@ -165,7 +165,7 @@
       "alwaysOutputData": true
     },
     {
-      "id": "c12422f0-fb81-4cfd-8cbf-785695b22266",
+      "id": "59482fa9-b662-4729-905a-5755a8a72bda",
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -178,7 +178,7 @@
       }
     },
     {
-      "id": "59a1be76-1ac4-4209-8191-46a5995c055f",
+      "id": "67e51f6a-78be-4314-8d42-837513feef25",
       "name": "Authorize B2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -203,7 +203,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "ac5b38ac-93bf-455c-848c-0edcc6f527a5",
+      "id": "47c180c3-588b-4587-9688-5774727ee58a",
       "name": "Files Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -235,7 +235,7 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "951b882e-2d41-40a7-bc08-dc763133596d",
+      "id": "797155f0-b012-4d9f-bc93-5da1c1930cad",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -244,11 +244,11 @@
         -200
       ],
       "parameters": {
-        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst rows = $('Load Registrations').all().map(i => i.json).filter(r => r && r.id);\nconst registrations = rows.map(r => ({ id: r.id, name: r.name, phone: r.phone, category: r.category, jersey_size: r.jersey_size, jersey_name: r.jersey_name,\n  jersey_number: r.jersey_number, food: r.food, created_at: r.created_at, photo_url: signWith(r.photo_key, 'Files Link'), payment_url: signWith(r.payment_key, 'Files Link') }));\nreturn [{ json: { status: 200, body: { success: true, registrations } } }];"
+        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst rows = $('Load Registrations').all().map(i => i.json).filter(r => r && r.id);\nconst registrations = rows.map(r => ({ id: r.id, name: r.name, phone: r.phone, category: r.category, jersey_size: r.jersey_size, jersey_name: r.jersey_name,\n  jersey_number: r.jersey_number, food: r.food, payment_status: r.payment_status, created_at: r.created_at, photo_url: signWith(r.photo_key, 'Files Link'), payment_url: signWith(r.payment_key, 'Files Link') }));\nreturn [{ json: { status: 200, body: { success: true, registrations } } }];"
       }
     },
     {
-      "id": "174412b6-bb5f-4b6e-b4c6-370c5e66edb1",
+      "id": "8a7e66e1-3871-456d-b509-63f2604712c9",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,

@@ -1,0 +1,724 @@
+{
+  "id": "StfEvtPay026mPxB",
+  "name": "MyPaltan v2 - Staff Event Payment Details",
+  "active": false,
+  "nodes": [
+    {
+      "id": "0eddb299-234d-4956-a90f-829eb6dd9774",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "v2/staff/event-payment",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180",
+          "binaryPropertyName": "qr"
+        }
+      },
+      "webhookId": "b78b97f1-de9b-4ec6-ba1d-875b72c2799c"
+    },
+    {
+      "id": "98cd9b87-acca-4b2c-b4dc-e36d45cc2f8d",
+      "name": "Check Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction hmacSha256(key,msg){\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let kB=toB(key);if(kB.length>64)kB=sha256bytes(kB);\n  const kP=new Array(64).fill(0);kB.forEach((v,i)=>kP[i]=v);\n  const ipad=kP.map(v=>v^0x36);const opad=kP.map(v=>v^0x5c);\n  const mB=toB(msg);\n  return sha256bytes([...opad,...sha256bytes([...ipad,...mB])]);\n}\n\nfunction b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, ''); }\nconst STAFF_KEY = () => `${$env.JWT_SECRET}|mypaltan-staff`;\nfunction signStaff(u) {\n  const now = Math.floor(Date.now() / 1000);\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const body = b64url(Buffer.from(JSON.stringify({ typ: 'staff', sid: u.id, role: u.role, iat: now, exp: now + 12 * 60 * 60 })));\n  return { token: `${header}.${body}.${b64url(hmacSha256(STAFF_KEY(), `${header}.${body}`))}`, expires_at: (now + 12 * 60 * 60) * 1000 };\n}\nfunction verifyStaff(headers) {\n  const auth = String((headers || {}).authorization || '').trim();\n  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\n  const fail = { ok: false, error: 'Please log in again.' };\n  const parts = token.split('.');\n  if (parts.length !== 3) return fail;\n  const [h, p, s] = parts;\n  if (b64url(hmacSha256(STAFF_KEY(), `${h}.${p}`)) !== s) return fail;\n  let c;\n  try { c = JSON.parse(Buffer.from(p, 'base64').toString('utf8')); } catch { return fail; }\n  if (c.typ !== 'staff' || !Number.isInteger(c.sid)) return fail;\n  if (!c.exp || c.exp < Math.floor(Date.now() / 1000)) return { ok: false, error: 'Your session expired. Please log in again.' };\n  return { ok: true, sid: c.sid };\n}\n\nconst auth = verifyStaff($in.headers);\nif (!auth.ok) return [{ json: { ok: false, status: 401, body: { success: false, message: auth.error } } }];\nconst byteSize = async (key, f) => {\n  try { const buf = await this.helpers.getBinaryDataBuffer(0, key); if (buf && buf.length) return buf.length; } catch (e) {}\n  const m = String(f.fileSize ?? '').trim().match(/^([\\d.]+)\\s*(B|kB|KB|MB|GB)?$/i);\n  if (m) return Math.ceil(parseFloat(m[1]) * ({ b: 1, kb: 1000, mb: 1e6, gb: 1e9 })[(m[2] || 'B').toLowerCase()]);\n  return Buffer.from(f.data || '', 'base64').length;\n};\n\nconst b = $in.body || {};\nconst bad = m => [{ json: { ok: false, status: 422, body: { success: false, message: m } } }];\nconst slug = String(b.event ?? '').toLowerCase();\nif (!/^[a-z0-9-]{2,30}$/.test(slug)) return [{ json: { ok: false, status: 422, body: { success: false, message: 'Unknown event.' } } }];\nconst upi_id = String(b.upi_id ?? '').trim();\nif (!/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/.test(upi_id) || upi_id.length > 100) return bad('Enter a valid UPI ID, like name@okaxis.');\nconst upi_name = String(b.upi_name ?? '').trim().replace(/\\s+/g, ' ');\nif (upi_name.length < 2 || upi_name.length > 60 || !/^[\\p{L}][\\p{L} .'-]*$/u.test(upi_name)) return bad('Enter the payee name as shown in the UPI app.');\nconst bin = $input.first().binary || {};\nconst k = bin.qr ? 'qr' : Object.keys(bin)[0];\nlet file = null;\nif (k) {\n  const f = bin[k];\n  const exts = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };\n  const mime = f.mimeType === 'image/jpg' ? 'image/jpeg' : f.mimeType;\n  if (!exts[mime]) return bad('The QR must be a JPG or PNG image.');\n  if (await byteSize(k, f) > 5 * 1024 * 1024) return bad('The QR image must be under 5 MB.');\n  let head = null;\n  try { head = (await this.helpers.getBinaryDataBuffer(0, k)).subarray(0, 12); } catch (e) { head = Buffer.from(f.data || '', 'base64').subarray(0, 12); }\n  const hex = head ? head.toString('hex') : '';\n  if (!(hex.startsWith('ffd8ff') || hex.startsWith('89504e470d0a1a0a') || (hex.startsWith('52494646') && hex.slice(16, 24) === '57454250')))\n    return bad('The QR must be a JPG or PNG image.');\n  file = { field: k, mime, key: `event_payment/${slug}/qr_${Date.now()}.${exts[mime]}` };\n}\nreturn [{ json: { ok: true, sid: auth.sid, slug, upi_id, upi_name, file }, binary: bin }];"
+      }
+    },
+    {
+      "id": "1f09a0d8-d3e1-4022-943c-bceb6ef07abe",
+      "name": "Request OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "acc326b4-57a7-4be0-8994-871029d7afb5",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "29edb648-de2e-4aae-8f9d-1c53d7059d94",
+      "name": "Load Staff",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, is_active FROM users WHERE id = $1",
+        "options": {
+          "queryReplacement": "={{ [$json.sid] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "9b325c57-c116-4f35-a629-efa0f01fcb13",
+      "name": "Is Superadmin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in;\nif (!s.id || Number(s.is_active) !== 1) return [{ json: { ok: false, status: 401, body: { success: false, message: 'Please log in again.' } } }];\nif (s.role !== 'superadmin') return [{ json: { ok: false, status: 403, body: { success: false, message: 'Only the MyPaltan owner can review approvals.' } } }];\nreturn [{ json: { ok: true, sid: s.id, staff_name: s.name } }];"
+      }
+    },
+    {
+      "id": "fa3f6e94-d914-4787-ad72-0d715a8f216d",
+      "name": "Allowed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "588a326c-7e92-4df3-abdb-51d8f9132860",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ac7cc1e1-5ca7-496a-b32e-a889257afd9f",
+      "name": "Load Current",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        -200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT qr_key FROM event_payment_settings WHERE event_slug = $1",
+        "options": {
+          "queryReplacement": "={{ [$('Check Request').first().json.slug] }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "a19b29f3-85b2-45e0-a721-1639581cbe3f",
+      "name": "Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $('Check Request').first().json;\nif (!r.file && !$in.qr_key) return [{ json: { ok: false, status: 422, body: { success: false, message: 'Add the QR image.' } } }];\nreturn [{ json: { ok: true, upload: !!r.file, qr_key: r.file ? r.file.key : $in.qr_key } }];"
+      }
+    },
+    {
+      "id": "9fad6010-a790-4c66-b361-4231facc938a",
+      "name": "Plan OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        -200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "56386cb4-7299-4ac7-af96-bce74fe30658",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2e17ef5-ad2f-40ed-88c3-ef18e9332b88",
+      "name": "New QR?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1980,
+        -300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5b6502cc-12d1-4500-adc9-245360b6f43b",
+              "leftValue": "={{ $json.upload }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ab4dcabd-5d85-4b25-95b2-41d08ba5d923",
+      "name": "B2 Credentials",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        -400
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nreturn [{ json: { ...$input.first().json, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: $input.first().binary }];"
+      }
+    },
+    {
+      "id": "7a13bf54-b096-4f0c-9fc3-96da45f390a2",
+      "name": "Authorize B2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        -400
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.backblazeb2.com/b2api/v4/b2_authorize_account",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.basicAuth }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c07a3627-0f36-4f01-aecc-be21c4d1e09a",
+      "name": "Upload URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        -400
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_upload_url?bucketId=57d8ff72a9534e199bf30918",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4412c95e-3cdc-465f-a6d3-65e30d6adc1a",
+      "name": "Attach",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        -400
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $('Check Request').first();\nconst f = r.json.file;\nreturn [{ json: { uploadUrl: $in.uploadUrl, uploadToken: $in.authorizationToken, mime: f.mime,\n  name: f.key.split('/').map(encodeURIComponent).join('/') }, binary: { file: r.binary[f.field] } }];"
+      }
+    },
+    {
+      "id": "1b363be7-866b-45c0-8ab9-55bbf77b723d",
+      "name": "Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3000,
+        -400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.uploadUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.uploadToken }}"
+            },
+            {
+              "name": "X-Bz-File-Name",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.mime }}"
+            },
+            {
+              "name": "X-Bz-Content-Sha1",
+              "value": "do_not_verify"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "file"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "6eee97c7-0a6f-48a6-a753-9cdc9a264b6a",
+      "name": "Uploaded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3200,
+        -400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "093f82aa-6eeb-44fb-9bbc-14bed374022e",
+              "leftValue": "={{ $json.statusCode === 200 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ee0caddf-037f-4e26-87a4-4f594af38f4b",
+      "name": "Upload Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3400,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { status: 502, body: { success: false, message: 'Could not upload the QR. Please try again.' } } }];"
+      }
+    },
+    {
+      "id": "a138b072-2f4c-482d-8774-80034a3a7985",
+      "name": "Save",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        3400,
+        -300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO event_payment_settings (event_slug, upi_id, upi_name, qr_key, updated_by) VALUES ($1, $2, $3, $4, $5) ON DUPLICATE KEY UPDATE upi_id = VALUES(upi_id), upi_name = VALUES(upi_name), qr_key = VALUES(qr_key), updated_by = VALUES(updated_by)",
+        "options": {
+          "queryReplacement": "={{ (r => [r.slug, r.upi_id, r.upi_name, $('Plan').first().json.qr_key, r.sid])($('Check Request').first().json) }}"
+        }
+      },
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "5a3d85ea-2fa1-4d1a-a4f5-0f5203bd8649",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3620,
+        -300
+      ],
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nif ($in.error || /ER_|syntax/i.test(String($in.message || ''))) return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];\nreturn [{ json: { status: 200, body: { success: true, message: 'Payment details updated. Players see them on the form now.' } } }];"
+      }
+    },
+    {
+      "id": "3dc12a4d-760b-4919-b7f7-67ecd01e3bf6",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3840,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Request OK?": {
+      "main": [
+        [
+          {
+            "node": "Load Staff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Staff": {
+      "main": [
+        [
+          {
+            "node": "Is Superadmin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Superadmin": {
+      "main": [
+        [
+          {
+            "node": "Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Load Current",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Request": {
+      "main": [
+        [
+          {
+            "node": "Request OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Current": {
+      "main": [
+        [
+          {
+            "node": "Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan": {
+      "main": [
+        [
+          {
+            "node": "Plan OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan OK?": {
+      "main": [
+        [
+          {
+            "node": "New QR?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New QR?": {
+      "main": [
+        [
+          {
+            "node": "B2 Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Credentials": {
+      "main": [
+        [
+          {
+            "node": "Authorize B2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorize B2": {
+      "main": [
+        [
+          {
+            "node": "Upload URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload URL": {
+      "main": [
+        [
+          {
+            "node": "Attach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach": {
+      "main": [
+        [
+          {
+            "node": "Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload": {
+      "main": [
+        [
+          {
+            "node": "Uploaded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uploaded?": {
+      "main": [
+        [
+          {
+            "node": "Save",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upload Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
