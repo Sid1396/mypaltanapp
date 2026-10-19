@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:gal/gal.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_routes.dart';
 import '../../data/models/entry.dart';
 import '../../data/services/api_service.dart';
@@ -156,20 +157,28 @@ class RegisterTeamController extends GetxController {
 
   // ─── Payment ──────────────────────────────────────────────────
 
-  String get payNote => 'MyPaltan $code ${team?.name ?? ''}'.trim();
+  // No "open UPI app" button: GPay blocks app-started payments to personal and small-business UPI IDs.
+  // Captains save the QR (then Scan → gallery in their UPI app) or copy the UPI ID.
+  final savingQr = false.obs;
 
-  Future<void> payWithUpiApp() async {
-    final p = options.value?.payment;
-    if (p == null) return;
-    final uri = Uri(scheme: 'upi', host: 'pay', queryParameters: {
-      'pa': p.upiId,
-      'pn': p.upiName,
-      'am': fee.toString(),
-      'cu': 'INR',
-      'tn': payNote.length > 40 ? payNote.substring(0, 40) : payNote,
-    });
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication).catchError((_) => false);
-    if (!opened) AppSnackbar.info('No UPI app found', 'Copy the UPI ID and pay from any UPI app.');
+  Future<void> saveQr() async {
+    final url = options.value?.payment?.qrUrl;
+    if (url == null || savingQr.value) return;
+    savingQr.value = true;
+    try {
+      if (!await Gal.hasAccess() && !await Gal.requestAccess()) {
+        AppSnackbar.info('Allow photo access', 'Allow MyPaltan to add photos in Settings, or copy the UPI ID instead.');
+        return;
+      }
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+      if (res.statusCode != 200 || res.bodyBytes.isEmpty) throw Exception('QR download failed');
+      await Gal.putImageBytes(res.bodyBytes, name: 'mypaltan_qr_$code');
+      AppSnackbar.success('QR saved to your photos', 'Open GPay or PhonePe, tap Scan and choose the QR from your gallery.');
+    } catch (_) {
+      AppSnackbar.info('Could not save the QR', 'Copy the UPI ID and pay from any UPI app.');
+    } finally {
+      savingQr.value = false;
+    }
   }
 
   void copyUpi() {

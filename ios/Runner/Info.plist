@@ -45,6 +45,8 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>MyPaltan saves the organiser's payment QR to your photos so you can scan it from your UPI app.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>MyPaltan uses your photos for your profile picture, tournament logos, banners and documents.</string>
 	<key>CFBundleURLTypes</key>

@@ -200,8 +200,23 @@ class RegisterTeamPage extends GetView<RegisterTeamController> {
                     ),
                   ),
                 ),
-                gapH(10),
-                SizedBox(width: double.infinity, child: SmallButton(key: const ValueKey('reg-upi-app'), label: 'Pay with a UPI app', onTap: c.payWithUpiApp)),
+                if (p.qrUrl != null) ...[
+                  gapH(10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Obx(() => SmallButton(
+                        key: const ValueKey('reg-save-qr'), label: c.savingQr.value ? 'Saving…' : 'Save QR to phone', onTap: c.saveQr)),
+                  ),
+                ],
+                gapH(12),
+                Text(
+                  p.qrUrl != null
+                      ? 'Paying from this phone? Save the QR, open GPay or PhonePe, tap Scan and choose it from your gallery. '
+                          'Or copy the UPI ID and use "Pay UPI ID".'
+                      : 'Copy the UPI ID, open GPay or PhonePe and use "Pay UPI ID".',
+                  textAlign: TextAlign.center,
+                  style: tfStyle(12.5, color: Colors.white.withAlpha(150), height: 1.4),
+                ),
                 if (p.note != null) ...[
                   gapH(10),
                   Text(p.note!, textAlign: TextAlign.center, style: tfStyle(12.5, color: Colors.white.withAlpha(150), height: 1.4)),
