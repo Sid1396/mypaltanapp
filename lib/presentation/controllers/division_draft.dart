@@ -42,6 +42,7 @@ class DivisionDraft {
   final rollingSubs = true.obs;
   final extraTime = false.obs;
   final penalties = true.obs;
+  final penaltyKicks = 5.obs;
   // Badminton / pickleball
   final racketEvent = 'DOUBLES'.obs;
   final pointsPerGame = 21.obs;
@@ -155,6 +156,7 @@ class DivisionDraft {
     rollingSubs.value = o.rollingSubs.value;
     extraTime.value = o.extraTime.value;
     penalties.value = o.penalties.value;
+    penaltyKicks.value = o.penaltyKicks.value;
     racketEvent.value = o.racketEvent.value;
     pointsPerGame.value = o.pointsPerGame.value;
     games.value = o.games.value;
@@ -228,6 +230,7 @@ class DivisionDraft {
             'rolling_subs': rollingSubs.value,
             'extra_time': extraTime.value,
             'penalties': penalties.value,
+            'penalty_kicks': penaltyKicks.value,
           },
         _ => {
             'event': racketEvent.value,
@@ -293,6 +296,7 @@ class DivisionDraft {
       rollingSubs.value = rb('rolling_subs', true);
       extraTime.value = rb('extra_time', false);
       penalties.value = rb('penalties', true);
+      penaltyKicks.value = ri('penalty_kicks', 5);
     } else {
       racketEvent.value = r['event']?.toString() ?? 'DOUBLES';
       pointsPerGame.value = ri('points_per_game', 21);

@@ -17,12 +17,15 @@ class FootballRules {
   final int halfMinutes;
   final bool extraTime;
   final bool penalties;
-  const FootballRules({required this.halfMinutes, this.extraTime = false, this.penalties = true});
+  /// Kicks each before sudden death (5 normally; kids' tournaments often use 3).
+  final int penaltyKicks;
+  const FootballRules({required this.halfMinutes, this.extraTime = false, this.penalties = true, this.penaltyKicks = 5});
 
   factory FootballRules.fromJson(Map<String, dynamic> r) => FootballRules(
         halfMinutes: r['half_minutes'] is num ? (r['half_minutes'] as num).toInt() : 20,
         extraTime: r['extra_time'] == true,
         penalties: r['penalties'] != false,
+        penaltyKicks: r['penalty_kicks'] is num ? (r['penalty_kicks'] as num).toInt().clamp(1, 5) : 5,
       );
 
   /// Extra time halves are a third of a half, at least 5 minutes (e.g. 20-minute halves → 2 × 7).
@@ -331,18 +334,19 @@ class FootballEngine {
     s.result = '{$winner} won $w-$l';
   }
 
-  /// Best of five each, then sudden death; decided as soon as one side cannot catch up.
+  /// Best of [FootballRules.penaltyKicks] each (5 by default), then sudden death; decided as soon as one side cannot catch up.
   static void _checkShootout(FootballState s) {
+    final n = s.rules.penaltyKicks;
     final h = s.shootoutGoalsHome, a = s.shootoutGoalsAway;
     final hk = s.shootoutHome.length, ak = s.shootoutAway.length;
     int? winner;
-    if (hk <= 5 && ak <= 5) {
-      if (h > a + (5 - ak)) winner = s.setup.homeEntry;
-      if (a > h + (5 - hk)) winner = s.setup.awayEntry;
+    if (hk <= n && ak <= n) {
+      if (h > a + (n - ak)) winner = s.setup.homeEntry;
+      if (a > h + (n - hk)) winner = s.setup.awayEntry;
     } else if (hk == ak && h != a) {
       winner = h > a ? s.setup.homeEntry : s.setup.awayEntry;
     }
-    if (hk == 5 && ak == 5 && h != a) winner = h > a ? s.setup.homeEntry : s.setup.awayEntry;
+    if (hk == n && ak == n && h != a) winner = h > a ? s.setup.homeEntry : s.setup.awayEntry;
     if (winner == null) return;
     s.winner = winner;
     s.outcome = 'WIN';

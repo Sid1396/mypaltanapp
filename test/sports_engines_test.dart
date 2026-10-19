@@ -61,6 +61,19 @@ void main() {
       expect(fb([...reg, ...level, pen(1, true), pen(2, false)], s: ko, r: noEt).result, '{1} won 6-5 on penalties (0-0)');
     });
 
+    test('a 3-kick shootout is decided early, then goes to sudden death', () {
+      final reg = [ev('KICK_OFF'), ev('PERIOD_END'), ev('START_PERIOD'), ev('PERIOD_END')];
+      const three = FootballRules(halfMinutes: 10, extraTime: false, penalties: true, penaltyKicks: 3);
+      expect(FootballRules.fromJson({'half_minutes': 10, 'penalty_kicks': 3}).penaltyKicks, 3);
+      expect(FootballRules.fromJson({'half_minutes': 10}).penaltyKicks, 5, reason: 'older tournaments keep five');
+      // 2-0 up after two each with one kick left each: the other side cannot catch up.
+      expect(fb([...reg, pen(1, true), pen(2, false), pen(1, true), pen(2, false)], s: ko, r: three).result,
+          '{1} won 2-0 on penalties (0-0)');
+      final level = [for (var i = 0; i < 3; i++) ...[pen(1, true), pen(2, true)]];
+      expect(fb([...reg, ...level], s: ko, r: three).phase, 'PENALTIES', reason: '3-3 goes to sudden death');
+      expect(fb([...reg, ...level, pen(1, false), pen(2, true)], s: ko, r: three).result, '{2} won 4-3 on penalties (0-0)');
+    });
+
     test('second yellow is a red; sent-off players cannot score', () {
       final s = fb([ev('KICK_OFF'), ev('CARD', {'team': 1, 'player': 11, 'color': 'YELLOW'}), ev('CARD', {'team': 1, 'player': 11, 'color': 'YELLOW'})]);
       expect((s.toJson()['timeline'] as List).first['color'], 'RED');

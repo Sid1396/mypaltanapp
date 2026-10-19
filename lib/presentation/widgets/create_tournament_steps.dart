@@ -732,6 +732,15 @@ class RulesStep extends GetView<CreateTournamentController> {
                   ),
                   SwitchRow(label: 'Extra time in knockouts', value: d.extraTime.value, onChanged: (v) => d.extraTime.value = v),
                   SwitchRow(label: 'Penalty shootout if tied', value: d.penalties.value, onChanged: (v) => d.penalties.value = v),
+                  if (d.penalties.value)
+                    NumberStepper(
+                      key: const ValueKey('rules-penalty-kicks'),
+                      label: 'Penalties each, then sudden death',
+                      value: d.penaltyKicks.value,
+                      min: 3,
+                      max: 5,
+                      onChanged: (v) => d.penaltyKicks.value = v,
+                    ),
                 ],
               )),
         ),
