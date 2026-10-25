@@ -19,12 +19,12 @@
         0,
         0
       ],
-      "id": "505ca140-29b3-4b3a-bfb9-d20965acb218",
-      "webhookId": "ad7f6337-c4fc-43d2-be32-520cf59233c9"
+      "id": "729d2fb7-4c7f-449e-a6f5-a9488b2870c3",
+      "webhookId": "b8a810e3-adc6-4e64-ab36-4a0de50bd0cb"
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\nconst byteSize = async (key, f) => {\n  try { const buf = await this.helpers.getBinaryDataBuffer(0, key); if (buf && buf.length) return buf.length; } catch (e) {}\n  const m = String(f.fileSize ?? '').trim().match(/^([\\d.]+)\\s*(B|kB|KB|MB|GB)?$/i);\n  if (m) return Math.ceil(parseFloat(m[1]) * ({ b: 1, kb: 1000, mb: 1e6, gb: 1e9 })[(m[2] || 'B').toLowerCase()]);\n  return Buffer.from(f.data || '', 'base64').length;\n};\n\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 30) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\nconst count = () => { store.hits[ip] = [...mine, now]; };\n\nconst b = $in.body || {};\nconst bad = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nconst str = v => String(v ?? '').trim();\nconst rand = (n, chars) => {\n  const out = [];\n  const g = globalThis.crypto && globalThis.crypto.getRandomValues ? globalThis.crypto.getRandomValues(new Uint32Array(n)) : null;\n  for (let i = 0; i < n; i++) out.push(chars[(g ? g[i] : Math.floor(Math.random() * 4294967296)) % chars.length]);\n  return out.join('');\n};\nconst EXTS = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic' };\n// A real JPG, PNG, WebP or HEIC, under 8 MB. Returns { mime, ext } or an error message.\nconst checkImage = async (bin, k, label) => {\n  const f = bin[k];\n  const mime = f.mimeType === 'image/jpg' ? 'image/jpeg' : f.mimeType;\n  if (!EXTS[mime]) return { error: `The ${label} must be a photo (JPG or PNG).` };\n  if (await byteSize(k, f) > 8 * 1024 * 1024) return { error: `The ${label} must be under 8 MB.` };\n  let head = null;\n  try { head = (await this.helpers.getBinaryDataBuffer(0, k)).subarray(0, 12); } catch (e) { head = Buffer.from(f.data || '', 'base64').subarray(0, 12); }\n  const hex = head ? head.toString('hex') : '';\n  const ok = hex.startsWith('ffd8ff') || hex.startsWith('89504e470d0a1a0a') ||\n    (hex.startsWith('52494646') && hex.slice(16, 24) === '57454250') || hex.slice(8, 16) === '66747970';\n  return ok ? { mime, ext: EXTS[mime] } : { error: `The ${label} must be a photo (JPG or PNG).` };\n};\nconst fileKey = (dir, phone, kind, ext) => `${dir}/${phone}/${kind}_${Date.now()}_${rand(6, 'abcdefghijklmnopqrstuvwxyz0123456789')}.${ext}`;\nconst SLUG = /^[a-z0-9-]{2,40}$/;\n\nif (b.website) return bad('Please try again.');\nconst slug = str(b.slug).toLowerCase(), team = str(b.team).toUpperCase();\nif (!SLUG.test(slug) || !/^[A-Z0-9]{6}$/.test(team)) return bad('This team link is not valid.', 404);\n// Same checks as a coach adding a player in the app.\nconst name = str(b.name).replace(/\\s+/g, ' ');\nif (name.length < 2 || name.length > 50 || !/^[\\p{L}][\\p{L} .'-]*$/u.test(name)) return bad(\"Enter the player's full name.\");\nconst m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(str(b.birthdate));\nconst bd = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null;\nif (!bd || bd.getUTCMonth() !== +m[2] - 1) return bad('Enter the date of birth.');\nconst today = new Date();\nlet age = today.getUTCFullYear() - bd.getUTCFullYear();\nif (today.getUTCMonth() < bd.getUTCMonth() || (today.getUTCMonth() === bd.getUTCMonth() && today.getUTCDate() < bd.getUTCDate())) age--;\nif (age < 3) return bad('Players must be at least 3 years old.');\nif (age >= 13) return bad('Players aged 13 or older join with their own MyPaltan account. Ask the coach for help.');\nconst gender = str(b.gender || 'UNDISCLOSED').toUpperCase();\nif (!['MALE', 'FEMALE', 'UNDISCLOSED'].includes(gender)) return bad('Choose a gender option.');\nconst jersey = str(b.jersey_number) === '' ? null : Number(b.jersey_number);\nif (jersey !== null && !(Number.isInteger(jersey) && jersey >= 0 && jersey <= 99)) return bad('Jersey number must be 0 to 99.');\nconst parent = str(b.parent_phone).replace(/\\D/g, '').slice(-10);\nif (!/^[6-9]\\d{9}$/.test(parent)) return bad(\"Enter the parent's 10-digit mobile number.\");\nif (b.agree_parent !== '1') return bad(\"Please confirm you are the player's parent or guardian.\");\nconst bin = $input.first().binary || {};\nconst files = [];\nif (bin.photo) { const r = await checkImage(bin, 'photo', 'photo'); if (r.error) return bad(r.error); files.push({ field: 'photo', mime: r.mime, key: fileKey('team_assets', parent, 'player_photo', r.ext) }); }\ncount();\nreturn [{ json: { ok: true, slug, team, name, birthdate: m[0], gender, jersey, parent, files }, binary: bin }];"
+        "jsCode": "const $in = $input.first().json;\nconst byteSize = async (key, f) => {\n  try { const buf = await this.helpers.getBinaryDataBuffer(0, key); if (buf && buf.length) return buf.length; } catch (e) {}\n  const m = String(f.fileSize ?? '').trim().match(/^([\\d.]+)\\s*(B|kB|KB|MB|GB)?$/i);\n  if (m) return Math.ceil(parseFloat(m[1]) * ({ b: 1, kb: 1000, mb: 1e6, gb: 1e9 })[(m[2] || 'B').toLowerCase()]);\n  return Buffer.from(f.data || '', 'base64').length;\n};\n\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 30) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\nconst count = () => { store.hits[ip] = [...mine, now]; };\n\nconst b = $in.body || {};\nconst bad = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nconst str = v => String(v ?? '').trim();\nconst rand = (n, chars) => {\n  const out = [];\n  const g = globalThis.crypto && globalThis.crypto.getRandomValues ? globalThis.crypto.getRandomValues(new Uint32Array(n)) : null;\n  for (let i = 0; i < n; i++) out.push(chars[(g ? g[i] : Math.floor(Math.random() * 4294967296)) % chars.length]);\n  return out.join('');\n};\nconst EXTS = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic' };\n// A real JPG, PNG, WebP or HEIC, under 8 MB. Returns { mime, ext } or an error message.\nconst checkImage = async (bin, k, label) => {\n  const f = bin[k];\n  const mime = f.mimeType === 'image/jpg' ? 'image/jpeg' : f.mimeType;\n  if (!EXTS[mime]) return { error: `The ${label} must be a photo (JPG or PNG).` };\n  if (await byteSize(k, f) > 8 * 1024 * 1024) return { error: `The ${label} must be under 8 MB.` };\n  let head = null;\n  try { head = (await this.helpers.getBinaryDataBuffer(0, k)).subarray(0, 12); } catch (e) { head = Buffer.from(f.data || '', 'base64').subarray(0, 12); }\n  const hex = head ? head.toString('hex') : '';\n  const ok = hex.startsWith('ffd8ff') || hex.startsWith('89504e470d0a1a0a') ||\n    (hex.startsWith('52494646') && hex.slice(16, 24) === '57454250') || hex.slice(8, 16) === '66747970';\n  return ok ? { mime, ext: EXTS[mime] } : { error: `The ${label} must be a photo (JPG or PNG).` };\n};\nconst fileKey = (dir, phone, kind, ext) => `${dir}/${phone}/${kind}_${Date.now()}_${rand(6, 'abcdefghijklmnopqrstuvwxyz0123456789')}.${ext}`;\nconst SLUG = /^[a-z0-9-]{2,40}$/;\n\nif (b.website) return bad('Please try again.');\nconst slug = str(b.slug).toLowerCase(), team = str(b.team).toUpperCase();\nif (!SLUG.test(slug) || !/^[A-Z0-9]{6}$/.test(team)) return bad('This team link is not valid.', 404);\n// Same checks as a coach adding a player in the app.\nconst name = str(b.name).replace(/\\s+/g, ' ');\nif (name.length < 2 || name.length > 50 || !/^[\\p{L}][\\p{L} .'-]*$/u.test(name)) return bad(\"Enter the player's full name.\");\nconst m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(str(b.birthdate));\nconst bd = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null;\nif (!bd || bd.getUTCMonth() !== +m[2] - 1) return bad('Enter the date of birth.');\nconst today = new Date();\nlet age = today.getUTCFullYear() - bd.getUTCFullYear();\nif (today.getUTCMonth() < bd.getUTCMonth() || (today.getUTCMonth() === bd.getUTCMonth() && today.getUTCDate() < bd.getUTCDate())) age--;\nif (age < 3) return bad('Players must be at least 3 years old.');\nif (age >= 13) return bad('Players aged 13 or older join with their own MyPaltan account. Ask the coach for help.');\nconst gender = str(b.gender || 'UNDISCLOSED').toUpperCase();\nif (!['MALE', 'FEMALE', 'UNDISCLOSED'].includes(gender)) return bad('Choose a gender option.');\nconst jersey = str(b.jersey_number) === '' ? null : Number(b.jersey_number);\nif (jersey !== null && !(Number.isInteger(jersey) && jersey >= 0 && jersey <= 99)) return bad('Jersey number must be 0 to 99.');\nconst parent = str(b.parent_phone).replace(/\\D/g, '').slice(-10);\nif (!/^[6-9]\\d{9}$/.test(parent)) return bad(\"Enter the parent's 10-digit mobile number.\");\nif (b.agree_parent !== '1') return bad(\"Please confirm you are the player's parent or guardian.\");\nconst bin = $input.first().binary || {};\nconst files = [];\nif (!bin.photo) return bad(\"Add the player's photo.\");\n{ const r = await checkImage(bin, 'photo', 'photo'); if (r.error) return bad(r.error); files.push({ field: 'photo', mime: r.mime, key: fileKey('team_assets', parent, 'player_photo', r.ext) }); }\ncount();\nreturn [{ json: { ok: true, slug, team, name, birthdate: m[0], gender, jersey, parent, files }, binary: bin }];"
       },
       "name": "Check Request",
       "type": "n8n-nodes-base.code",
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "45c89d9e-8fce-429c-8cd0-3bbb85e43a56"
+      "id": "087fb8c1-58e3-4f9a-b3a1-66eca3ecf651"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "1005b7f1-8393-4115-9a52-452dd261bfbb",
+              "id": "3b8b57b9-f7a3-4818-a8f0-261ba144def8",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,7 +67,7 @@
         440,
         0
       ],
-      "id": "26970ebb-8b73-4c91-a474-ebc0f27eb112"
+      "id": "e6919fca-d61d-4d75-b639-f6dfadbc4c2c"
     },
     {
       "parameters": {
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "a7fd2a32-5874-4481-a073-036ac9ce14d5",
+      "id": "cb30ab09-8bde-4fe3-a3fa-743350745d3f",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "30d1a038-2d31-4cb8-977f-f65fc92ac444"
+      "id": "0bdba413-955e-44d9-b0d9-be6520942e42"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "939fdccb-c3c1-4d91-afad-60e2155a5e73",
+              "id": "cbb18d69-5e20-4b64-a14c-05efc44aee95",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "c81fabb8-c599-4752-9810-bae7f4c51038"
+      "id": "1124d22f-15b4-4b00-9736-f0254794c2da"
     },
     {
       "parameters": {
@@ -151,7 +151,7 @@
           },
           "conditions": [
             {
-              "id": "56a877ca-6a8f-447e-abb1-872a84903887",
+              "id": "d57664d9-d7c8-4cad-8ae4-5b90325acb7b",
               "leftValue": "={{ $json.has_files }}",
               "rightValue": "",
               "operator": {
@@ -172,7 +172,7 @@
         1320,
         -200
       ],
-      "id": "2bd18e39-1ce1-454e-895c-3c0811a8f7e7"
+      "id": "5f89b0e5-674b-4899-8a3b-1c49176e11fd"
     },
     {
       "parameters": {
@@ -185,7 +185,7 @@
         1540,
         -400
       ],
-      "id": "ddf47369-9c19-42d5-90cc-f68d85a3b26d"
+      "id": "4cf87af3-bf34-4685-a9d5-4f73307b406d"
     },
     {
       "parameters": {
@@ -198,7 +198,7 @@
         1740,
         -400
       ],
-      "id": "3a10680b-4af0-495e-a85f-89d79c1f8aac"
+      "id": "b3ec4853-e362-4f05-bb50-8ba4a5490c8a"
     },
     {
       "parameters": {
@@ -222,7 +222,7 @@
         1940,
         -400
       ],
-      "id": "45d8a683-9f89-4407-8352-e0842c4e92e9",
+      "id": "43b9be21-a4dd-439e-a351-079e225f21b1",
       "executeOnce": true
     },
     {
@@ -236,7 +236,7 @@
         2040,
         -250
       ],
-      "id": "7cb6c220-9c4f-44d5-b7d0-d4ec209b9e99"
+      "id": "fbfc1a3c-e723-4a79-a9d8-24aa0828fc3c"
     },
     {
       "parameters": {
@@ -260,7 +260,7 @@
         2140,
         -400
       ],
-      "id": "1755fd56-fb53-4000-916c-c34c058eb4a1"
+      "id": "4b33e57f-6f96-4079-91da-c2d35659efad"
     },
     {
       "parameters": {
@@ -273,7 +273,7 @@
         2340,
         -400
       ],
-      "id": "a2eca8e9-055d-4394-9e74-a3b8973a7110"
+      "id": "a959717a-06a3-47a6-947a-1283a09d30e1"
     },
     {
       "parameters": {
@@ -319,7 +319,7 @@
         2540,
         -400
       ],
-      "id": "f43f24ac-395a-43af-8aa2-057bce9600c4",
+      "id": "033383b8-6911-4345-b5b5-bba01f493a03",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000
@@ -335,7 +335,7 @@
         2740,
         -400
       ],
-      "id": "22a5433a-03b7-4d84-ac5c-849fa38f2bfe"
+      "id": "ed184ebd-a37a-4787-b0b0-0e1c92f71091"
     },
     {
       "parameters": {
@@ -348,7 +348,7 @@
           },
           "conditions": [
             {
-              "id": "5b783a8a-d702-4f25-ac7c-c3610412cb3e",
+              "id": "d5cb6af6-b24d-4cd9-b4b2-d8598c4bd0a1",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -369,7 +369,7 @@
         2940,
         -400
       ],
-      "id": "f9b52b44-550f-45dc-b695-69f77af437c9"
+      "id": "c16fdd68-eb40-4156-92cf-642017ca1ae7"
     },
     {
       "parameters": {
@@ -386,7 +386,7 @@
         3300,
         -300
       ],
-      "id": "78e08aef-7d0c-4111-97de-13c012321438",
+      "id": "4bb8ce18-382f-4abd-b683-3487841242f4",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -406,7 +406,7 @@
         3520,
         -300
       ],
-      "id": "07c2fd6d-9e64-40d0-88cb-1a2dfb520fd2"
+      "id": "7108f5c7-8c37-4423-b27d-1e8606d355c7"
     },
     {
       "parameters": {
@@ -419,7 +419,7 @@
         3300,
         100
       ],
-      "id": "76e9ef6e-f574-43cc-ad5a-ebcf079031ec"
+      "id": "bc85c5a1-3edf-46b3-b3cd-aeb22e0475b5"
     },
     {
       "parameters": {
@@ -436,7 +436,7 @@
         3800,
         0
       ],
-      "id": "1b2f7fc2-d1bb-4d0a-9e73-ead99b7e885e"
+      "id": "1c2b390f-a0aa-4d58-9444-c75438ae38e7"
     }
   ],
   "connections": {

@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "f12ff89f-be3a-4858-87cb-21a5d210fbe1",
-      "webhookId": "8cc1dca3-803b-4eb7-ac11-ab015ac74edc"
+      "id": "c0ee1b96-a150-4c02-b4f9-05cdf0ddf88c",
+      "webhookId": "ee1559f3-d9e3-4e5e-892a-67368e4ff3d4"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "b8101dc3-389f-4fe3-813a-d660e4e17eb4"
+      "id": "9d6043a0-35d7-4c6d-b392-54c616ca03a9"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "719803c9-346b-4a1a-b1fe-7261ef0e6b2c",
+              "id": "50506ded-10d6-4be4-8339-0c9601718a0d",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,7 +67,7 @@
         440,
         0
       ],
-      "id": "b70bde69-4ff2-492a-bd6f-1bee3f15dbcf"
+      "id": "be9fd487-2bdd-4a99-8c74-153c7fe41155"
     },
     {
       "parameters": {
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "9a1f550e-4459-469f-93c1-c58c6c784b57",
+      "id": "7130e171-6f6a-4ff8-b530-f28e9678f49f",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "abe0bd9b-9c15-48c2-8062-e57b944cc0ee"
+      "id": "ccc44ff6-4bb1-409f-a018-24cc720dc769"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "a8524f31-2697-4242-8909-a5c3b846d6a4",
+              "id": "44bcda5f-54ec-449b-b938-6c77bfccefb6",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,12 +138,12 @@
         1100,
         -100
       ],
-      "id": "ae20740f-759e-4edf-be2e-bca0f6d68d20"
+      "id": "3cb0c282-b3eb-441a-a285-188e2261f474"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT l.slug, l.fee_per_player, t.id AS tid, t.code, t.name, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, o.name AS organiser, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'max_teams', d.max_teams, 'squad_max', d.squad_max, 'max_age', d.max_age, 'approved', (SELECT COUNT(*) FROM tournament_entries x WHERE x.division_id = d.id AND x.status = 'APPROVED'))) FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', e.id, 'status', e.status, 'division_id', e.division_id, 'team', tm.name, 'team_code', tm.code, 'logo_key', tm.logo_key, 'area', tm.area, 'coach', u.name, 'coach_phone', u.phone, 'amount', e.amount, 'paid_players', e.paid_players, 'utr', e.utr, 'proof_key', e.proof_key, 'reject_reason', e.reject_reason, 'web', e.manage_key_hash IS NOT NULL, 'registered', DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'), 'reviewed', DATE_FORMAT(CONVERT_TZ(e.reviewed_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'), 'waiting', (SELECT COUNT(*) FROM team_members w WHERE w.team_id = tm.id AND w.status = 'PENDING'), 'payments', (SELECT JSON_ARRAYAGG(JSON_OBJECT('players', p.players, 'amount', p.amount, 'utr', p.utr, 'proof_key', p.proof_key, 'at', DATE_FORMAT(CONVERT_TZ(p.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'))) FROM entry_payments p WHERE p.entry_id = e.id), 'squad', (SELECT JSON_ARRAYAGG(JSON_OBJECT('name', COALESCE(au.name, m.guest_name), 'birthdate', DATE_FORMAT(COALESCE(au.birthdate, m.guest_birthdate), '%Y-%m-%d'), 'age', TIMESTAMPDIFF(YEAR, COALESCE(au.birthdate, m.guest_birthdate), t.start_date), 'gender', COALESCE(au.gender, m.guest_gender), 'jersey', COALESCE(ep.jersey_number, m.jersey_number, au.jersey_number), 'parent_phone', m.parent_phone, 'photo_key', COALESCE(m.guest_photo_key, au.photo_key))) FROM tournament_entry_players ep JOIN team_members m ON m.id = ep.team_member_id LEFT JOIN app_users au ON au.id = m.user_id WHERE ep.entry_id = e.id))) FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id JOIN app_users u ON u.id = e.registered_by WHERE e.tournament_id = t.id) AS entries FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id JOIN app_users o ON o.id = t.organizer_user_id WHERE l.slug = $1",
+        "query": "SELECT l.slug, l.fee_per_player, t.id AS tid, t.code, t.name, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, o.name AS organiser, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'max_teams', d.max_teams, 'squad_max', d.squad_max, 'max_age', d.max_age, 'approved', (SELECT COUNT(*) FROM tournament_entries x WHERE x.division_id = d.id AND x.status = 'APPROVED'))) FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', e.id, 'status', e.status, 'division_id', e.division_id, 'team', tm.name, 'team_code', tm.code, 'logo_key', tm.logo_key, 'area', tm.area, 'coach', u.name, 'coach_phone', u.phone, 'coach_has_pin', (SELECT COUNT(*) FROM coach_web_pins cp WHERE cp.user_id = u.id) > 0, 'amount', e.amount, 'paid_players', e.paid_players, 'utr', e.utr, 'proof_key', e.proof_key, 'reject_reason', e.reject_reason, 'web', e.manage_key_hash IS NOT NULL, 'registered', DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'), 'reviewed', DATE_FORMAT(CONVERT_TZ(e.reviewed_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'), 'waiting', (SELECT COUNT(*) FROM team_members w WHERE w.team_id = tm.id AND w.status = 'PENDING'), 'payments', (SELECT JSON_ARRAYAGG(JSON_OBJECT('players', p.players, 'amount', p.amount, 'utr', p.utr, 'proof_key', p.proof_key, 'at', DATE_FORMAT(CONVERT_TZ(p.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'))) FROM entry_payments p WHERE p.entry_id = e.id), 'squad', (SELECT JSON_ARRAYAGG(JSON_OBJECT('name', COALESCE(au.name, m.guest_name), 'birthdate', DATE_FORMAT(COALESCE(au.birthdate, m.guest_birthdate), '%Y-%m-%d'), 'age', TIMESTAMPDIFF(YEAR, COALESCE(au.birthdate, m.guest_birthdate), t.start_date), 'gender', COALESCE(au.gender, m.guest_gender), 'jersey', COALESCE(ep.jersey_number, m.jersey_number, au.jersey_number), 'parent_phone', m.parent_phone, 'photo_key', COALESCE(m.guest_photo_key, au.photo_key))) FROM tournament_entry_players ep JOIN team_members m ON m.id = ep.team_member_id LEFT JOIN app_users au ON au.id = m.user_id WHERE ep.entry_id = e.id))) FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id JOIN app_users u ON u.id = e.registered_by WHERE e.tournament_id = t.id) AS entries FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id JOIN app_users o ON o.id = t.organizer_user_id WHERE l.slug = $1",
         "options": {
           "queryReplacement": "={{ [$('Check Token').first().json.slug] }}"
         }
@@ -155,7 +155,7 @@
         1320,
         -200
       ],
-      "id": "67a4153f-1e9d-4bd7-aaed-6749bb000b9d",
+      "id": "14bae2d3-6124-45db-aaca-435fcb62b6fc",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -175,7 +175,7 @@
         1540,
         -200
       ],
-      "id": "b6a33760-424e-4c41-a089-647819d8d186"
+      "id": "114430f4-dee4-454b-b968-871fa9cae9df"
     },
     {
       "parameters": {
@@ -199,7 +199,7 @@
         1740,
         -200
       ],
-      "id": "f9d5f71e-bb83-4915-ae20-ec3d87d8f0dd",
+      "id": "a8517719-a393-4adc-b2d5-2f216ec973ee",
       "onError": "continueRegularOutput"
     },
     {
@@ -231,7 +231,7 @@
         1940,
         -200
       ],
-      "id": "f022c325-73ae-40f5-aa34-a4a45d3f563f",
+      "id": "ce8ef5fa-9a7c-43f1-a2f8-11126a1cc4be",
       "onError": "continueRegularOutput"
     },
     {
@@ -263,12 +263,12 @@
         2140,
         -200
       ],
-      "id": "6a5532f3-2ba0-446f-a5d6-643ac95a9e2b",
+      "id": "bac5768b-1d25-442a-bad0-6c4940d5e46b",
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "\nconst r = $('Load Teams').first().json;\nif (!r.tid) return [{ json: { status: 404, body: { success: false, message: 'No tournament has this registration link.' } } }];\nconst b2 = $('Authorize B2').first().json || {};\nconst dl = b2.apiInfo ? b2.apiInfo.storageApi.downloadUrl : null;\nconst tok = n => { try { return $(n).first().json.authorizationToken || null; } catch { return null; } };\nconst tokens = { 'team_assets/': tok('Team Link'), 'payment_proof/': tok('Proof Link') };\nconst sign = k => { if (!k || !dl) return null; const p = Object.keys(tokens).find(x => k.startsWith(x)); const t = p && tokens[p];\n  return t ? `${dl}/file/mypaltan-profile-photos/${k.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nconst divisions = (parse(r.divisions) || []).sort((a, b) => a.id - b.id);\nconst teams = (parse(r.entries) || []).map(e => ({\n  id: e.id, status: e.status, division_id: e.division_id, team: e.team, team_code: e.team_code, logo_url: sign(e.logo_key), area: e.area,\n  coach: e.coach, coach_phone: e.coach_phone, amount: e.amount, paid_players: e.paid_players, utr: e.utr, reject_reason: e.reject_reason,\n  web: !!e.web, registered: e.registered, reviewed: e.reviewed, waiting: Number(e.waiting || 0),\n  payments: (parse(e.payments) || []).map(({ proof_key, ...p }) => ({ ...p, proof_url: sign(proof_key) })),\n  proof_url: sign(e.proof_key),\n  squad: (parse(e.squad) || []).map(({ photo_key, ...m }) => ({ ...m, photo_url: sign(photo_key) })).sort((a, b) => String(a.name).localeCompare(String(b.name))),\n})).sort((a, b) => String(a.registered).localeCompare(String(b.registered)));\nreturn [{ json: { status: 200, body: { success: true, tournament: { code: r.code, name: r.name, start_date: r.start_date, deadline: r.deadline,\n  organiser: r.organiser, slug: r.slug, fee_per_player: Number(r.fee_per_player) }, divisions, teams } } }];"
+        "jsCode": "\nconst r = $('Load Teams').first().json;\nif (!r.tid) return [{ json: { status: 404, body: { success: false, message: 'No tournament has this registration link.' } } }];\nconst b2 = $('Authorize B2').first().json || {};\nconst dl = b2.apiInfo ? b2.apiInfo.storageApi.downloadUrl : null;\nconst tok = n => { try { return $(n).first().json.authorizationToken || null; } catch { return null; } };\nconst tokens = { 'team_assets/': tok('Team Link'), 'payment_proof/': tok('Proof Link') };\nconst sign = k => { if (!k || !dl) return null; const p = Object.keys(tokens).find(x => k.startsWith(x)); const t = p && tokens[p];\n  return t ? `${dl}/file/mypaltan-profile-photos/${k.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nconst divisions = (parse(r.divisions) || []).sort((a, b) => a.id - b.id);\nconst teams = (parse(r.entries) || []).map(e => ({\n  id: e.id, status: e.status, division_id: e.division_id, team: e.team, team_code: e.team_code, logo_url: sign(e.logo_key), area: e.area,\n  coach: e.coach, coach_phone: e.coach_phone, coach_has_pin: !!e.coach_has_pin, amount: e.amount, paid_players: e.paid_players, utr: e.utr, reject_reason: e.reject_reason,\n  web: !!e.web, registered: e.registered, reviewed: e.reviewed, waiting: Number(e.waiting || 0),\n  payments: (parse(e.payments) || []).map(({ proof_key, ...p }) => ({ ...p, proof_url: sign(proof_key) })),\n  proof_url: sign(e.proof_key),\n  squad: (parse(e.squad) || []).map(({ photo_key, ...m }) => ({ ...m, photo_url: sign(photo_key) })).sort((a, b) => String(a.name).localeCompare(String(b.name))),\n})).sort((a, b) => String(a.registered).localeCompare(String(b.registered)));\nreturn [{ json: { status: 200, body: { success: true, tournament: { code: r.code, name: r.name, start_date: r.start_date, deadline: r.deadline,\n  organiser: r.organiser, slug: r.slug, fee_per_player: Number(r.fee_per_player) }, divisions, teams } } }];"
       },
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
@@ -277,7 +277,7 @@
         2400,
         -200
       ],
-      "id": "ae3126cd-6e8a-4e2b-9909-dd9394ef797a"
+      "id": "ecd38b2e-75e3-4c28-a2ad-e6110ef035af"
     },
     {
       "parameters": {
@@ -294,7 +294,7 @@
         2620,
         0
       ],
-      "id": "fab42229-5f92-4973-9059-f4c58d0761bc"
+      "id": "7c340fe1-a39f-4e95-807d-35406cadecec"
     }
   ],
   "connections": {

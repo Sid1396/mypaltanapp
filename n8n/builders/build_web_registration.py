@@ -17,6 +17,7 @@ BUCKET_NAME = "mypaltan-profile-photos"
 ORIGINS = "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
 DEFAULT_TEAM_LOGO = "team_assets/default/team_logo_mypaltan.png"
 SIZE_HELPER = open(os.path.join(HERE, '_size_helper.js')).read()
+COACH_AUTH = open(os.path.join(HERE, '_coach_auth.js')).read()
 SHA256 = open(os.path.join(HERE, '_sha256.js')).read() + \
     "const sha256hex = s => sha256bytes(s).map(b => b.toString(16).padStart(2, '0')).join('');\n"
 RESP_OUT = "={{ JSON.stringify($json.body) }}"
@@ -169,9 +170,9 @@ return $input.all().map((u, i) => ({ json: { uploadUrl: u.json.uploadUrl, upload
     link(c, "All Uploaded", "Uploaded?"); link(c, "Uploaded?", then, 0); link(c, "Uploaded?", failed, 1)
 
 
-def save_and_respond(n, c, x, ok_message_js, dup_message='Please try again.'):
+def save_and_respond(n, c, x, ok_message_js, dup_message='Please try again.', prefix=''):
     n.append(mysql("Save", "={{ $('Plan').first().json.sql }}", "={{ $('Plan').first().json.params }}", [x, -300], continue_on_error=True))
-    n.append(code("Build Response", r"""
+    n.append(code("Build Response", prefix + r"""
 const msg = String($json.message || $json.error?.message || '');
 if (msg.includes('Duplicate')) return [{ json: { status: 409, body: { success: false, message: """ + json.dumps(dup_message) + r""" } } }];
 if ($json.error || /ER_|syntax/i.test(msg)) return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];
@@ -208,12 +209,8 @@ n.append(mysql("Load",
     "tm.code AS team_code, tm.name AS team_name, e.status AS entry_status, e.division_id AS team_division, e.paid_players, "
     "(SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, "
     "(SELECT cu.name FROM app_users cu WHERE cu.phone = $3) AS coach_name, "
-    "(SELECT JSON_ARRAYAGG(JSON_OBJECT('team', x.name, 'team_code', x.code, 'division_id', ce.division_id, 'status', ce.status, "
-    "'paid_players', ce.paid_players, 'reject_reason', ce.reject_reason, "
-    "'squad', (SELECT COUNT(*) FROM tournament_entry_players cp WHERE cp.entry_id = ce.id), "
-    "'waiting', (SELECT COUNT(*) FROM team_members cw WHERE cw.team_id = x.id AND cw.status = 'PENDING'))) "
-    "FROM tournament_entries ce JOIN teams x ON x.id = ce.team_id JOIN app_users ru ON ru.id = ce.registered_by "
-    "WHERE ce.tournament_id = t.id AND ru.phone = $3) AS coach_teams "
+    "(SELECT COUNT(*) FROM coach_web_pins cp JOIN app_users cu ON cu.id = cp.user_id WHERE cu.phone = $3) AS coach_has_pin, "
+    "(SELECT COUNT(*) FROM tournament_entries ce JOIN app_users ru ON ru.id = ce.registered_by WHERE ce.tournament_id = t.id AND ru.phone = $3) AS coach_team_count "
     "FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id "
     "LEFT JOIN teams tm ON tm.code = $2 LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id "
     "WHERE l.slug = $1",
@@ -232,9 +229,8 @@ const body = { success: true,
   fee_per_player: Number(r.fee_per_player), divisions, team,
   payment: r.upi_id ? { upi_id: r.upi_id, upi_name: r.upi_name, note: r.pay_note || null, qr_url: null } : null };
 if (q.team && !team) body.team_error = 'This team link is not valid.';
-// With ?phone=, the teams this coach has registered (no private links: those are only shown once, or resent by staff).
-if (q.phone) body.coach = { phone: q.phone, name: r.coach_name || null,
-  teams: (parse(r.coach_teams) || []).map(t => ({ ...t, division: (divisions.find(d => d.id === t.division_id) || {}).name || null })) };
+// With ?phone=: whether this coach has a PIN (then he logs in to see his teams) or is new.
+if (q.phone) body.coach = { phone: q.phone, name: r.coach_name || null, has_pin: Number(r.coach_has_pin) > 0, teams: Number(r.coach_team_count) };
 // The QR link is signed once and reused for about 20 hours.
 const cached = ($getWorkflowStaticData('global').qr || {})[r.qr_key];
 if (!r.qr_key || !body.payment) return [{ json: { done: true, status: 200, body } }];
@@ -264,10 +260,15 @@ out['public_tournament_form'] = workflow("PubTrnFrm026mPxE", "MyPaltan v2 - Publ
 # ───────────── 2. Coach registers a team and pays for N players ─────────────
 n, c = [], {}
 n.append(webhook("v2/public/tournament-register", "POST"))
-n.append(code("Check Request", SIZE_HELPER + SHA256 + rate(20) + COMMON + r"""
+n.append(code("Check Request", SIZE_HELPER + COACH_AUTH + rate(20) + COMMON + r"""
 if (b.website) return bad('Please try again.');            // hidden field only bots fill in
 const slug = str(b.slug).toLowerCase();
 if (!SLUG.test(slug)) return bad('This registration link is not valid.', 404);
+// A coach who already has a PIN registers with his session (after logging in); a new coach sets a PIN here.
+const auth = verifyCoach($in.headers, b.token);
+const newPin = str(b.new_pin);
+if (newPin && !PIN.test(newPin)) return bad('Your PIN must be 6 digits.');
+if (newPin && weakPin(newPin)) return bad('That PIN is too easy to guess. Choose a different 6-digit PIN.');
 const coach = str(b.coach_name).replace(/\s+/g, ' ');
 if (coach.length < 2 || coach.length > 50 || !/^[\p{L}][\p{L} .'-]*$/u.test(coach)) return bad("Enter the coach's full name.");
 const phone = str(b.phone).replace(/\D/g, '').slice(-10);
@@ -278,22 +279,19 @@ const area = str(b.area).replace(/\s+/g, ' ').slice(0, 100) || null;
 const division = Number(b.division_id);
 if (!(Number.isInteger(division) && division > 0)) return bad('Choose the age group.');
 // Every team pays for a full squad of its age group (worked out from the division below).
-const utr = str(b.utr) === '' ? null : str(b.utr).replace(/\s/g, '').toUpperCase();
-if (utr !== null && !/^[A-Z0-9]{6,30}$/.test(utr)) return bad('Enter the UTR or transaction number exactly as shown in your UPI app.');
 if (b.agree_rules !== '1' || b.agree_refund !== '1' || b.agree_parents !== '1') return bad('Please tick all three boxes to continue.');
 const bin = $input.first().binary || {};
 const files = [];
 if (!bin.logo) return bad('Add your team logo.');
 { const r = await checkImage(bin, 'logo', 'team logo'); if (r.error) return bad(r.error); files.push({ field: 'logo', mime: r.mime, key: fileKey('team_assets', phone, 'team_logo', r.ext) }); }
-if (bin.payment) { const r = await checkImage(bin, 'payment', 'payment screenshot'); if (r.error) return bad(r.error); files.push({ field: 'payment', mime: r.mime, key: fileKey('payment_proof', phone, 'payment_proof', r.ext) }); }
-if (!utr && !bin.payment) return bad('Add the UTR number or a screenshot of your payment.');
+if (!bin.payment) return bad('Add the screenshot of your payment.');
+{ const r = await checkImage(bin, 'payment', 'payment screenshot'); if (r.error) return bad(r.error); files.push({ field: 'payment', mime: r.mime, key: fileKey('payment_proof', phone, 'payment_proof', r.ext) }); }
 // Short name for scorecards: initials of the words, or the first letters of a one-word name.
 const words = team.toUpperCase().replace(/[^A-Z0-9 ]/g, '').split(' ').filter(Boolean);
 const short = (words.length > 1 ? words.map(w => w[0]).join('') : (words[0] || 'TEAM')).slice(0, 4).padEnd(2, 'X');
-const key = rand(32, 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789');
 count();
-return [{ json: { ok: true, slug, coach, phone, team, short, area, division, utr, files, key, key_hash: sha256hex(key),
-  code: rand(6, 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') } , binary: bin }];""", [220, 0]))
+return [{ json: { ok: true, slug, coach, phone, team, short, area, division, files, session_phone: auth.ok ? auth.phone : null,
+  new_pin_hash: newPin ? pinHash(phone, newPin) : null, code: rand(6, 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') } , binary: bin }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load",
     "SELECT l.fee_per_player, t.id AS tid, t.code, t.name AS tname, t.status, (t.registration_deadline < NOW()) AS closed, t.organizer_user_id, "
@@ -301,7 +299,7 @@ n.append(mysql("Load",
     "(SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED') AS approved, "
     "u.id AS uid, (SELECT COUNT(*) FROM tournament_entries e JOIN teams x ON x.id = e.team_id WHERE e.tournament_id = t.id "
     "AND LOWER(x.name) = LOWER($4) AND e.status NOT IN ('REJECTED', 'WITHDRAWN')) AS same_name, "
-    "(SELECT COUNT(*) FROM teams x WHERE x.code = $5) AS code_taken, "
+    "(SELECT COUNT(*) FROM teams x WHERE x.code = $5) AS code_taken, (SELECT COUNT(*) FROM coach_web_pins cp WHERE cp.user_id = u.id) AS has_pin, "
     "(SELECT x.name FROM tournament_entries e JOIN teams x ON x.id = e.team_id JOIN app_users ru ON ru.id = e.registered_by "
     "WHERE e.tournament_id = t.id AND e.division_id = d.id AND ru.phone = $3 AND e.status NOT IN ('REJECTED', 'WITHDRAWN') LIMIT 1) AS coach_team "
     "FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id "
@@ -318,6 +316,11 @@ const players = Number(s.squad_max);  // a full squad
 if (s.coach_team) return fail(`You have already registered ${s.coach_team} for ${s.dname}. A coach can register one team per age group. Choose another age group.`, 409);
 if (Number(s.same_name) > 0) return fail(`A team called ${r.team} is already registered. Please use a different name.`, 409);
 if (Number(s.code_taken) > 0) return fail('Please tap Register again.', 409);
+// PIN: an existing PIN means the coach must be logged in as this number; otherwise he sets one now.
+const hasPin = Number(s.has_pin) > 0;
+if (hasPin && r.session_phone !== r.phone)
+  return fail('This mobile number already has a coach PIN. Log in with your PIN to register another team.', 401);
+if (!hasPin && !r.new_pin_hash) return fail('Set a 6-digit PIN for your coach page.');
 const perPlayer = Number(s.fee_per_player || 0), fee = perPlayer * players;
 const status = Number(s.approved) >= Number(s.max_teams) ? 'WAITLISTED' : 'PENDING';
 const proof = (r.files.find(f => f.field === 'payment') || {}).key || null;
@@ -330,17 +333,19 @@ st.push(`INSERT INTO teams (code, sport, name, short_name, logo_key, area, city,
   `${add(r.short)}, ${add(logo)}, ${add(r.area)}, 'Mumbai', @u)`);
 st.push('SET @t = LAST_INSERT_ID()');
 st.push("INSERT INTO team_members (team_id, user_id, role, added_by) VALUES (@t, @u, 'COACH', @u)");
-st.push(`INSERT INTO tournament_entries (tournament_id, division_id, team_id, registered_by, status, payment_method, amount, paid_players, manage_key_hash, utr, proof_key, payment_claimed_at) ` +
-  `VALUES (${add(s.tid)}, ${add(s.did)}, @t, @u, ${add(status)}, 'UPI', ${add(fee)}, ${add(players)}, ${add(r.key_hash)}, ${add(r.utr)}, ${add(proof)}, NOW())`);
+if (!hasPin) st.push(`INSERT INTO coach_web_pins (user_id, pin_hash) VALUES (@u, ${add(r.new_pin_hash)}) ` +
+  'ON DUPLICATE KEY UPDATE pin_hash = VALUES(pin_hash), failed_attempts = 0, locked_until = NULL');
+st.push(`INSERT INTO tournament_entries (tournament_id, division_id, team_id, registered_by, status, payment_method, amount, paid_players, proof_key, payment_claimed_at) ` +
+  `VALUES (${add(s.tid)}, ${add(s.did)}, @t, @u, ${add(status)}, 'UPI', ${add(fee)}, ${add(players)}, ${add(proof)}, NOW())`);
 st.push('SET @e = LAST_INSERT_ID()');
-st.push(`INSERT INTO entry_payments (entry_id, players, amount, utr, proof_key) VALUES (@e, ${add(players)}, ${add(fee)}, ${add(r.utr)}, ${add(proof)})`);
+st.push(`INSERT INTO entry_payments (entry_id, players, amount, proof_key) VALUES (@e, ${add(players)}, ${add(fee)}, ${add(proof)})`);
 const inr = v => '₹' + Number(v).toLocaleString('en-IN');
 st.push(`INSERT INTO notifications (user_id, type, title, body, data) VALUES (${add(s.organizer_user_id)}, 'ENTRY', ${add(`${r.team} registered for ${s.dname}`)}, ` +
-  `${add(`Registered on the website by ${r.coach} for a full squad of ${players} players. Paid ${inr(fee)} by UPI${r.utr ? ` (UTR ${r.utr})` : ''}. Players join after the coach approves them. Review it in the Teams tab.`)}, ` +
+  `${add(`Registered on the website by ${r.coach} for a full squad of ${players} players. Paid ${inr(fee)} by UPI (screenshot attached). Players join after the coach approves them. Review it in the Teams tab.`)}, ` +
   `JSON_OBJECT('tournament_code', ${add(s.code)}))`);
 st.push('SELECT @e AS entry_id');
 return [{ json: { ok: true, sql: st.join('; '), params: p, has_files: r.files.length > 0,
-  result: { team_code: r.code, team: r.team, manage_key: r.key, division: s.dname, players, amount: fee, status } } }];""", [880, -100]))
+  result: { team_code: r.code, team: r.team, division: s.dname, players, amount: fee, status, phone: r.phone } } }];""", [880, -100]))
 n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
 n.append(iff("Has Files?", "={{ $json.has_files }}", [1320, -200]))
 upload_chain(n, c, "Has Files?", 1540, -400, "Save", "Upload Failed")
@@ -348,7 +353,8 @@ save_and_respond(n, c, 3300, r"""
 const m = p.result.status === 'WAITLISTED'
   ? `${p.result.division} is full, so ${p.result.team} is on the waitlist. The organiser will tell you if a place opens up.`
   : `${p.result.team} is registered for ${p.result.division}. The organiser confirms the team after checking your payment.`;
-return [{ json: { status: 200, body: { success: true, message: m, ...p.result } } }];""", 'Please tap Register again.')
+// Logged in straight away: the page shows the coach's teams.
+return [{ json: { status: 200, body: { success: true, message: m, ...p.result, token: signCoach(p.result.phone) } } }];""", 'Please tap Register again.', prefix=COACH_AUTH)
 n.append(respond([3800, 0]))
 c["Has Files?"]["main"][0] = [{"node": "Files", "type": "main", "index": 0}]
 link(c, "Has Files?", "Save", 1)
@@ -385,7 +391,8 @@ if (!/^[6-9]\d{9}$/.test(parent)) return bad("Enter the parent's 10-digit mobile
 if (b.agree_parent !== '1') return bad("Please confirm you are the player's parent or guardian.");
 const bin = $input.first().binary || {};
 const files = [];
-if (bin.photo) { const r = await checkImage(bin, 'photo', 'photo'); if (r.error) return bad(r.error); files.push({ field: 'photo', mime: r.mime, key: fileKey('team_assets', parent, 'player_photo', r.ext) }); }
+if (!bin.photo) return bad("Add the player's photo.");
+{ const r = await checkImage(bin, 'photo', 'photo'); if (r.error) return bad(r.error); files.push({ field: 'photo', mime: r.mime, key: fileKey('team_assets', parent, 'player_photo', r.ext) }); }
 count();
 return [{ json: { ok: true, slug, team, name, birthdate: m[0], gender, jersey, parent, files }, binary: bin }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
@@ -428,29 +435,20 @@ link(c, "Load", "Plan"); link(c, "Plan", "Plan OK?")
 link(c, "Plan OK?", "Has Files?", 0); link(c, "Plan OK?", "Respond", 1)
 out['public_team_join'] = workflow("PubTeamJn026mPxG", "MyPaltan v2 - Public Team Join", n, c)
 
-# ───────────── 4. Coach's private manage link: see players, approve / reject / remove, pay for extra players ─────────────
+# ───────────── 4. Coach page (after logging in with mobile + PIN): see players, approve / decline / remove ─────────────
 n, c = [], {}
 n.append(webhook("v2/public/team-manage", "POST"))
-n.append(code("Check Request", SIZE_HELPER + SHA256 + rate(300) + COMMON + r"""
-const key = str(b.key);
-if (!/^[A-Za-z0-9]{32}$/.test(key)) return bad('This link is not valid. Use the link you got after registering.', 404);
+n.append(code("Check Request", COACH_AUTH + rate(300) + COMMON + r"""
+const auth = verifyCoach($in.headers, b.token);
+if (!auth.ok) return bad(auth.error, 401);
+const entry = Number(b.entry_id);
+if (!(Number.isInteger(entry) && entry > 0)) return bad('Choose a team.');
 const action = str(b.action || 'LOAD').toUpperCase();
-if (!['LOAD', 'APPROVE', 'REJECT', 'REMOVE', 'PAY_EXTRA'].includes(action)) return bad('Invalid request.');
+if (!['LOAD', 'APPROVE', 'REJECT', 'REMOVE'].includes(action)) return bad('Invalid request.');
 const member = Number(b.member_id || 0);
-if (['APPROVE', 'REJECT', 'REMOVE'].includes(action) && !(Number.isInteger(member) && member > 0)) return bad('Invalid request.');
-let extra = 0, utr = null;
-const files = [];
-if (action === 'PAY_EXTRA') {
-  extra = Number(b.players);
-  if (!(Number.isInteger(extra) && extra > 0 && extra <= 20)) return bad('Choose how many extra players you are paying for.');
-  utr = str(b.utr) === '' ? null : str(b.utr).replace(/\s/g, '').toUpperCase();
-  if (utr !== null && !/^[A-Z0-9]{6,30}$/.test(utr)) return bad('Enter the UTR or transaction number exactly as shown in your UPI app.');
-  const bin = $input.first().binary || {};
-  if (bin.payment) { const r = await checkImage(bin, 'payment', 'payment screenshot'); if (r.error) return bad(r.error); files.push({ field: 'payment', mime: r.mime, key: null, ext: r.ext }); }
-  if (!utr && !bin.payment) return bad('Add the UTR number or a screenshot of your payment.');
-}
+if (action !== 'LOAD' && !(Number.isInteger(member) && member > 0)) return bad('Invalid request.');
 count();
-return [{ json: { ok: true, hash: sha256hex(key), action, member, extra, utr, files }, binary: $input.first().binary || {} }];""", [220, 0]))
+return [{ json: { ok: true, phone: auth.phone, entry, action, member } }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load",
     "SELECT e.id AS eid, e.status AS estatus, e.reject_reason, e.paid_players, e.amount, t.id AS tid, t.code AS tcode, t.name AS tname, "
@@ -472,12 +470,12 @@ n.append(mysql("Load",
     "(SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = g.id) AS tgt_in_squad "
     "FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id JOIN app_users u ON u.id = tm.captain_user_id "
     "LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN team_members g ON g.id = $2 AND g.team_id = tm.id "
-    "WHERE e.manage_key_hash = $1 LIMIT 1",
-    "={{ [$json.hash, $json.member || 0] }}", [660, -100], always=True))
+    "JOIN app_users ru ON ru.id = e.registered_by WHERE e.id = $1 AND ru.phone = $3 LIMIT 1",
+    "={{ [$json.entry, $json.member || 0, $json.phone] }}", [660, -100], always=True))
 n.append(code("Plan", r"""
 const s = $json, r = $('Check Request').first().json;
 const fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];
-if (!s.eid) return fail('This link is not valid. Use the link you got after registering.', 404);
+if (!s.eid) return fail('Team not found. Log in again with your mobile number and PIN.', 404);
 const parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };
 if (r.action === 'LOAD') {
   const members = (parse(s.members) || []).map(m => ({ ...m, in_squad: Number(m.in_squad) === 1 }))
@@ -518,21 +516,8 @@ if (['APPROVE', 'REJECT', 'REMOVE'].includes(r.action)) {
   }
   return [{ json: { ok: true, mode: 'RUN', has_files: false, sql: st.join('; '), params: p, message } }];
 }
-// PAY_EXTRA
-const paid = Number(s.paid_players || 0), fee = Number(s.fee_per_player || 0) * r.extra;
-if (paid + r.extra > Number(s.squad_max))
-  return fail(`${s.dname} squads can have up to ${s.squad_max} players. You've paid for ${paid}, so you can add up to ${Math.max(0, s.squad_max - paid)} more.`);
-const files = r.files.map(f => ({ ...f, key: `payment_proof/${s.coach_phone}/payment_proof_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${f.ext}` }));
-const proof = files[0] ? files[0].key : null;
-st.push(`INSERT INTO entry_payments (entry_id, players, amount, utr, proof_key) VALUES (${add(s.eid)}, ${add(r.extra)}, ${add(fee)}, ${add(r.utr)}, ${add(proof)})`);
-st.push(`UPDATE tournament_entries SET paid_players = COALESCE(paid_players, 0) + ${add(r.extra)}, amount = amount + ${add(fee)}, ` +
-  `utr = COALESCE(${add(r.utr)}, utr), proof_key = COALESCE(${add(proof)}, proof_key), payment_claimed_at = NOW() WHERE id = ${add(s.eid)}`);
-const inr = v => '₹' + Number(v).toLocaleString('en-IN');
-st.push(`INSERT INTO notifications (user_id, type, title, body, data) VALUES (${add(s.organizer_user_id)}, 'ENTRY', ${add(`${s.team_name} paid for ${r.extra} more ${r.extra === 1 ? 'player' : 'players'}`)}, ` +
-  `${add(`Paid ${inr(fee)} by UPI${r.utr ? ` (UTR ${r.utr})` : ''}. ${s.team_name} has now paid for ${paid + r.extra} players. Check the payment in the Teams tab.`)}, ` +
-  `JSON_OBJECT('tournament_code', ${add(s.tcode)}))`);
-return [{ json: { ok: true, mode: 'RUN', has_files: files.length > 0, files, sql: st.join('; '), params: p,
-  message: `Thanks! You've paid for ${r.extra} more ${r.extra === 1 ? 'player' : 'players'}. You can now approve up to ${paid + r.extra} players.` } }];""", [880, -100]))
+return fail('Invalid request.');
+""", [880, -100]))
 n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
 n.append(iff("Load?", "={{ $json.mode === 'LOAD' }}", [1320, -100]))
 # LOAD: sign player photos (team_assets/) for an hour.
@@ -551,44 +536,96 @@ const dl = b2 && b2.apiInfo ? b2.apiInfo.storageApi.downloadUrl : null;
 const sign = k => k && dl && t && k.startsWith('team_assets/') ? `${dl}/file/""" + BUCKET_NAME + r"""/${k.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null;
 const members = d.members.map(({ photo_key, ...m }) => ({ ...m, photo_url: sign(photo_key) }));
 return [{ json: { status: 200, body: { success: true, ...d, members } } }];""", [2140, -600]))
-# RUN: optional payment screenshot upload (PAY_EXTRA), then the SQL.
-n.append(iff("Has Files?", "={{ $json.has_files }}", [1540, -100]))
-n.append(code("Files", r"""
-const r = $('Check Request').first(), p = $('Plan').first().json;
-return p.files.map(f => ({ json: f, binary: { file: r.binary[f.field] } }));""", [1760, -300]))
-n.append(code("B2 Credentials", B2_AUTH, [1960, -300]))
-au = http("Authorize B2", "GET", "https://api.backblazeb2.com/b2api/v4/b2_authorize_account", [("Authorization", "={{ $json.basicAuth }}")], [2160, -300])
-au["executeOnce"] = True
-n.append(au)
-n.append(code("Each File", "return $('Files').all().map(i => ({ json: i.json }));", [2260, -150]))
-n.append(http("Upload URL", "GET", "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_upload_url?bucketId=" + BUCKET_ID,
-              [("Authorization", "={{ $('Authorize B2').first().json.authorizationToken }}")], [2360, -300]))
-n.append(code("Attach", r"""
-const files = $('Files').all();
-return $input.all().map((u, i) => ({ json: { uploadUrl: u.json.uploadUrl, uploadToken: u.json.authorizationToken, mime: files[i].json.mime,
-  name: files[i].json.key.split('/').map(encodeURIComponent).join('/') }, binary: { file: files[i].binary.file } }));""", [2560, -300]))
-up = http("Upload", "POST", "={{ $json.uploadUrl }}",
-          [("Authorization", "={{ $json.uploadToken }}"), ("X-Bz-File-Name", "={{ $json.name }}"),
-           ("Content-Type", "={{ $json.mime }}"), ("X-Bz-Content-Sha1", "do_not_verify")],
-          [2760, -300], binary_field="file", never_error=True)
-up.update(retryOnFail=True, maxTries=3, waitBetweenTries=1000)
-n.append(up)
-n.append(code("All Uploaded", "return [{ json: { ok: $input.all().every(i => i.json.statusCode === 200) } }];", [2960, -300]))
-n.append(iff("Uploaded?", "={{ $json.ok }}", [3160, -300]))
-save_and_respond(n, c, 3380, r"""
+save_and_respond(n, c, 1760, r"""
 return [{ json: { status: 200, body: { success: true, message: p.message } } }];""")
-n.append(respond([3900, 0]))
+n[:] = [x for x in n if x["name"] != "Upload Failed"]; c.pop("Upload Failed", None)  # no uploads on this page
+n.append(respond([2600, 0]))
 link(c, "Webhook", "Check Request"); link(c, "Check Request", "Valid?")
 link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
 link(c, "Load", "Plan"); link(c, "Plan", "Plan OK?")
 link(c, "Plan OK?", "Load?", 0); link(c, "Plan OK?", "Respond", 1)
-link(c, "Load?", "B2 Load Credentials", 0); link(c, "Load?", "Has Files?", 1)
+link(c, "Load?", "B2 Load Credentials", 0); link(c, "Load?", "Save", 1)
 link(c, "B2 Load Credentials", "Authorize B2 Load"); link(c, "Authorize B2 Load", "Photos Link"); link(c, "Photos Link", "Build Load"); link(c, "Build Load", "Respond")
-link(c, "Has Files?", "Files", 0); link(c, "Has Files?", "Save", 1)
-link(c, "Files", "B2 Credentials"); link(c, "B2 Credentials", "Authorize B2"); link(c, "Authorize B2", "Each File"); link(c, "Each File", "Upload URL")
-link(c, "Upload URL", "Attach"); link(c, "Attach", "Upload"); link(c, "Upload", "All Uploaded"); link(c, "All Uploaded", "Uploaded?")
-link(c, "Uploaded?", "Save", 0); link(c, "Uploaded?", "Upload Failed", 1)
 out['public_team_manage'] = workflow("PubTeamMg026mPxH", "MyPaltan v2 - Public Team Manage", n, c)
+
+# ───────────── 5. Coach login: mobile + 6-digit PIN → session and his teams; set a PIN after a reset ─────────────
+n, c = [], {}
+n.append(webhook("v2/public/coach-login", "POST"))
+n.append(code("Check Request", COACH_AUTH + rate(30) + COMMON + r"""
+const slug = str(b.slug).toLowerCase();
+if (!SLUG.test(slug)) return bad('This registration link is not valid.', 404);
+const action = str(b.action || 'LOGIN').toUpperCase();
+if (!['LOGIN', 'SET', 'TEAMS'].includes(action)) return bad('Invalid request.');
+let phone = str(b.phone).replace(/\D/g, '').slice(-10), pin = str(b.pin);
+if (action === 'TEAMS') {
+  const auth = verifyCoach($in.headers, b.token);
+  if (!auth.ok) return bad(auth.error, 401);
+  phone = auth.phone;
+} else {
+  if (!/^[6-9]\d{9}$/.test(phone)) return bad('Enter a valid 10-digit mobile number.');
+  if (!PIN.test(pin)) return bad('Enter your 6-digit PIN.');
+  if (action === 'SET' && weakPin(pin)) return bad('That PIN is too easy to guess. Choose a different 6-digit PIN.');
+}
+count();
+return [{ json: { ok: true, slug, action, phone, pin_hash: pin ? pinHash(phone, pin) : null } }];""", [220, 0]))
+n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
+n.append(mysql("Load",
+    "SELECT t.id AS tid, u.id AS uid, u.name, cp.pin_hash, cp.failed_attempts, (cp.locked_until > NOW()) AS locked, "
+    "DATE_FORMAT(CONVERT_TZ(cp.locked_until, '+00:00', '+05:30'), '%l:%i %p') AS locked_until, "
+    "(SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'team', x.name, 'team_code', x.code, 'division_id', e.division_id, 'division', d.name, "
+    "'status', e.status, 'paid_players', e.paid_players, 'reject_reason', e.reject_reason, "
+    "'squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id), "
+    "'waiting', (SELECT COUNT(*) FROM team_members w WHERE w.team_id = x.id AND w.status = 'PENDING'))) "
+    "FROM tournament_entries e JOIN teams x ON x.id = e.team_id LEFT JOIN tournament_divisions d ON d.id = e.division_id "
+    "WHERE e.tournament_id = t.id AND e.registered_by = u.id) AS teams "
+    "FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id LEFT JOIN app_users u ON u.phone = $2 "
+    "LEFT JOIN coach_web_pins cp ON cp.user_id = u.id WHERE l.slug = $1",
+    "={{ [$json.slug, $json.phone] }}", [660, -100], always=True))
+n.append(code("Plan", COACH_AUTH + r"""
+const s = $json, r = $('Check Request').first().json;
+const fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];
+if (!s.tid) return fail('This registration link is not valid.', 404);
+const parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };
+const teams = (parse(s.teams) || []).sort((a, b) => a.entry_id - b.entry_id);
+const ok = () => ({ success: true, token: signCoach(r.phone), coach: { phone: r.phone, name: s.name || null }, teams });
+if (r.action === 'TEAMS') {
+  if (!s.uid) return fail('Please log in again with your mobile number and PIN.', 401);
+  return [{ json: { ok: true, sql: null, respond: { status: 200, body: ok() } } }];
+}
+if (r.action === 'SET') {
+  // Only for a coach with no PIN yet (for example after the organisers reset it).
+  if (!s.uid) return fail('This number has no team yet. Register a team first.', 404);
+  if (s.pin_hash) return fail('This number already has a PIN. Log in with it, or ask the organisers to reset it.', 409);
+  return [{ json: { ok: true, sql: 'INSERT INTO coach_web_pins (user_id, pin_hash) VALUES ($1, $2)', params: [s.uid, r.pin_hash],
+    respond: { status: 200, body: { ...ok(), message: 'Your new PIN is set.' } } } }];
+}
+// LOGIN
+if (!s.uid || !s.pin_hash) return fail('No coach PIN is set for this number. Check the number, or register a team first.', 404);
+if (Number(s.locked) === 1) return fail(`Too many wrong PINs. Try again after ${String(s.locked_until).trim()}.`, 429);
+if (s.pin_hash === r.pin_hash)
+  return [{ json: { ok: true, sql: 'UPDATE coach_web_pins SET failed_attempts = 0, locked_until = NULL WHERE user_id = $1', params: [s.uid],
+    respond: { status: 200, body: ok() } } }];
+// Wrong PIN: 5 in a row locks the PIN for 15 minutes (locked_until is set before the counter is reset).
+const tries = Number(s.failed_attempts || 0) + 1;
+return [{ json: { ok: true, sql: 'UPDATE coach_web_pins SET locked_until = IF(failed_attempts + 1 >= 5, NOW() + INTERVAL 15 MINUTE, NULL), ' +
+  'failed_attempts = IF(failed_attempts + 1 >= 5, 0, failed_attempts + 1) WHERE user_id = $1', params: [s.uid],
+  respond: { status: 401, body: { success: false, message: tries >= 5 ? 'Too many wrong PINs. Try again in 15 minutes.' : `Wrong PIN. ${5 - tries} ${5 - tries === 1 ? 'try' : 'tries'} left.` } } } }];""", [880, -100]))
+n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
+n.append(iff("Has SQL?", "={{ !!$json.sql }}", [1320, -200]))
+n.append(mysql("Save", "={{ $('Plan').first().json.sql }}", "={{ $('Plan').first().json.params }}", [1540, -300], continue_on_error=True))
+n.append(code("Build Response", r"""
+const p = $('Plan').first().json;
+if ($('Has SQL?').first().json.sql && ($json.error || /ER_|syntax|Duplicate/i.test(String($json.message || ''))))
+  return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];
+return [{ json: p.respond }];""", [1760, -200]))
+n.append(respond([1980, 0]))
+link(c, "Webhook", "Check Request"); link(c, "Check Request", "Valid?")
+link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
+link(c, "Load", "Plan"); link(c, "Plan", "Plan OK?")
+link(c, "Plan OK?", "Has SQL?", 0); link(c, "Plan OK?", "Respond", 1)
+link(c, "Has SQL?", "Save", 0); link(c, "Has SQL?", "Build Response", 1)
+link(c, "Save", "Build Response"); link(c, "Build Response", "Respond")
+out['public_coach_login'] = workflow("PubCoachL026mPxL", "MyPaltan v2 - Public Coach Login", n, c)
 
 for k, w in out.items():
     json.dump(w, open(os.path.join(OUT, f'{k}.json'), 'w'), indent=2)

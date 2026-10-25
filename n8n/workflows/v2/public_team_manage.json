@@ -19,12 +19,12 @@
         0,
         0
       ],
-      "id": "16fa3ca8-fe93-4dd5-8317-8cec6825b9e1",
-      "webhookId": "c3b41627-7597-4c9c-b44d-fa7ee30eab49"
+      "id": "3ffcce01-15cc-4a02-a8e3-2f1a235f24ff",
+      "webhookId": "2c2d376d-8194-485e-b9fd-a77ecc901131"
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\nconst byteSize = async (key, f) => {\n  try { const buf = await this.helpers.getBinaryDataBuffer(0, key); if (buf && buf.length) return buf.length; } catch (e) {}\n  const m = String(f.fileSize ?? '').trim().match(/^([\\d.]+)\\s*(B|kB|KB|MB|GB)?$/i);\n  if (m) return Math.ceil(parseFloat(m[1]) * ({ b: 1, kb: 1000, mb: 1e6, gb: 1e9 })[(m[2] || 'B').toLowerCase()]);\n  return Buffer.from(f.data || '', 'base64').length;\n};\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nconst sha256hex = s => sha256bytes(s).map(b => b.toString(16).padStart(2, '0')).join('');\n\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 300) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\nconst count = () => { store.hits[ip] = [...mine, now]; };\n\nconst b = $in.body || {};\nconst bad = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nconst str = v => String(v ?? '').trim();\nconst rand = (n, chars) => {\n  const out = [];\n  const g = globalThis.crypto && globalThis.crypto.getRandomValues ? globalThis.crypto.getRandomValues(new Uint32Array(n)) : null;\n  for (let i = 0; i < n; i++) out.push(chars[(g ? g[i] : Math.floor(Math.random() * 4294967296)) % chars.length]);\n  return out.join('');\n};\nconst EXTS = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic' };\n// A real JPG, PNG, WebP or HEIC, under 8 MB. Returns { mime, ext } or an error message.\nconst checkImage = async (bin, k, label) => {\n  const f = bin[k];\n  const mime = f.mimeType === 'image/jpg' ? 'image/jpeg' : f.mimeType;\n  if (!EXTS[mime]) return { error: `The ${label} must be a photo (JPG or PNG).` };\n  if (await byteSize(k, f) > 8 * 1024 * 1024) return { error: `The ${label} must be under 8 MB.` };\n  let head = null;\n  try { head = (await this.helpers.getBinaryDataBuffer(0, k)).subarray(0, 12); } catch (e) { head = Buffer.from(f.data || '', 'base64').subarray(0, 12); }\n  const hex = head ? head.toString('hex') : '';\n  const ok = hex.startsWith('ffd8ff') || hex.startsWith('89504e470d0a1a0a') ||\n    (hex.startsWith('52494646') && hex.slice(16, 24) === '57454250') || hex.slice(8, 16) === '66747970';\n  return ok ? { mime, ext: EXTS[mime] } : { error: `The ${label} must be a photo (JPG or PNG).` };\n};\nconst fileKey = (dir, phone, kind, ext) => `${dir}/${phone}/${kind}_${Date.now()}_${rand(6, 'abcdefghijklmnopqrstuvwxyz0123456789')}.${ext}`;\nconst SLUG = /^[a-z0-9-]{2,40}$/;\n\nconst key = str(b.key);\nif (!/^[A-Za-z0-9]{32}$/.test(key)) return bad('This link is not valid. Use the link you got after registering.', 404);\nconst action = str(b.action || 'LOAD').toUpperCase();\nif (!['LOAD', 'APPROVE', 'REJECT', 'REMOVE', 'PAY_EXTRA'].includes(action)) return bad('Invalid request.');\nconst member = Number(b.member_id || 0);\nif (['APPROVE', 'REJECT', 'REMOVE'].includes(action) && !(Number.isInteger(member) && member > 0)) return bad('Invalid request.');\nlet extra = 0, utr = null;\nconst files = [];\nif (action === 'PAY_EXTRA') {\n  extra = Number(b.players);\n  if (!(Number.isInteger(extra) && extra > 0 && extra <= 20)) return bad('Choose how many extra players you are paying for.');\n  utr = str(b.utr) === '' ? null : str(b.utr).replace(/\\s/g, '').toUpperCase();\n  if (utr !== null && !/^[A-Z0-9]{6,30}$/.test(utr)) return bad('Enter the UTR or transaction number exactly as shown in your UPI app.');\n  const bin = $input.first().binary || {};\n  if (bin.payment) { const r = await checkImage(bin, 'payment', 'payment screenshot'); if (r.error) return bad(r.error); files.push({ field: 'payment', mime: r.mime, key: null, ext: r.ext }); }\n  if (!utr && !bin.payment) return bad('Add the UTR number or a screenshot of your payment.');\n}\ncount();\nreturn [{ json: { ok: true, hash: sha256hex(key), action, member, extra, utr, files }, binary: $input.first().binary || {} }];"
+        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction hmacSha256(key,msg){\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let kB=toB(key);if(kB.length>64)kB=sha256bytes(kB);\n  const kP=new Array(64).fill(0);kB.forEach((v,i)=>kP[i]=v);\n  const ipad=kP.map(v=>v^0x36);const opad=kP.map(v=>v^0x5c);\n  const mB=toB(msg);\n  return sha256bytes([...opad,...sha256bytes([...ipad,...mB])]);\n}\n\nfunction b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, ''); }\n// Coach web login: signed session tokens (separate key from app and staff tokens) and PIN hashes.\nconst COACH_KEY = () => `${$env.JWT_SECRET}|mypaltan-coach`;\nconst PIN_KEY = () => `${$env.JWT_SECRET}|coach-pin`;\nconst hex = bytes => bytes.map(b => b.toString(16).padStart(2, '0')).join('');\n// The PIN is never stored: only an HMAC of phone + PIN with a server secret.\nconst pinHash = (phone, pin) => hex(hmacSha256(PIN_KEY(), `${phone}:${pin}`));\nfunction signCoach(phone) {\n  const now = Math.floor(Date.now() / 1000);\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const body = b64url(Buffer.from(JSON.stringify({ typ: 'coach', phone, iat: now, exp: now + 12 * 60 * 60 })));\n  return `${header}.${body}.${b64url(hmacSha256(COACH_KEY(), `${header}.${body}`))}`;\n}\nfunction verifyCoach(headers, bodyToken) {\n  const auth = String((headers || {}).authorization || '').trim();\n  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : String(bodyToken || '').trim();\n  const fail = { ok: false, error: 'Please log in again with your mobile number and PIN.' };\n  const parts = token.split('.');\n  if (parts.length !== 3) return fail;\n  const [h, p, s] = parts;\n  if (b64url(hmacSha256(COACH_KEY(), `${h}.${p}`)) !== s) return fail;\n  let c;\n  try { c = JSON.parse(Buffer.from(p, 'base64').toString('utf8')); } catch { return fail; }\n  if (c.typ !== 'coach' || !/^[6-9]\\d{9}$/.test(String(c.phone || ''))) return fail;\n  if (!c.exp || c.exp < Math.floor(Date.now() / 1000)) return { ok: false, error: 'Your session expired. Please log in again.' };\n  return { ok: true, phone: String(c.phone) };\n}\nconst PIN = /^\\d{6}$/;\n// Refuse PINs anyone would guess first.\nconst weakPin = pin => /^(\\d)\\1{5}$/.test(pin) || '0123456789012345'.includes(pin) || '9876543210987654'.includes(pin);\n\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 300) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\nconst count = () => { store.hits[ip] = [...mine, now]; };\n\nconst b = $in.body || {};\nconst bad = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nconst str = v => String(v ?? '').trim();\nconst rand = (n, chars) => {\n  const out = [];\n  const g = globalThis.crypto && globalThis.crypto.getRandomValues ? globalThis.crypto.getRandomValues(new Uint32Array(n)) : null;\n  for (let i = 0; i < n; i++) out.push(chars[(g ? g[i] : Math.floor(Math.random() * 4294967296)) % chars.length]);\n  return out.join('');\n};\nconst EXTS = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic' };\n// A real JPG, PNG, WebP or HEIC, under 8 MB. Returns { mime, ext } or an error message.\nconst checkImage = async (bin, k, label) => {\n  const f = bin[k];\n  const mime = f.mimeType === 'image/jpg' ? 'image/jpeg' : f.mimeType;\n  if (!EXTS[mime]) return { error: `The ${label} must be a photo (JPG or PNG).` };\n  if (await byteSize(k, f) > 8 * 1024 * 1024) return { error: `The ${label} must be under 8 MB.` };\n  let head = null;\n  try { head = (await this.helpers.getBinaryDataBuffer(0, k)).subarray(0, 12); } catch (e) { head = Buffer.from(f.data || '', 'base64').subarray(0, 12); }\n  const hex = head ? head.toString('hex') : '';\n  const ok = hex.startsWith('ffd8ff') || hex.startsWith('89504e470d0a1a0a') ||\n    (hex.startsWith('52494646') && hex.slice(16, 24) === '57454250') || hex.slice(8, 16) === '66747970';\n  return ok ? { mime, ext: EXTS[mime] } : { error: `The ${label} must be a photo (JPG or PNG).` };\n};\nconst fileKey = (dir, phone, kind, ext) => `${dir}/${phone}/${kind}_${Date.now()}_${rand(6, 'abcdefghijklmnopqrstuvwxyz0123456789')}.${ext}`;\nconst SLUG = /^[a-z0-9-]{2,40}$/;\n\nconst auth = verifyCoach($in.headers, b.token);\nif (!auth.ok) return bad(auth.error, 401);\nconst entry = Number(b.entry_id);\nif (!(Number.isInteger(entry) && entry > 0)) return bad('Choose a team.');\nconst action = str(b.action || 'LOAD').toUpperCase();\nif (!['LOAD', 'APPROVE', 'REJECT', 'REMOVE'].includes(action)) return bad('Invalid request.');\nconst member = Number(b.member_id || 0);\nif (action !== 'LOAD' && !(Number.isInteger(member) && member > 0)) return bad('Invalid request.');\ncount();\nreturn [{ json: { ok: true, phone: auth.phone, entry, action, member } }];"
       },
       "name": "Check Request",
       "type": "n8n-nodes-base.code",
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "4ca5e987-a330-47b5-a7ec-febda0830c3c"
+      "id": "eb931e0c-72db-420f-87bd-c5c4267aa75a"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "00ea490f-1906-455d-924e-55b5a4dc4950",
+              "id": "58f552fa-5b79-4d6b-972c-41e14b16132f",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,14 +67,14 @@
         440,
         0
       ],
-      "id": "082e0076-2560-428f-8952-08da5c8d63b7"
+      "id": "986607bd-7f89-4c1a-9df1-f1e2b100bee7"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT e.id AS eid, e.status AS estatus, e.reject_reason, e.paid_players, e.amount, t.id AS tid, t.code AS tcode, t.name AS tname, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.start_date, '%e %b') AS day, (t.start_date <= CURDATE()) AS started, t.organizer_user_id, (SELECT l.slug FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS slug, (SELECT l.fee_per_player FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS fee_per_player, tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, u.phone AS coach_phone, d.name AS dname, d.min_age, d.max_age, d.squad_min, d.squad_max, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', x.id, 'name', COALESCE(au.name, x.guest_name), 'birthdate', DATE_FORMAT(COALESCE(au.birthdate, x.guest_birthdate), '%Y-%m-%d'), 'age', TIMESTAMPDIFF(YEAR, COALESCE(au.birthdate, x.guest_birthdate), t.start_date), 'gender', COALESCE(au.gender, x.guest_gender), 'jersey_number', COALESCE(x.jersey_number, au.jersey_number), 'parent_phone', x.parent_phone, 'photo_key', COALESCE(x.guest_photo_key, au.photo_key), 'status', x.status, 'in_squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = x.id), 'joined', DATE_FORMAT(CONVERT_TZ(x.joined_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM team_members x LEFT JOIN app_users au ON au.id = x.user_id WHERE x.team_id = tm.id AND x.status IN ('ACTIVE', 'PENDING') AND x.role <> 'COACH') AS members, (SELECT JSON_ARRAYAGG(JSON_OBJECT('players', pp.players, 'amount', pp.amount, 'utr', pp.utr, 'at', DATE_FORMAT(CONVERT_TZ(pp.created_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM entry_payments pp WHERE pp.entry_id = e.id) AS payments, g.id AS tgt_id, g.status AS tgt_status, g.role AS tgt_role, g.user_id AS tgt_user, COALESCE(g.guest_name, '') AS tgt_name, g.jersey_number AS tgt_jersey, TIMESTAMPDIFF(YEAR, g.guest_birthdate, t.start_date) AS tgt_age, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = g.id) AS tgt_in_squad FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id JOIN app_users u ON u.id = tm.captain_user_id LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN team_members g ON g.id = $2 AND g.team_id = tm.id WHERE e.manage_key_hash = $1 LIMIT 1",
+        "query": "SELECT e.id AS eid, e.status AS estatus, e.reject_reason, e.paid_players, e.amount, t.id AS tid, t.code AS tcode, t.name AS tname, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.start_date, '%e %b') AS day, (t.start_date <= CURDATE()) AS started, t.organizer_user_id, (SELECT l.slug FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS slug, (SELECT l.fee_per_player FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS fee_per_player, tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, u.phone AS coach_phone, d.name AS dname, d.min_age, d.max_age, d.squad_min, d.squad_max, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', x.id, 'name', COALESCE(au.name, x.guest_name), 'birthdate', DATE_FORMAT(COALESCE(au.birthdate, x.guest_birthdate), '%Y-%m-%d'), 'age', TIMESTAMPDIFF(YEAR, COALESCE(au.birthdate, x.guest_birthdate), t.start_date), 'gender', COALESCE(au.gender, x.guest_gender), 'jersey_number', COALESCE(x.jersey_number, au.jersey_number), 'parent_phone', x.parent_phone, 'photo_key', COALESCE(x.guest_photo_key, au.photo_key), 'status', x.status, 'in_squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = x.id), 'joined', DATE_FORMAT(CONVERT_TZ(x.joined_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM team_members x LEFT JOIN app_users au ON au.id = x.user_id WHERE x.team_id = tm.id AND x.status IN ('ACTIVE', 'PENDING') AND x.role <> 'COACH') AS members, (SELECT JSON_ARRAYAGG(JSON_OBJECT('players', pp.players, 'amount', pp.amount, 'utr', pp.utr, 'at', DATE_FORMAT(CONVERT_TZ(pp.created_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM entry_payments pp WHERE pp.entry_id = e.id) AS payments, g.id AS tgt_id, g.status AS tgt_status, g.role AS tgt_role, g.user_id AS tgt_user, COALESCE(g.guest_name, '') AS tgt_name, g.jersey_number AS tgt_jersey, TIMESTAMPDIFF(YEAR, g.guest_birthdate, t.start_date) AS tgt_age, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = g.id) AS tgt_in_squad FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id JOIN app_users u ON u.id = tm.captain_user_id LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN team_members g ON g.id = $2 AND g.team_id = tm.id JOIN app_users ru ON ru.id = e.registered_by WHERE e.id = $1 AND ru.phone = $3 LIMIT 1",
         "options": {
-          "queryReplacement": "={{ [$json.hash, $json.member || 0] }}"
+          "queryReplacement": "={{ [$json.entry, $json.member || 0, $json.phone] }}"
         }
       },
       "name": "Load",
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "bcfec17a-04b4-43d2-a9c0-67fff136778d",
+      "id": "7980313a-f682-456a-8ea6-d93670b8df6f",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nif (!s.eid) return fail('This link is not valid. Use the link you got after registering.', 404);\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nif (r.action === 'LOAD') {\n  const members = (parse(s.members) || []).map(m => ({ ...m, in_squad: Number(m.in_squad) === 1 }))\n    .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'PENDING' ? -1 : 1));\n  return [{ json: { ok: true, mode: 'LOAD', data: { tournament: { code: s.tcode, name: s.tname, start_date: s.start_date, started: Number(s.started) === 1, slug: s.slug },\n    team: { code: s.team_code, name: s.team_name, status: s.estatus, division: s.dname, min_age: s.min_age, max_age: s.max_age, squad_min: s.squad_min, squad_max: s.squad_max,\n      paid_players: Number(s.paid_players || 0), squad_count: Number(s.squad_count), amount: Number(s.amount), reject_reason: s.reject_reason || null },\n    fee_per_player: Number(s.fee_per_player || 0), members, payments: parse(s.payments) || [] } } }];\n}\nif (['REJECTED', 'WITHDRAWN'].includes(s.estatus)) return fail(`${s.team_name} is no longer registered, so the squad can't be changed.`, 409);\nif (Number(s.started) === 1) return fail('The tournament has started, so the squad can no longer be changed.', 409);\nconst p = [], st = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nlet message;\nif (['APPROVE', 'REJECT', 'REMOVE'].includes(r.action)) {\n  if (!s.tgt_id) return fail('That player is no longer in the list. Refresh the page.', 404);\n  const first = String(s.tgt_name || 'This player').split(' ')[0];\n  if (r.action === 'APPROVE') {\n    if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad.`, 409);\n    const age = Number(s.tgt_age);\n    if (s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on ${s.day}, too old for ${s.dname}.`);\n    if (s.min_age != null && age < s.min_age) return fail(`${first} will be ${age} on ${s.day}, too young for ${s.dname}.`);\n    if (Number(s.squad_count) >= Number(s.squad_max)) return fail(`${s.dname} squads can have up to ${s.squad_max} players. Remove someone first.`, 409);\n    if (Number(s.squad_count) >= Number(s.paid_players || 0))\n      return fail(`You've paid for ${s.paid_players} players and all places are used. Pay for extra players to add ${first}.`, 409);\n    st.push(`UPDATE team_members SET status = 'ACTIVE' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n    st.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, jersey_number) VALUES (${add(s.eid)}, ${add(s.tid)}, ${add(s.tgt_id)}, NULL, ${add(s.tgt_jersey)})`);\n    message = `${first} is in the squad.`;\n  } else if (r.action === 'REJECT') {\n    if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad. Use Remove instead.`, 409);\n    st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n    message = `${first}'s request was declined.`;\n  } else {\n    if (s.tgt_status !== 'ACTIVE' || s.tgt_user) return fail(`${first} can't be removed here.`, 409);\n    st.push(`DELETE FROM tournament_entry_players WHERE entry_id = ${add(s.eid)} AND team_member_id = ${add(s.tgt_id)}`);\n    st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)}`);\n    message = `${first} was removed from the squad.`;\n  }\n  return [{ json: { ok: true, mode: 'RUN', has_files: false, sql: st.join('; '), params: p, message } }];\n}\n// PAY_EXTRA\nconst paid = Number(s.paid_players || 0), fee = Number(s.fee_per_player || 0) * r.extra;\nif (paid + r.extra > Number(s.squad_max))\n  return fail(`${s.dname} squads can have up to ${s.squad_max} players. You've paid for ${paid}, so you can add up to ${Math.max(0, s.squad_max - paid)} more.`);\nconst files = r.files.map(f => ({ ...f, key: `payment_proof/${s.coach_phone}/payment_proof_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${f.ext}` }));\nconst proof = files[0] ? files[0].key : null;\nst.push(`INSERT INTO entry_payments (entry_id, players, amount, utr, proof_key) VALUES (${add(s.eid)}, ${add(r.extra)}, ${add(fee)}, ${add(r.utr)}, ${add(proof)})`);\nst.push(`UPDATE tournament_entries SET paid_players = COALESCE(paid_players, 0) + ${add(r.extra)}, amount = amount + ${add(fee)}, ` +\n  `utr = COALESCE(${add(r.utr)}, utr), proof_key = COALESCE(${add(proof)}, proof_key), payment_claimed_at = NOW() WHERE id = ${add(s.eid)}`);\nconst inr = v => '\u20b9' + Number(v).toLocaleString('en-IN');\nst.push(`INSERT INTO notifications (user_id, type, title, body, data) VALUES (${add(s.organizer_user_id)}, 'ENTRY', ${add(`${s.team_name} paid for ${r.extra} more ${r.extra === 1 ? 'player' : 'players'}`)}, ` +\n  `${add(`Paid ${inr(fee)} by UPI${r.utr ? ` (UTR ${r.utr})` : ''}. ${s.team_name} has now paid for ${paid + r.extra} players. Check the payment in the Teams tab.`)}, ` +\n  `JSON_OBJECT('tournament_code', ${add(s.tcode)}))`);\nreturn [{ json: { ok: true, mode: 'RUN', has_files: files.length > 0, files, sql: st.join('; '), params: p,\n  message: `Thanks! You've paid for ${r.extra} more ${r.extra === 1 ? 'player' : 'players'}. You can now approve up to ${paid + r.extra} players.` } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nif (!s.eid) return fail('Team not found. Log in again with your mobile number and PIN.', 404);\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nif (r.action === 'LOAD') {\n  const members = (parse(s.members) || []).map(m => ({ ...m, in_squad: Number(m.in_squad) === 1 }))\n    .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'PENDING' ? -1 : 1));\n  return [{ json: { ok: true, mode: 'LOAD', data: { tournament: { code: s.tcode, name: s.tname, start_date: s.start_date, started: Number(s.started) === 1, slug: s.slug },\n    team: { code: s.team_code, name: s.team_name, status: s.estatus, division: s.dname, min_age: s.min_age, max_age: s.max_age, squad_min: s.squad_min, squad_max: s.squad_max,\n      paid_players: Number(s.paid_players || 0), squad_count: Number(s.squad_count), amount: Number(s.amount), reject_reason: s.reject_reason || null },\n    fee_per_player: Number(s.fee_per_player || 0), members, payments: parse(s.payments) || [] } } }];\n}\nif (['REJECTED', 'WITHDRAWN'].includes(s.estatus)) return fail(`${s.team_name} is no longer registered, so the squad can't be changed.`, 409);\nif (Number(s.started) === 1) return fail('The tournament has started, so the squad can no longer be changed.', 409);\nconst p = [], st = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nlet message;\nif (['APPROVE', 'REJECT', 'REMOVE'].includes(r.action)) {\n  if (!s.tgt_id) return fail('That player is no longer in the list. Refresh the page.', 404);\n  const first = String(s.tgt_name || 'This player').split(' ')[0];\n  if (r.action === 'APPROVE') {\n    if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad.`, 409);\n    const age = Number(s.tgt_age);\n    if (s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on ${s.day}, too old for ${s.dname}.`);\n    if (s.min_age != null && age < s.min_age) return fail(`${first} will be ${age} on ${s.day}, too young for ${s.dname}.`);\n    if (Number(s.squad_count) >= Number(s.squad_max)) return fail(`${s.dname} squads can have up to ${s.squad_max} players. Remove someone first.`, 409);\n    if (Number(s.squad_count) >= Number(s.paid_players || 0))\n      return fail(`You've paid for ${s.paid_players} players and all places are used. Pay for extra players to add ${first}.`, 409);\n    st.push(`UPDATE team_members SET status = 'ACTIVE' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n    st.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, jersey_number) VALUES (${add(s.eid)}, ${add(s.tid)}, ${add(s.tgt_id)}, NULL, ${add(s.tgt_jersey)})`);\n    message = `${first} is in the squad.`;\n  } else if (r.action === 'REJECT') {\n    if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad. Use Remove instead.`, 409);\n    st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n    message = `${first}'s request was declined.`;\n  } else {\n    if (s.tgt_status !== 'ACTIVE' || s.tgt_user) return fail(`${first} can't be removed here.`, 409);\n    st.push(`DELETE FROM tournament_entry_players WHERE entry_id = ${add(s.eid)} AND team_member_id = ${add(s.tgt_id)}`);\n    st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)}`);\n    message = `${first} was removed from the squad.`;\n  }\n  return [{ json: { ok: true, mode: 'RUN', has_files: false, sql: st.join('; '), params: p, message } }];\n}\nreturn fail('Invalid request.');\n"
       },
       "name": "Plan",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "5918b661-b79a-4b79-a902-f3d46995eb9a"
+      "id": "1ebb9d96-28c9-4e96-9c25-2c20d9957109"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "634dc49a-edf3-4119-853a-3b72b33db0e0",
+              "id": "b168f56d-4aac-428b-bc41-447c215f2f09",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "48c5acdb-58f0-4d59-a85a-d18efcfbc010"
+      "id": "7dfd6128-1455-4fd5-9248-9ec0061072f4"
     },
     {
       "parameters": {
@@ -151,7 +151,7 @@
           },
           "conditions": [
             {
-              "id": "92146c94-7c54-48b3-abbe-2e1e73f08f78",
+              "id": "a021d065-2048-4238-ba26-5e7d352ce0e6",
               "leftValue": "={{ $json.mode === 'LOAD' }}",
               "rightValue": "",
               "operator": {
@@ -172,7 +172,7 @@
         1320,
         -100
       ],
-      "id": "a6926231-5c4d-4a8f-a26a-673198314287"
+      "id": "f96f891c-a04e-48d4-869b-ecff05904f14"
     },
     {
       "parameters": {
@@ -185,7 +185,7 @@
         1540,
         -600
       ],
-      "id": "de7fc658-42cd-42f9-a08b-5ea613da21b9"
+      "id": "b7014ded-51cc-4c97-83dc-12d82578e550"
     },
     {
       "parameters": {
@@ -209,7 +209,7 @@
         1740,
         -600
       ],
-      "id": "bd695eab-d3e0-4775-914c-0d7b45959f98",
+      "id": "edbe7e28-bb5b-4ca9-8012-18d0a2a3c2ac",
       "onError": "continueRegularOutput"
     },
     {
@@ -241,7 +241,7 @@
         1940,
         -600
       ],
-      "id": "baa810b2-70d1-48eb-acd3-8a27a816f9fb",
+      "id": "d46234f9-a928-4a34-90cf-59614725c602",
       "onError": "continueRegularOutput"
     },
     {
@@ -255,238 +255,7 @@
         2140,
         -600
       ],
-      "id": "8c933f61-e10c-4cbc-8057-1206e80fea59"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "81cec46d-0a47-43b8-a2ec-8d78397dc27f",
-              "leftValue": "={{ $json.has_files }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "name": "Has Files?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1540,
-        -100
-      ],
-      "id": "9cd38e26-54c2-4c9e-a8de-f58e764fe057"
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst r = $('Check Request').first(), p = $('Plan').first().json;\nreturn p.files.map(f => ({ json: f, binary: { file: r.binary[f.field] } }));"
-      },
-      "name": "Files",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1760,
-        -300
-      ],
-      "id": "def681ce-4026-415b-9a74-a8bab4ab98ed"
-    },
-    {
-      "parameters": {
-        "jsCode": "const $in = $input.first().json;\nreturn $input.all().map(i => ({ json: { ...i.json, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: i.binary }));"
-      },
-      "name": "B2 Credentials",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1960,
-        -300
-      ],
-      "id": "75a36b9e-e175-4270-8047-bb7f1d808e43"
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "https://api.backblazeb2.com/b2api/v4/b2_authorize_account",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ $json.basicAuth }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "name": "Authorize B2",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2160,
-        -300
-      ],
-      "id": "8ff4c080-7093-472b-a203-d95fc883909b",
-      "executeOnce": true
-    },
-    {
-      "parameters": {
-        "jsCode": "return $('Files').all().map(i => ({ json: i.json }));"
-      },
-      "name": "Each File",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2260,
-        -150
-      ],
-      "id": "a84438f8-0c6c-45d5-bdde-82988bf7e7f8"
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_upload_url?bucketId=57d8ff72a9534e199bf30918",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "name": "Upload URL",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2360,
-        -300
-      ],
-      "id": "defa29a5-eaf8-4147-bce7-3ab23c479014"
-    },
-    {
-      "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst files = $('Files').all();\nreturn $input.all().map((u, i) => ({ json: { uploadUrl: u.json.uploadUrl, uploadToken: u.json.authorizationToken, mime: files[i].json.mime,\n  name: files[i].json.key.split('/').map(encodeURIComponent).join('/') }, binary: { file: files[i].binary.file } }));"
-      },
-      "name": "Attach",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2560,
-        -300
-      ],
-      "id": "64e04da4-e4f4-4c09-9547-a4df59246c98"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $json.uploadUrl }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ $json.uploadToken }}"
-            },
-            {
-              "name": "X-Bz-File-Name",
-              "value": "={{ $json.name }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "={{ $json.mime }}"
-            },
-            {
-              "name": "X-Bz-Content-Sha1",
-              "value": "do_not_verify"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "fullResponse": true,
-              "neverError": true
-            }
-          }
-        },
-        "sendBody": true,
-        "contentType": "binaryData",
-        "inputDataFieldName": "file"
-      },
-      "name": "Upload",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2760,
-        -300
-      ],
-      "id": "9b29b800-29ee-4ade-beff-2e8be75c0ce7",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 1000
-    },
-    {
-      "parameters": {
-        "jsCode": "const $in = $input.first().json;\nreturn [{ json: { ok: $input.all().every(i => i.json.statusCode === 200) } }];"
-      },
-      "name": "All Uploaded",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2960,
-        -300
-      ],
-      "id": "3834698d-3909-4df4-8b5e-a1fb931786d0"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "4ced5191-036f-491c-a953-ab15107c0448",
-              "leftValue": "={{ $json.ok }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "name": "Uploaded?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        3160,
-        -300
-      ],
-      "id": "c7002924-045c-4b4e-81c1-985f4cc9d2a3"
+      "id": "8bd41134-1e77-45d4-8969-2aeae6ed1c3b"
     },
     {
       "parameters": {
@@ -500,10 +269,10 @@
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.2,
       "position": [
-        3380,
+        1760,
         -300
       ],
-      "id": "807f0a41-7bd7-4223-a011-78c1fb92010c",
+      "id": "ceb8cf31-3b60-4ab9-9529-4fef9a926fbf",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -520,23 +289,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3600,
+        1980,
         -300
       ],
-      "id": "e964884b-52ce-4e1d-b4ac-965d4a4fec34"
-    },
-    {
-      "parameters": {
-        "jsCode": "return [{ json: { status: 502, body: { success: false, message: 'Could not upload your photo. Please check your internet and try again.' } } }];"
-      },
-      "name": "Upload Failed",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3380,
-        100
-      ],
-      "id": "7a6b5c25-ccf6-4c5f-9759-68cc34555279"
+      "id": "cbf443f6-01ae-402f-8996-35eb76c2c64b"
     },
     {
       "parameters": {
@@ -550,10 +306,10 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        3900,
+        2600,
         0
       ],
-      "id": "637d0e93-6373-47de-8464-8ad63e867333"
+      "id": "0801eeb2-df31-48b0-9627-14e783ac53a3"
     }
   ],
   "connections": {
@@ -569,17 +325,6 @@
       ]
     },
     "Build Response": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upload Failed": {
       "main": [
         [
           {
@@ -681,7 +426,7 @@
         ],
         [
           {
-            "node": "Has Files?",
+            "node": "Save",
             "type": "main",
             "index": 0
           }
@@ -726,130 +471,6 @@
         [
           {
             "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Has Files?": {
-      "main": [
-        [
-          {
-            "node": "Files",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Save",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Files": {
-      "main": [
-        [
-          {
-            "node": "B2 Credentials",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "B2 Credentials": {
-      "main": [
-        [
-          {
-            "node": "Authorize B2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Authorize B2": {
-      "main": [
-        [
-          {
-            "node": "Each File",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Each File": {
-      "main": [
-        [
-          {
-            "node": "Upload URL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upload URL": {
-      "main": [
-        [
-          {
-            "node": "Attach",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Attach": {
-      "main": [
-        [
-          {
-            "node": "Upload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upload": {
-      "main": [
-        [
-          {
-            "node": "All Uploaded",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "All Uploaded": {
-      "main": [
-        [
-          {
-            "node": "Uploaded?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Uploaded?": {
-      "main": [
-        [
-          {
-            "node": "Save",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Upload Failed",
             "type": "main",
             "index": 0
           }

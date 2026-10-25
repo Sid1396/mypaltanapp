@@ -45,7 +45,7 @@ n.append(mysql("Load Teams",
     "'approved', (SELECT COUNT(*) FROM tournament_entries x WHERE x.division_id = d.id AND x.status = 'APPROVED'))) "
     "FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', e.id, 'status', e.status, 'division_id', e.division_id, 'team', tm.name, 'team_code', tm.code, "
-    "'logo_key', tm.logo_key, 'area', tm.area, 'coach', u.name, 'coach_phone', u.phone, 'amount', e.amount, 'paid_players', e.paid_players, "
+    "'logo_key', tm.logo_key, 'area', tm.area, 'coach', u.name, 'coach_phone', u.phone, 'coach_has_pin', (SELECT COUNT(*) FROM coach_web_pins cp WHERE cp.user_id = u.id) > 0, 'amount', e.amount, 'paid_players', e.paid_players, "
     "'utr', e.utr, 'proof_key', e.proof_key, 'reject_reason', e.reject_reason, 'web', e.manage_key_hash IS NOT NULL, "
     "'registered', DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'), "
     "'reviewed', DATE_FORMAT(CONVERT_TZ(e.reviewed_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'), "
@@ -85,7 +85,7 @@ const parse = v => { if (v == null) return null; if (typeof v === 'object') retu
 const divisions = (parse(r.divisions) || []).sort((a, b) => a.id - b.id);
 const teams = (parse(r.entries) || []).map(e => ({
   id: e.id, status: e.status, division_id: e.division_id, team: e.team, team_code: e.team_code, logo_url: sign(e.logo_key), area: e.area,
-  coach: e.coach, coach_phone: e.coach_phone, amount: e.amount, paid_players: e.paid_players, utr: e.utr, reject_reason: e.reject_reason,
+  coach: e.coach, coach_phone: e.coach_phone, coach_has_pin: !!e.coach_has_pin, amount: e.amount, paid_players: e.paid_players, utr: e.utr, reject_reason: e.reject_reason,
   web: !!e.web, registered: e.registered, reviewed: e.reviewed, waiting: Number(e.waiting || 0),
   payments: (parse(e.payments) || []).map(({ proof_key, ...p }) => ({ ...p, proof_url: sign(proof_key) })),
   proof_url: sign(e.proof_key),
@@ -102,18 +102,14 @@ out['staff_tournament_teams'] = workflow("StfTrnTms026mPxJ", "MyPaltan v2 - Staf
 # ───────────── 2. Confirm or reject a team (same rules and messages as the organiser in the app) ─────────────
 n, c = [], {}
 n.append(webhook("v2/staff/tournament-teams/update", "POST"))
-n.append(code("Check Request", STAFF_AUTH + SHA256 + r"""
+n.append(code("Check Request", STAFF_AUTH + r"""
 const b = $json.body || {};
 const bad = m => [{ json: { ok: false, status: 422, body: { success: false, message: m } } }];
 const id = Number(b.entry_id), action = String(b.action ?? '').toUpperCase();
-if (!(Number.isInteger(id) && id > 0) || !['APPROVE', 'REJECT', 'NEW_LINK'].includes(action)) return bad('Invalid request.');
+if (!(Number.isInteger(id) && id > 0) || !['APPROVE', 'REJECT', 'RESET_PIN'].includes(action)) return bad('Invalid request.');
 const reason = String(b.reason ?? '').trim().replace(/\s+/g, ' ');
 if (action === 'REJECT' && (reason.length < 3 || reason.length > 200)) return bad('Write a short reason for the coach (3-200 characters).');
-// NEW_LINK: a fresh private coach link (the old one stops working). Only its SHA-256 is stored.
-const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-const g = globalThis.crypto && globalThis.crypto.getRandomValues ? globalThis.crypto.getRandomValues(new Uint32Array(32)) : null;
-const key = Array.from({ length: 32 }, (_, i) => chars[(g ? g[i] : Math.floor(Math.random() * 4294967296)) % chars.length]).join('');
-return [{ json: { ok: true, sid: auth.sid, id, action, reason, key, key_hash: sha256hex(key) } }];""", [220, 0]))
+return [{ json: { ok: true, sid: auth.sid, id, action, reason } }];""", [220, 0]))
 n.append(iff("Request OK?", "={{ $json.ok }}", [440, 0]))
 staff_gate(n, c, "Request OK?", 660)
 c["Request OK?"]["main"] = [[{"node": "Load Staff", "type": "main", "index": 0}], [{"node": "Respond", "type": "main", "index": 0}]]
@@ -132,10 +128,10 @@ if (!s.id) return fail(404, 'Registration not found.');
 // Staff act on behalf of the organiser, so the review is recorded under the organiser's account.
 const reviewer = s.organizer_user_id;
 let sql, params, message, note;
-if (r.action === 'NEW_LINK') {
-  if (!s.slug) return fail(409, 'This tournament has no web registration link.');
-  return [{ json: { ok: true, sql: 'UPDATE tournament_entries SET manage_key_hash = $1 WHERE id = $2', params: [r.key_hash, s.id],
-    message: `New coach link for ${s.team_name}. The old link no longer works.`, link: { path: `/register/${s.slug}/manage/${r.key}`, coach_phone: s.coach_phone, team: s.team_name } } }];
+if (r.action === 'RESET_PIN') {
+  // The coach sets a new PIN the next time he enters his mobile number on the registration page.
+  return [{ json: { ok: true, sql: 'DELETE FROM coach_web_pins WHERE user_id = $1', params: [s.registered_by],
+    message: `PIN reset for ${s.team_name}'s coach (${s.coach_phone}). Ask him to open the registration link and set a new PIN now.` } }];
 }
 if (r.action === 'APPROVE') {
   if (!['PENDING', 'WAITLISTED'].includes(s.status)) return fail(409, 'This registration is not waiting for approval.');
@@ -160,7 +156,7 @@ n.append(mysql("Run", "={{ $json.sql }}", "={{ $json.params }}", [1980, -300], c
 n.append(code("Build Response", r"""
 if ($json.error || /ER_|syntax/i.test(String($json.message || ''))) return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];
 const p = $('Plan').first().json;
-return [{ json: { status: 200, body: { success: true, message: p.message, ...(p.link ? { link: p.link } : {}) } } }];""", [2200, -300]))
+return [{ json: { status: 200, body: { success: true, message: p.message } } }];""", [2200, -300]))
 n.append(respond([2420, 0]))
 link(c, "Webhook", "Check Request"); link(c, "Check Request", "Request OK?")
 link(c, "Load Entry", "Plan"); link(c, "Plan", "Plan OK?")
