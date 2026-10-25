@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "729d2fb7-4c7f-449e-a6f5-a9488b2870c3",
-      "webhookId": "b8a810e3-adc6-4e64-ab36-4a0de50bd0cb"
+      "id": "b2e05478-e74c-4fba-b783-0a474d28f036",
+      "webhookId": "f7eb2e04-a61b-420b-93d0-18baec4ad931"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "087fb8c1-58e3-4f9a-b3a1-66eca3ecf651"
+      "id": "acad7740-39ea-4091-b8e5-405bb288d61e"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "3b8b57b9-f7a3-4818-a8f0-261ba144def8",
+              "id": "60694227-1d98-478d-b758-2a3366c8987f",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,7 +67,7 @@
         440,
         0
       ],
-      "id": "e6919fca-d61d-4d75-b639-f6dfadbc4c2c"
+      "id": "37808512-d773-4597-8752-c8ba99f88c00"
     },
     {
       "parameters": {
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "cb30ab09-8bde-4fe3-a3fa-743350745d3f",
+      "id": "27acd237-fe41-4049-9758-dc4c722e17ae",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nif (!s.tid) return fail('This team link is not valid. Ask your coach for the right link.', 404);\nif (['REJECTED', 'WITHDRAWN'].includes(s.estatus)) return fail(`${s.team_name} is no longer registered for this tournament.`, 409);\nif (Number(s.started) === 1) return fail('Squads are closed for this tournament.', 409);\nconst first = r.name.split(' ')[0], age = Number(s.age_on_day);\nif (s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on ${s.day}, too old for ${s.dname}.`);\nif (s.min_age != null && age < s.min_age) return fail(`${first} will be ${age} on ${s.day}, too young for ${s.dname}.`);\nif (Number(s.dup) > 0) return fail(`${r.name} is already added to ${s.team_name}.`, 409);\nif (Number(s.pending) >= 40) return fail('Too many players are waiting for the coach. Ask the coach to approve them first.', 409);\nconst photo = (r.files[0] || {}).key || null;\nreturn [{ json: { ok: true, has_files: r.files.length > 0,\n  sql: \"INSERT INTO team_members (team_id, user_id, parent_phone, guest_name, guest_birthdate, guest_gender, guest_photo_key, role, jersey_number, added_by, status) \" +\n    \"VALUES ($1, NULL, $2, $3, $4, $5, $6, 'PLAYER', $7, NULL, 'PENDING')\",\n  params: [s.team_id, r.parent, r.name, r.birthdate, r.gender, photo, r.jersey],\n  result: { name: r.name, team: s.team_name, division: s.dname } } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nif (!s.tid) return fail('This team link is not valid. Ask your coach for the right link.', 404);\nif (['REJECTED', 'WITHDRAWN'].includes(s.estatus)) return fail(`${s.team_name} is no longer registered for this tournament.`, 409);\n// The player link only works once MyPaltan has verified the payment and approved the team.\nif (s.estatus !== 'APPROVED') return fail(`${s.team_name} is waiting for verification. This link works once the organisers approve the team.`, 409);\nif (Number(s.started) === 1) return fail('Squads are closed for this tournament.', 409);\nconst first = r.name.split(' ')[0], age = Number(s.age_on_day);\nif (s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on ${s.day}, too old for ${s.dname}.`);\nif (s.min_age != null && age < s.min_age) return fail(`${first} will be ${age} on ${s.day}, too young for ${s.dname}.`);\nif (Number(s.dup) > 0) return fail(`${r.name} is already added to ${s.team_name}.`, 409);\nif (Number(s.pending) >= 40) return fail('Too many players are waiting for the coach. Ask the coach to approve them first.', 409);\nconst photo = (r.files[0] || {}).key || null;\nreturn [{ json: { ok: true, has_files: r.files.length > 0,\n  sql: \"INSERT INTO team_members (team_id, user_id, parent_phone, guest_name, guest_birthdate, guest_gender, guest_photo_key, role, jersey_number, added_by, status) \" +\n    \"VALUES ($1, NULL, $2, $3, $4, $5, $6, 'PLAYER', $7, NULL, 'PENDING')\",\n  params: [s.team_id, r.parent, r.name, r.birthdate, r.gender, photo, r.jersey],\n  result: { name: r.name, team: s.team_name, division: s.dname } } }];"
       },
       "name": "Plan",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "0bdba413-955e-44d9-b0d9-be6520942e42"
+      "id": "dcc642dc-2cc5-48e0-8d43-814342b5b1de"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "cbb18d69-5e20-4b64-a14c-05efc44aee95",
+              "id": "e4d0d043-47ed-4601-83e5-9e4f9480208e",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "1124d22f-15b4-4b00-9736-f0254794c2da"
+      "id": "5909f4f9-4e13-4966-a9f2-4c4477e943b9"
     },
     {
       "parameters": {
@@ -151,7 +151,7 @@
           },
           "conditions": [
             {
-              "id": "d57664d9-d7c8-4cad-8ae4-5b90325acb7b",
+              "id": "5615d3f9-838a-4190-9209-22c39e8b3c41",
               "leftValue": "={{ $json.has_files }}",
               "rightValue": "",
               "operator": {
@@ -172,7 +172,7 @@
         1320,
         -200
       ],
-      "id": "5f89b0e5-674b-4899-8a3b-1c49176e11fd"
+      "id": "61d68775-d822-47c4-b608-e86823d39538"
     },
     {
       "parameters": {
@@ -185,7 +185,7 @@
         1540,
         -400
       ],
-      "id": "4cf87af3-bf34-4685-a9d5-4f73307b406d"
+      "id": "dc6dc8c6-08af-4b47-a748-d954788aab83"
     },
     {
       "parameters": {
@@ -198,7 +198,7 @@
         1740,
         -400
       ],
-      "id": "b3ec4853-e362-4f05-bb50-8ba4a5490c8a"
+      "id": "c15f39a6-71b7-4fea-804a-e5a03d2ec64c"
     },
     {
       "parameters": {
@@ -222,7 +222,7 @@
         1940,
         -400
       ],
-      "id": "43b9be21-a4dd-439e-a351-079e225f21b1",
+      "id": "9a7828a3-6705-46c6-9fdb-59b26b156370",
       "executeOnce": true
     },
     {
@@ -236,7 +236,7 @@
         2040,
         -250
       ],
-      "id": "fbfc1a3c-e723-4a79-a9d8-24aa0828fc3c"
+      "id": "c4f3472b-162a-4732-a173-25508b38ff92"
     },
     {
       "parameters": {
@@ -260,7 +260,7 @@
         2140,
         -400
       ],
-      "id": "4b33e57f-6f96-4079-91da-c2d35659efad"
+      "id": "ace12891-cc49-4814-9dc7-57574d82e7e0"
     },
     {
       "parameters": {
@@ -273,7 +273,7 @@
         2340,
         -400
       ],
-      "id": "a959717a-06a3-47a6-947a-1283a09d30e1"
+      "id": "042f540c-9484-4b95-a188-ec6d88b2a77c"
     },
     {
       "parameters": {
@@ -319,7 +319,7 @@
         2540,
         -400
       ],
-      "id": "033383b8-6911-4345-b5b5-bba01f493a03",
+      "id": "e890ec10-b2ac-4e41-af95-4a7922121475",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000
@@ -335,7 +335,7 @@
         2740,
         -400
       ],
-      "id": "ed184ebd-a37a-4787-b0b0-0e1c92f71091"
+      "id": "61835d8e-4395-4507-a6a8-5ded0cc615c6"
     },
     {
       "parameters": {
@@ -348,7 +348,7 @@
           },
           "conditions": [
             {
-              "id": "d5cb6af6-b24d-4cd9-b4b2-d8598c4bd0a1",
+              "id": "307d5fd8-da21-4fc3-ab14-a1c9773b661a",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -369,7 +369,7 @@
         2940,
         -400
       ],
-      "id": "c16fdd68-eb40-4156-92cf-642017ca1ae7"
+      "id": "eed21cd3-2d02-4475-97e5-b8864ca0af92"
     },
     {
       "parameters": {
@@ -386,7 +386,7 @@
         3300,
         -300
       ],
-      "id": "4bb8ce18-382f-4abd-b683-3487841242f4",
+      "id": "720c08be-548a-47fd-a8de-b1cf6b980174",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -406,7 +406,7 @@
         3520,
         -300
       ],
-      "id": "7108f5c7-8c37-4423-b27d-1e8606d355c7"
+      "id": "8b1050d4-2455-4f8c-8330-8930285bb00d"
     },
     {
       "parameters": {
@@ -419,7 +419,7 @@
         3300,
         100
       ],
-      "id": "bc85c5a1-3edf-46b3-b3cd-aeb22e0475b5"
+      "id": "9eda8077-2c5b-4515-b81b-eadabf16d175"
     },
     {
       "parameters": {
@@ -436,7 +436,7 @@
         3800,
         0
       ],
-      "id": "1c2b390f-a0aa-4d58-9444-c75438ae38e7"
+      "id": "4dd6687e-7dcb-4997-a2e5-6cb235e8ae7f"
     }
   ],
   "connections": {

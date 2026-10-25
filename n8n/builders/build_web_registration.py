@@ -352,7 +352,7 @@ upload_chain(n, c, "Has Files?", 1540, -400, "Save", "Upload Failed")
 save_and_respond(n, c, 3300, r"""
 const m = p.result.status === 'WAITLISTED'
   ? `${p.result.division} is full, so ${p.result.team} is on the waitlist. The organiser will tell you if a place opens up.`
-  : `${p.result.team} is registered for ${p.result.division}. The organiser confirms the team after checking your payment.`;
+  : `${p.result.team} is registered for ${p.result.division}. MyPaltan will verify your payment; your player link appears here once the team is approved.`;
 // Logged in straight away: the page shows the coach's teams.
 return [{ json: { status: 200, body: { success: true, message: m, ...p.result, token: signCoach(p.result.phone) } } }];""", 'Please tap Register again.', prefix=COACH_AUTH)
 n.append(respond([3800, 0]))
@@ -409,6 +409,8 @@ const s = $json, r = $('Check Request').first().json;
 const fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];
 if (!s.tid) return fail('This team link is not valid. Ask your coach for the right link.', 404);
 if (['REJECTED', 'WITHDRAWN'].includes(s.estatus)) return fail(`${s.team_name} is no longer registered for this tournament.`, 409);
+// The player link only works once MyPaltan has verified the payment and approved the team.
+if (s.estatus !== 'APPROVED') return fail(`${s.team_name} is waiting for verification. This link works once the organisers approve the team.`, 409);
 if (Number(s.started) === 1) return fail('Squads are closed for this tournament.', 409);
 const first = r.name.split(' ')[0], age = Number(s.age_on_day);
 if (s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on ${s.day}, too old for ${s.dname}.`);
