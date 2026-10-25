@@ -615,7 +615,7 @@ n.append(iff("Has SQL?", "={{ !!$json.sql }}", [1320, -200]))
 n.append(mysql("Save", "={{ $('Plan').first().json.sql }}", "={{ $('Plan').first().json.params }}", [1540, -300], continue_on_error=True))
 n.append(code("Build Response", r"""
 const p = $('Plan').first().json;
-if ($('Has SQL?').first().json.sql && ($json.error || /ER_|syntax|Duplicate/i.test(String($json.message || ''))))
+if (p.sql && ($json.error || /ER_|syntax|Duplicate/i.test(String($json.message || ''))))
   return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];
 return [{ json: p.respond }];""", [1760, -200]))
 n.append(respond([1980, 0]))

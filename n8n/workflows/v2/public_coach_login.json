@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "8e51f2ea-73a0-4ba0-8e5b-d3af3ccfc1cf",
-      "webhookId": "e638c446-79fd-47a8-bcc0-ee74398ce31b"
+      "id": "65440f09-1074-4697-9d15-526ddc2a3870",
+      "webhookId": "67cc1472-1b24-46bb-8c97-f009fb2a9f3f"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "b1185ae1-4744-4dc5-b213-e56b807df7ee"
+      "id": "05dabe46-ae87-4769-8b4e-02fc7a46b665"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "7177c54f-ba10-481e-b2f3-5ef291ffcdc9",
+              "id": "159b0d6b-508b-4772-8b69-555ee2ddd406",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,7 +67,7 @@
         440,
         0
       ],
-      "id": "55ea270d-433b-4f22-8b94-0c028f6397a8"
+      "id": "93909bc9-5d20-4124-a702-f06612ee9ca5"
     },
     {
       "parameters": {
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "08059e53-2c48-4c51-8c84-8765d0830eb4",
+      "id": "4307ac3e-981c-43aa-9084-1ca472895eae",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "d04bd6d3-35e4-43e6-a678-a979d4eb447c"
+      "id": "0a55ba48-8b0c-488f-acff-0a4706663ad8"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "ef934ce7-1839-43ef-aa5e-6045e6ec821d",
+              "id": "541d7e64-1874-4a4c-b670-3804ca4b0392",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "cb540b8c-87a7-49ca-9d5e-74cb9d10be23"
+      "id": "10d8395c-9e3f-432c-b002-362e489158e5"
     },
     {
       "parameters": {
@@ -151,7 +151,7 @@
           },
           "conditions": [
             {
-              "id": "c1fadc7e-886d-4349-92d8-3948e220bc59",
+              "id": "18a51b37-995a-441b-8e92-978ae58d586e",
               "leftValue": "={{ !!$json.sql }}",
               "rightValue": "",
               "operator": {
@@ -172,7 +172,7 @@
         1320,
         -200
       ],
-      "id": "8ead8c41-7dba-4f0a-9aa0-69c7d8d03c8b"
+      "id": "0938eecc-c94f-4548-ae77-a96fef54f14d"
     },
     {
       "parameters": {
@@ -189,7 +189,7 @@
         1540,
         -300
       ],
-      "id": "a98c8a70-076c-4ce1-8cda-1060be67e6f0",
+      "id": "040e79a5-a4cb-4b26-bdf9-bc0c19421189",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -200,7 +200,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst p = $('Plan').first().json;\nif ($('Has SQL?').first().json.sql && ($in.error || /ER_|syntax|Duplicate/i.test(String($in.message || ''))))\n  return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];\nreturn [{ json: p.respond }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst p = $('Plan').first().json;\nif (p.sql && ($in.error || /ER_|syntax|Duplicate/i.test(String($in.message || ''))))\n  return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];\nreturn [{ json: p.respond }];"
       },
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
@@ -209,7 +209,7 @@
         1760,
         -200
       ],
-      "id": "7860871c-02da-4f14-bc95-8a6336587200"
+      "id": "7ef78965-eb72-4fb5-86a9-5b2ff186ca25"
     },
     {
       "parameters": {
@@ -226,7 +226,7 @@
         1980,
         0
       ],
-      "id": "cf24ffa9-a48f-4972-a613-0f71d8fd917f"
+      "id": "fdeefbd6-0da1-49e5-ad6c-5b228db4e8fb"
     }
   ],
   "connections": {
