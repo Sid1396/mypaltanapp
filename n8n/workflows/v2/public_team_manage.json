@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "63d7f333-398b-4565-9ab9-fdeed6b06ecb",
-      "webhookId": "cc657024-3fa9-441f-9485-2dc70f7f65a5"
+      "id": "16fa3ca8-fe93-4dd5-8317-8cec6825b9e1",
+      "webhookId": "c3b41627-7597-4c9c-b44d-fa7ee30eab49"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "52cb0e97-e20d-421d-a1a0-35c3570c227c"
+      "id": "4ca5e987-a330-47b5-a7ec-febda0830c3c"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "d29379e2-d404-4342-a874-1b2becbf670c",
+              "id": "00ea490f-1906-455d-924e-55b5a4dc4950",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,12 +67,12 @@
         440,
         0
       ],
-      "id": "84b59fed-64d3-4ee8-a276-501d658dc895"
+      "id": "082e0076-2560-428f-8952-08da5c8d63b7"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT e.id AS eid, e.status AS estatus, e.paid_players, e.amount, t.id AS tid, t.code AS tcode, t.name AS tname, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.start_date, '%e %b') AS day, (t.start_date <= CURDATE()) AS started, t.organizer_user_id, (SELECT l.slug FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS slug, (SELECT l.fee_per_player FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS fee_per_player, tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, u.phone AS coach_phone, d.name AS dname, d.min_age, d.max_age, d.squad_min, d.squad_max, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', x.id, 'name', COALESCE(au.name, x.guest_name), 'birthdate', DATE_FORMAT(COALESCE(au.birthdate, x.guest_birthdate), '%Y-%m-%d'), 'age', TIMESTAMPDIFF(YEAR, COALESCE(au.birthdate, x.guest_birthdate), t.start_date), 'gender', COALESCE(au.gender, x.guest_gender), 'jersey_number', COALESCE(x.jersey_number, au.jersey_number), 'parent_phone', x.parent_phone, 'photo_key', COALESCE(x.guest_photo_key, au.photo_key), 'status', x.status, 'in_squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = x.id), 'joined', DATE_FORMAT(CONVERT_TZ(x.joined_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM team_members x LEFT JOIN app_users au ON au.id = x.user_id WHERE x.team_id = tm.id AND x.status IN ('ACTIVE', 'PENDING') AND x.role <> 'COACH') AS members, (SELECT JSON_ARRAYAGG(JSON_OBJECT('players', pp.players, 'amount', pp.amount, 'utr', pp.utr, 'at', DATE_FORMAT(CONVERT_TZ(pp.created_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM entry_payments pp WHERE pp.entry_id = e.id) AS payments, g.id AS tgt_id, g.status AS tgt_status, g.role AS tgt_role, g.user_id AS tgt_user, COALESCE(g.guest_name, '') AS tgt_name, g.jersey_number AS tgt_jersey, TIMESTAMPDIFF(YEAR, g.guest_birthdate, t.start_date) AS tgt_age, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = g.id) AS tgt_in_squad FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id JOIN app_users u ON u.id = tm.captain_user_id LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN team_members g ON g.id = $2 AND g.team_id = tm.id WHERE e.manage_key_hash = $1 LIMIT 1",
+        "query": "SELECT e.id AS eid, e.status AS estatus, e.reject_reason, e.paid_players, e.amount, t.id AS tid, t.code AS tcode, t.name AS tname, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.start_date, '%e %b') AS day, (t.start_date <= CURDATE()) AS started, t.organizer_user_id, (SELECT l.slug FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS slug, (SELECT l.fee_per_player FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS fee_per_player, tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, u.phone AS coach_phone, d.name AS dname, d.min_age, d.max_age, d.squad_min, d.squad_max, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', x.id, 'name', COALESCE(au.name, x.guest_name), 'birthdate', DATE_FORMAT(COALESCE(au.birthdate, x.guest_birthdate), '%Y-%m-%d'), 'age', TIMESTAMPDIFF(YEAR, COALESCE(au.birthdate, x.guest_birthdate), t.start_date), 'gender', COALESCE(au.gender, x.guest_gender), 'jersey_number', COALESCE(x.jersey_number, au.jersey_number), 'parent_phone', x.parent_phone, 'photo_key', COALESCE(x.guest_photo_key, au.photo_key), 'status', x.status, 'in_squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = x.id), 'joined', DATE_FORMAT(CONVERT_TZ(x.joined_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM team_members x LEFT JOIN app_users au ON au.id = x.user_id WHERE x.team_id = tm.id AND x.status IN ('ACTIVE', 'PENDING') AND x.role <> 'COACH') AS members, (SELECT JSON_ARRAYAGG(JSON_OBJECT('players', pp.players, 'amount', pp.amount, 'utr', pp.utr, 'at', DATE_FORMAT(CONVERT_TZ(pp.created_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM entry_payments pp WHERE pp.entry_id = e.id) AS payments, g.id AS tgt_id, g.status AS tgt_status, g.role AS tgt_role, g.user_id AS tgt_user, COALESCE(g.guest_name, '') AS tgt_name, g.jersey_number AS tgt_jersey, TIMESTAMPDIFF(YEAR, g.guest_birthdate, t.start_date) AS tgt_age, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = g.id) AS tgt_in_squad FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id JOIN app_users u ON u.id = tm.captain_user_id LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN team_members g ON g.id = $2 AND g.team_id = tm.id WHERE e.manage_key_hash = $1 LIMIT 1",
         "options": {
           "queryReplacement": "={{ [$json.hash, $json.member || 0] }}"
         }
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "c990c4ee-b107-4f60-b364-ee229e50c801",
+      "id": "bcfec17a-04b4-43d2-a9c0-67fff136778d",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nif (!s.eid) return fail('This link is not valid. Use the link you got after registering.', 404);\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nif (r.action === 'LOAD') {\n  const members = (parse(s.members) || []).map(m => ({ ...m, in_squad: Number(m.in_squad) === 1 }))\n    .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'PENDING' ? -1 : 1));\n  return [{ json: { ok: true, mode: 'LOAD', data: { tournament: { code: s.tcode, name: s.tname, start_date: s.start_date, started: Number(s.started) === 1, slug: s.slug },\n    team: { code: s.team_code, name: s.team_name, status: s.estatus, division: s.dname, min_age: s.min_age, max_age: s.max_age, squad_min: s.squad_min, squad_max: s.squad_max,\n      paid_players: Number(s.paid_players || 0), squad_count: Number(s.squad_count), amount: Number(s.amount) },\n    fee_per_player: Number(s.fee_per_player || 0), members, payments: parse(s.payments) || [] } } }];\n}\nif (['REJECTED', 'WITHDRAWN'].includes(s.estatus)) return fail(`${s.team_name} is no longer registered, so the squad can't be changed.`, 409);\nif (Number(s.started) === 1) return fail('The tournament has started, so the squad can no longer be changed.', 409);\nconst p = [], st = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nlet message;\nif (['APPROVE', 'REJECT', 'REMOVE'].includes(r.action)) {\n  if (!s.tgt_id) return fail('That player is no longer in the list. Refresh the page.', 404);\n  const first = String(s.tgt_name || 'This player').split(' ')[0];\n  if (r.action === 'APPROVE') {\n    if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad.`, 409);\n    const age = Number(s.tgt_age);\n    if (s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on ${s.day}, too old for ${s.dname}.`);\n    if (s.min_age != null && age < s.min_age) return fail(`${first} will be ${age} on ${s.day}, too young for ${s.dname}.`);\n    if (Number(s.squad_count) >= Number(s.squad_max)) return fail(`${s.dname} squads can have up to ${s.squad_max} players. Remove someone first.`, 409);\n    if (Number(s.squad_count) >= Number(s.paid_players || 0))\n      return fail(`You've paid for ${s.paid_players} players and all places are used. Pay for extra players to add ${first}.`, 409);\n    st.push(`UPDATE team_members SET status = 'ACTIVE' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n    st.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, jersey_number) VALUES (${add(s.eid)}, ${add(s.tid)}, ${add(s.tgt_id)}, NULL, ${add(s.tgt_jersey)})`);\n    message = `${first} is in the squad.`;\n  } else if (r.action === 'REJECT') {\n    if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad. Use Remove instead.`, 409);\n    st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n    message = `${first}'s request was declined.`;\n  } else {\n    if (s.tgt_status !== 'ACTIVE' || s.tgt_user) return fail(`${first} can't be removed here.`, 409);\n    st.push(`DELETE FROM tournament_entry_players WHERE entry_id = ${add(s.eid)} AND team_member_id = ${add(s.tgt_id)}`);\n    st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)}`);\n    message = `${first} was removed from the squad.`;\n  }\n  return [{ json: { ok: true, mode: 'RUN', has_files: false, sql: st.join('; '), params: p, message } }];\n}\n// PAY_EXTRA\nconst paid = Number(s.paid_players || 0), fee = Number(s.fee_per_player || 0) * r.extra;\nif (paid + r.extra > Number(s.squad_max))\n  return fail(`${s.dname} squads can have up to ${s.squad_max} players. You've paid for ${paid}, so you can add up to ${Math.max(0, s.squad_max - paid)} more.`);\nconst files = r.files.map(f => ({ ...f, key: `payment_proof/${s.coach_phone}/payment_proof_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${f.ext}` }));\nconst proof = files[0] ? files[0].key : null;\nst.push(`INSERT INTO entry_payments (entry_id, players, amount, utr, proof_key) VALUES (${add(s.eid)}, ${add(r.extra)}, ${add(fee)}, ${add(r.utr)}, ${add(proof)})`);\nst.push(`UPDATE tournament_entries SET paid_players = COALESCE(paid_players, 0) + ${add(r.extra)}, amount = amount + ${add(fee)}, ` +\n  `utr = COALESCE(${add(r.utr)}, utr), proof_key = COALESCE(${add(proof)}, proof_key), payment_claimed_at = NOW() WHERE id = ${add(s.eid)}`);\nconst inr = v => '\u20b9' + Number(v).toLocaleString('en-IN');\nst.push(`INSERT INTO notifications (user_id, type, title, body, data) VALUES (${add(s.organizer_user_id)}, 'ENTRY', ${add(`${s.team_name} paid for ${r.extra} more ${r.extra === 1 ? 'player' : 'players'}`)}, ` +\n  `${add(`Paid ${inr(fee)} by UPI${r.utr ? ` (UTR ${r.utr})` : ''}. ${s.team_name} has now paid for ${paid + r.extra} players. Check the payment in the Teams tab.`)}, ` +\n  `JSON_OBJECT('tournament_code', ${add(s.tcode)}))`);\nreturn [{ json: { ok: true, mode: 'RUN', has_files: files.length > 0, files, sql: st.join('; '), params: p,\n  message: `Thanks! You've paid for ${r.extra} more ${r.extra === 1 ? 'player' : 'players'}. You can now approve up to ${paid + r.extra} players.` } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nif (!s.eid) return fail('This link is not valid. Use the link you got after registering.', 404);\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nif (r.action === 'LOAD') {\n  const members = (parse(s.members) || []).map(m => ({ ...m, in_squad: Number(m.in_squad) === 1 }))\n    .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'PENDING' ? -1 : 1));\n  return [{ json: { ok: true, mode: 'LOAD', data: { tournament: { code: s.tcode, name: s.tname, start_date: s.start_date, started: Number(s.started) === 1, slug: s.slug },\n    team: { code: s.team_code, name: s.team_name, status: s.estatus, division: s.dname, min_age: s.min_age, max_age: s.max_age, squad_min: s.squad_min, squad_max: s.squad_max,\n      paid_players: Number(s.paid_players || 0), squad_count: Number(s.squad_count), amount: Number(s.amount), reject_reason: s.reject_reason || null },\n    fee_per_player: Number(s.fee_per_player || 0), members, payments: parse(s.payments) || [] } } }];\n}\nif (['REJECTED', 'WITHDRAWN'].includes(s.estatus)) return fail(`${s.team_name} is no longer registered, so the squad can't be changed.`, 409);\nif (Number(s.started) === 1) return fail('The tournament has started, so the squad can no longer be changed.', 409);\nconst p = [], st = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nlet message;\nif (['APPROVE', 'REJECT', 'REMOVE'].includes(r.action)) {\n  if (!s.tgt_id) return fail('That player is no longer in the list. Refresh the page.', 404);\n  const first = String(s.tgt_name || 'This player').split(' ')[0];\n  if (r.action === 'APPROVE') {\n    if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad.`, 409);\n    const age = Number(s.tgt_age);\n    if (s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on ${s.day}, too old for ${s.dname}.`);\n    if (s.min_age != null && age < s.min_age) return fail(`${first} will be ${age} on ${s.day}, too young for ${s.dname}.`);\n    if (Number(s.squad_count) >= Number(s.squad_max)) return fail(`${s.dname} squads can have up to ${s.squad_max} players. Remove someone first.`, 409);\n    if (Number(s.squad_count) >= Number(s.paid_players || 0))\n      return fail(`You've paid for ${s.paid_players} players and all places are used. Pay for extra players to add ${first}.`, 409);\n    st.push(`UPDATE team_members SET status = 'ACTIVE' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n    st.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, jersey_number) VALUES (${add(s.eid)}, ${add(s.tid)}, ${add(s.tgt_id)}, NULL, ${add(s.tgt_jersey)})`);\n    message = `${first} is in the squad.`;\n  } else if (r.action === 'REJECT') {\n    if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad. Use Remove instead.`, 409);\n    st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n    message = `${first}'s request was declined.`;\n  } else {\n    if (s.tgt_status !== 'ACTIVE' || s.tgt_user) return fail(`${first} can't be removed here.`, 409);\n    st.push(`DELETE FROM tournament_entry_players WHERE entry_id = ${add(s.eid)} AND team_member_id = ${add(s.tgt_id)}`);\n    st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)}`);\n    message = `${first} was removed from the squad.`;\n  }\n  return [{ json: { ok: true, mode: 'RUN', has_files: false, sql: st.join('; '), params: p, message } }];\n}\n// PAY_EXTRA\nconst paid = Number(s.paid_players || 0), fee = Number(s.fee_per_player || 0) * r.extra;\nif (paid + r.extra > Number(s.squad_max))\n  return fail(`${s.dname} squads can have up to ${s.squad_max} players. You've paid for ${paid}, so you can add up to ${Math.max(0, s.squad_max - paid)} more.`);\nconst files = r.files.map(f => ({ ...f, key: `payment_proof/${s.coach_phone}/payment_proof_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${f.ext}` }));\nconst proof = files[0] ? files[0].key : null;\nst.push(`INSERT INTO entry_payments (entry_id, players, amount, utr, proof_key) VALUES (${add(s.eid)}, ${add(r.extra)}, ${add(fee)}, ${add(r.utr)}, ${add(proof)})`);\nst.push(`UPDATE tournament_entries SET paid_players = COALESCE(paid_players, 0) + ${add(r.extra)}, amount = amount + ${add(fee)}, ` +\n  `utr = COALESCE(${add(r.utr)}, utr), proof_key = COALESCE(${add(proof)}, proof_key), payment_claimed_at = NOW() WHERE id = ${add(s.eid)}`);\nconst inr = v => '\u20b9' + Number(v).toLocaleString('en-IN');\nst.push(`INSERT INTO notifications (user_id, type, title, body, data) VALUES (${add(s.organizer_user_id)}, 'ENTRY', ${add(`${s.team_name} paid for ${r.extra} more ${r.extra === 1 ? 'player' : 'players'}`)}, ` +\n  `${add(`Paid ${inr(fee)} by UPI${r.utr ? ` (UTR ${r.utr})` : ''}. ${s.team_name} has now paid for ${paid + r.extra} players. Check the payment in the Teams tab.`)}, ` +\n  `JSON_OBJECT('tournament_code', ${add(s.tcode)}))`);\nreturn [{ json: { ok: true, mode: 'RUN', has_files: files.length > 0, files, sql: st.join('; '), params: p,\n  message: `Thanks! You've paid for ${r.extra} more ${r.extra === 1 ? 'player' : 'players'}. You can now approve up to ${paid + r.extra} players.` } }];"
       },
       "name": "Plan",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "1816c772-c376-4574-99bb-4a18b708f0bb"
+      "id": "5918b661-b79a-4b79-a902-f3d46995eb9a"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "71e49189-2d77-46b0-8b96-0410f78fbbd0",
+              "id": "634dc49a-edf3-4119-853a-3b72b33db0e0",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "3efeb879-c948-4250-a97f-df57908fccb5"
+      "id": "48c5acdb-58f0-4d59-a85a-d18efcfbc010"
     },
     {
       "parameters": {
@@ -151,7 +151,7 @@
           },
           "conditions": [
             {
-              "id": "62b523ff-cf02-450f-a6e4-bff994c32e56",
+              "id": "92146c94-7c54-48b3-abbe-2e1e73f08f78",
               "leftValue": "={{ $json.mode === 'LOAD' }}",
               "rightValue": "",
               "operator": {
@@ -172,7 +172,7 @@
         1320,
         -100
       ],
-      "id": "4db3ccbc-285d-46aa-9cd4-2b13d75b31ae"
+      "id": "a6926231-5c4d-4a8f-a26a-673198314287"
     },
     {
       "parameters": {
@@ -185,7 +185,7 @@
         1540,
         -600
       ],
-      "id": "2c15c015-31cb-464a-9335-e6fdffa10a57"
+      "id": "de7fc658-42cd-42f9-a08b-5ea613da21b9"
     },
     {
       "parameters": {
@@ -209,7 +209,7 @@
         1740,
         -600
       ],
-      "id": "0b14fe8e-b9b1-4514-9fd7-61af7ce5ee4a",
+      "id": "bd695eab-d3e0-4775-914c-0d7b45959f98",
       "onError": "continueRegularOutput"
     },
     {
@@ -241,7 +241,7 @@
         1940,
         -600
       ],
-      "id": "2a85d004-987a-48ca-bb09-21f1919c6339",
+      "id": "baa810b2-70d1-48eb-acd3-8a27a816f9fb",
       "onError": "continueRegularOutput"
     },
     {
@@ -255,7 +255,7 @@
         2140,
         -600
       ],
-      "id": "8cc113e9-fae1-4812-95e6-c734a010ec03"
+      "id": "8c933f61-e10c-4cbc-8057-1206e80fea59"
     },
     {
       "parameters": {
@@ -268,7 +268,7 @@
           },
           "conditions": [
             {
-              "id": "f60d125c-8d91-475d-a8df-3fbcfc992dc3",
+              "id": "81cec46d-0a47-43b8-a2ec-8d78397dc27f",
               "leftValue": "={{ $json.has_files }}",
               "rightValue": "",
               "operator": {
@@ -289,7 +289,7 @@
         1540,
         -100
       ],
-      "id": "2a45c181-9c67-46e0-92ea-01e7fabcae37"
+      "id": "9cd38e26-54c2-4c9e-a8de-f58e764fe057"
     },
     {
       "parameters": {
@@ -302,7 +302,7 @@
         1760,
         -300
       ],
-      "id": "8b9188e9-8ee7-4b84-898a-95a8b6d7076c"
+      "id": "def681ce-4026-415b-9a74-a8bab4ab98ed"
     },
     {
       "parameters": {
@@ -315,7 +315,7 @@
         1960,
         -300
       ],
-      "id": "e1c34287-0004-4aba-8d1c-4317d40711ed"
+      "id": "75a36b9e-e175-4270-8047-bb7f1d808e43"
     },
     {
       "parameters": {
@@ -339,7 +339,7 @@
         2160,
         -300
       ],
-      "id": "98d3a22e-f526-4719-a9f7-29f7009a7ebc",
+      "id": "8ff4c080-7093-472b-a203-d95fc883909b",
       "executeOnce": true
     },
     {
@@ -353,7 +353,7 @@
         2260,
         -150
       ],
-      "id": "f50b8dae-c83d-4e14-a706-067fe077c07b"
+      "id": "a84438f8-0c6c-45d5-bdde-82988bf7e7f8"
     },
     {
       "parameters": {
@@ -377,7 +377,7 @@
         2360,
         -300
       ],
-      "id": "3dfbbe4d-fcda-4e0b-b734-6d2bc518bb55"
+      "id": "defa29a5-eaf8-4147-bce7-3ab23c479014"
     },
     {
       "parameters": {
@@ -390,7 +390,7 @@
         2560,
         -300
       ],
-      "id": "480c1610-e3cc-4bee-a756-7ef3a8c1e3c1"
+      "id": "64e04da4-e4f4-4c09-9547-a4df59246c98"
     },
     {
       "parameters": {
@@ -436,7 +436,7 @@
         2760,
         -300
       ],
-      "id": "a5e79065-8807-42cb-a290-bafce98b7a9d",
+      "id": "9b29b800-29ee-4ade-beff-2e8be75c0ce7",
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 1000
@@ -452,7 +452,7 @@
         2960,
         -300
       ],
-      "id": "f1bd3ca8-f020-4d9a-ab1e-f79be0cda890"
+      "id": "3834698d-3909-4df4-8b5e-a1fb931786d0"
     },
     {
       "parameters": {
@@ -465,7 +465,7 @@
           },
           "conditions": [
             {
-              "id": "3672ac38-08fb-456e-841c-f3c1c5a086c4",
+              "id": "4ced5191-036f-491c-a953-ab15107c0448",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -486,7 +486,7 @@
         3160,
         -300
       ],
-      "id": "cc015881-5ba4-494c-80c8-e3ded7bf5ca9"
+      "id": "c7002924-045c-4b4e-81c1-985f4cc9d2a3"
     },
     {
       "parameters": {
@@ -503,7 +503,7 @@
         3380,
         -300
       ],
-      "id": "a5ea5edf-70e1-4508-8b0a-074e3b596835",
+      "id": "807f0a41-7bd7-4223-a011-78c1fb92010c",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -523,7 +523,7 @@
         3600,
         -300
       ],
-      "id": "75cbe607-4e0b-4725-bb6c-d19872530ef0"
+      "id": "e964884b-52ce-4e1d-b4ac-965d4a4fec34"
     },
     {
       "parameters": {
@@ -536,7 +536,7 @@
         3380,
         100
       ],
-      "id": "ca238e4e-39b5-496b-b853-137dbd371522"
+      "id": "7a6b5c25-ccf6-4c5f-9759-68cc34555279"
     },
     {
       "parameters": {
@@ -553,7 +553,7 @@
         3900,
         0
       ],
-      "id": "4ad94908-fd50-44af-a07c-b9d22fa87dc9"
+      "id": "637d0e93-6373-47de-8464-8ad63e867333"
     }
   ],
   "connections": {

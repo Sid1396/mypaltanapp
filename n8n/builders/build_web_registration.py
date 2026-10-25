@@ -265,8 +265,7 @@ if (team.length < 2 || team.length > 40 || !/^[\p{L}\p{N}][\p{L}\p{N} .'&-]*$/u.
 const area = str(b.area).replace(/\s+/g, ' ').slice(0, 100) || null;
 const division = Number(b.division_id);
 if (!(Number.isInteger(division) && division > 0)) return bad('Choose the age group.');
-const players = Number(b.players);
-if (!(Number.isInteger(players) && players > 0 && players <= 40)) return bad('Choose how many players you are paying for.');
+// Every team pays for a full squad of its age group (worked out from the division below).
 const utr = str(b.utr) === '' ? null : str(b.utr).replace(/\s/g, '').toUpperCase();
 if (utr !== null && !/^[A-Z0-9]{6,30}$/.test(utr)) return bad('Enter the UTR or transaction number exactly as shown in your UPI app.');
 if (b.agree_rules !== '1' || b.agree_refund !== '1' || b.agree_parents !== '1') return bad('Please tick all three boxes to continue.');
@@ -281,7 +280,7 @@ const words = team.toUpperCase().replace(/[^A-Z0-9 ]/g, '').split(' ').filter(Bo
 const short = (words.length > 1 ? words.map(w => w[0]).join('') : (words[0] || 'TEAM')).slice(0, 4).padEnd(2, 'X');
 const key = rand(32, 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789');
 count();
-return [{ json: { ok: true, slug, coach, phone, team, short, area, division, players, utr, files, key, key_hash: sha256hex(key),
+return [{ json: { ok: true, slug, coach, phone, team, short, area, division, utr, files, key, key_hash: sha256hex(key),
   code: rand(6, 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') } , binary: bin }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load",
@@ -300,11 +299,10 @@ const fail = (m, status = 422) => [{ json: { ok: false, status, body: { success:
 if (!s.tid) return fail('This registration link is not valid.', 404);
 if (s.status !== 'REGISTRATION_OPEN' || Number(s.closed) === 1) return fail('Registration for this tournament is closed.', 409);
 if (!s.did) return fail('Choose the age group.');
-if (r.players < s.squad_min || r.players > s.squad_max)
-  return fail(`${s.dname} squads need ${s.squad_min} to ${s.squad_max} players. Choose a number in that range.`);
+const players = Number(s.squad_max);  // a full squad
 if (Number(s.same_name) > 0) return fail(`A team called ${r.team} is already registered. Please use a different name.`, 409);
 if (Number(s.code_taken) > 0) return fail('Please tap Register again.', 409);
-const perPlayer = Number(s.fee_per_player || 0), fee = perPlayer * r.players;
+const perPlayer = Number(s.fee_per_player || 0), fee = perPlayer * players;
 const status = Number(s.approved) >= Number(s.max_teams) ? 'WAITLISTED' : 'PENDING';
 const proof = (r.files.find(f => f.field === 'payment') || {}).key || null;
 const logo = (r.files.find(f => f.field === 'logo') || {}).key || '""" + DEFAULT_TEAM_LOGO + r"""';
@@ -317,16 +315,16 @@ st.push(`INSERT INTO teams (code, sport, name, short_name, logo_key, area, city,
 st.push('SET @t = LAST_INSERT_ID()');
 st.push("INSERT INTO team_members (team_id, user_id, role, added_by) VALUES (@t, @u, 'COACH', @u)");
 st.push(`INSERT INTO tournament_entries (tournament_id, division_id, team_id, registered_by, status, payment_method, amount, paid_players, manage_key_hash, utr, proof_key, payment_claimed_at) ` +
-  `VALUES (${add(s.tid)}, ${add(s.did)}, @t, @u, ${add(status)}, 'UPI', ${add(fee)}, ${add(r.players)}, ${add(r.key_hash)}, ${add(r.utr)}, ${add(proof)}, NOW())`);
+  `VALUES (${add(s.tid)}, ${add(s.did)}, @t, @u, ${add(status)}, 'UPI', ${add(fee)}, ${add(players)}, ${add(r.key_hash)}, ${add(r.utr)}, ${add(proof)}, NOW())`);
 st.push('SET @e = LAST_INSERT_ID()');
-st.push(`INSERT INTO entry_payments (entry_id, players, amount, utr, proof_key) VALUES (@e, ${add(r.players)}, ${add(fee)}, ${add(r.utr)}, ${add(proof)})`);
+st.push(`INSERT INTO entry_payments (entry_id, players, amount, utr, proof_key) VALUES (@e, ${add(players)}, ${add(fee)}, ${add(r.utr)}, ${add(proof)})`);
 const inr = v => '₹' + Number(v).toLocaleString('en-IN');
 st.push(`INSERT INTO notifications (user_id, type, title, body, data) VALUES (${add(s.organizer_user_id)}, 'ENTRY', ${add(`${r.team} registered for ${s.dname}`)}, ` +
-  `${add(`Registered on the website by ${r.coach} for ${r.players} players. Paid ${inr(fee)} by UPI${r.utr ? ` (UTR ${r.utr})` : ''}. Players join after the coach approves them. Review it in the Teams tab.`)}, ` +
+  `${add(`Registered on the website by ${r.coach} for a full squad of ${players} players. Paid ${inr(fee)} by UPI${r.utr ? ` (UTR ${r.utr})` : ''}. Players join after the coach approves them. Review it in the Teams tab.`)}, ` +
   `JSON_OBJECT('tournament_code', ${add(s.code)}))`);
 st.push('SELECT @e AS entry_id');
 return [{ json: { ok: true, sql: st.join('; '), params: p, has_files: r.files.length > 0,
-  result: { team_code: r.code, team: r.team, manage_key: r.key, division: s.dname, players: r.players, amount: fee, status } } }];""", [880, -100]))
+  result: { team_code: r.code, team: r.team, manage_key: r.key, division: s.dname, players, amount: fee, status } } }];""", [880, -100]))
 n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
 n.append(iff("Has Files?", "={{ $json.has_files }}", [1320, -200]))
 upload_chain(n, c, "Has Files?", 1540, -400, "Save", "Upload Failed")
@@ -439,7 +437,7 @@ count();
 return [{ json: { ok: true, hash: sha256hex(key), action, member, extra, utr, files }, binary: $input.first().binary || {} }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load",
-    "SELECT e.id AS eid, e.status AS estatus, e.paid_players, e.amount, t.id AS tid, t.code AS tcode, t.name AS tname, "
+    "SELECT e.id AS eid, e.status AS estatus, e.reject_reason, e.paid_players, e.amount, t.id AS tid, t.code AS tcode, t.name AS tname, "
     "DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.start_date, '%e %b') AS day, (t.start_date <= CURDATE()) AS started, t.organizer_user_id, "
     "(SELECT l.slug FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS slug, "
     "(SELECT l.fee_per_player FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS fee_per_player, "
@@ -470,7 +468,7 @@ if (r.action === 'LOAD') {
     .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'PENDING' ? -1 : 1));
   return [{ json: { ok: true, mode: 'LOAD', data: { tournament: { code: s.tcode, name: s.tname, start_date: s.start_date, started: Number(s.started) === 1, slug: s.slug },
     team: { code: s.team_code, name: s.team_name, status: s.estatus, division: s.dname, min_age: s.min_age, max_age: s.max_age, squad_min: s.squad_min, squad_max: s.squad_max,
-      paid_players: Number(s.paid_players || 0), squad_count: Number(s.squad_count), amount: Number(s.amount) },
+      paid_players: Number(s.paid_players || 0), squad_count: Number(s.squad_count), amount: Number(s.amount), reject_reason: s.reject_reason || null },
     fee_per_player: Number(s.fee_per_player || 0), members, payments: parse(s.payments) || [] } } }];
 }
 if (['REJECTED', 'WITHDRAWN'].includes(s.estatus)) return fail(`${s.team_name} is no longer registered, so the squad can't be changed.`, 409);
