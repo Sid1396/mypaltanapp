@@ -102,19 +102,24 @@ out['staff_tournament_teams'] = workflow("StfTrnTms026mPxJ", "MyPaltan v2 - Staf
 # ───────────── 2. Confirm or reject a team (same rules and messages as the organiser in the app) ─────────────
 n, c = [], {}
 n.append(webhook("v2/staff/tournament-teams/update", "POST"))
-n.append(code("Check Request", STAFF_AUTH + r"""
+n.append(code("Check Request", STAFF_AUTH + SHA256 + r"""
 const b = $json.body || {};
 const bad = m => [{ json: { ok: false, status: 422, body: { success: false, message: m } } }];
 const id = Number(b.entry_id), action = String(b.action ?? '').toUpperCase();
-if (!(Number.isInteger(id) && id > 0) || !['APPROVE', 'REJECT'].includes(action)) return bad('Invalid request.');
+if (!(Number.isInteger(id) && id > 0) || !['APPROVE', 'REJECT', 'NEW_LINK'].includes(action)) return bad('Invalid request.');
 const reason = String(b.reason ?? '').trim().replace(/\s+/g, ' ');
 if (action === 'REJECT' && (reason.length < 3 || reason.length > 200)) return bad('Write a short reason for the coach (3-200 characters).');
-return [{ json: { ok: true, sid: auth.sid, id, action, reason } }];""", [220, 0]))
+// NEW_LINK: a fresh private coach link (the old one stops working). Only its SHA-256 is stored.
+const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+const g = globalThis.crypto && globalThis.crypto.getRandomValues ? globalThis.crypto.getRandomValues(new Uint32Array(32)) : null;
+const key = Array.from({ length: 32 }, (_, i) => chars[(g ? g[i] : Math.floor(Math.random() * 4294967296)) % chars.length]).join('');
+return [{ json: { ok: true, sid: auth.sid, id, action, reason, key, key_hash: sha256hex(key) } }];""", [220, 0]))
 n.append(iff("Request OK?", "={{ $json.ok }}", [440, 0]))
 staff_gate(n, c, "Request OK?", 660)
 c["Request OK?"]["main"] = [[{"node": "Load Staff", "type": "main", "index": 0}], [{"node": "Respond", "type": "main", "index": 0}]]
 n.append(mysql("Load Entry",
     "SELECT e.id, e.status, e.registered_by, e.division_id, t.code, t.name AS tname, t.organizer_user_id, tm.name AS team_name, d.name AS dname, d.max_teams, "
+    "(SELECT l.slug FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS slug, (SELECT u.phone FROM app_users u WHERE u.id = e.registered_by) AS coach_phone, "
     "(SELECT COUNT(*) FROM tournament_entries x WHERE x.division_id = e.division_id AND x.status = 'APPROVED') AS approved "
     "FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id "
     "LEFT JOIN tournament_divisions d ON d.id = e.division_id WHERE e.id = $1",
@@ -127,6 +132,11 @@ if (!s.id) return fail(404, 'Registration not found.');
 // Staff act on behalf of the organiser, so the review is recorded under the organiser's account.
 const reviewer = s.organizer_user_id;
 let sql, params, message, note;
+if (r.action === 'NEW_LINK') {
+  if (!s.slug) return fail(409, 'This tournament has no web registration link.');
+  return [{ json: { ok: true, sql: 'UPDATE tournament_entries SET manage_key_hash = $1 WHERE id = $2', params: [r.key_hash, s.id],
+    message: `New coach link for ${s.team_name}. The old link no longer works.`, link: { path: `/register/${s.slug}/manage/${r.key}`, coach_phone: s.coach_phone, team: s.team_name } } }];
+}
 if (r.action === 'APPROVE') {
   if (!['PENDING', 'WAITLISTED'].includes(s.status)) return fail(409, 'This registration is not waiting for approval.');
   if (Number(s.approved) >= Number(s.max_teams)) return fail(409, `${s.dname} is full (${s.max_teams} teams). Reject a team or add places first.`);
@@ -149,7 +159,8 @@ n.append(iff("Plan OK?", "={{ $json.ok }}", [1760, -200]))
 n.append(mysql("Run", "={{ $json.sql }}", "={{ $json.params }}", [1980, -300], continue_on_error=True))
 n.append(code("Build Response", r"""
 if ($json.error || /ER_|syntax/i.test(String($json.message || ''))) return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];
-return [{ json: { status: 200, body: { success: true, message: $('Plan').first().json.message } } }];""", [2200, -300]))
+const p = $('Plan').first().json;
+return [{ json: { status: 200, body: { success: true, message: p.message, ...(p.link ? { link: p.link } : {}) } } }];""", [2200, -300]))
 n.append(respond([2420, 0]))
 link(c, "Webhook", "Check Request"); link(c, "Check Request", "Request OK?")
 link(c, "Load Entry", "Plan"); link(c, "Plan", "Plan OK?")

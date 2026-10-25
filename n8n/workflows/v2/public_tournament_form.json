@@ -19,12 +19,12 @@
         0,
         0
       ],
-      "id": "5b77d1f6-2dd7-4214-9ed8-714796e92408",
-      "webhookId": "726580a0-6782-4b41-9667-8514c35338fd"
+      "id": "81b9eb19-58e6-46a0-aa34-130368fb3949",
+      "webhookId": "d8554d88-1ddc-4e03-abca-d9ce544f7e17"
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 600) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\nconst count = () => { store.hits[ip] = [...mine, now]; };\n\nconst q = $in.query || {};\nconst slug = String(q.slug ?? '').toLowerCase(), team = String(q.team ?? '').toUpperCase();\nif (!/^[a-z0-9-]{2,40}$/.test(slug)) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This registration link is not valid.' } } }];\nif (team && !/^[A-Z0-9]{6}$/.test(team)) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This team link is not valid.' } } }];\ncount();\nreturn [{ json: { ok: true, slug, team } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 600) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\nconst count = () => { store.hits[ip] = [...mine, now]; };\n\nconst q = $in.query || {};\nconst slug = String(q.slug ?? '').toLowerCase(), team = String(q.team ?? '').toUpperCase();\nconst phone = String(q.phone ?? '').replace(/\\D/g, '').slice(-10);\nif (phone && !/^[6-9]\\d{9}$/.test(phone)) return [{ json: { ok: false, status: 422, body: { success: false, message: 'Enter a valid 10-digit mobile number.' } } }];\nif (!/^[a-z0-9-]{2,40}$/.test(slug)) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This registration link is not valid.' } } }];\nif (team && !/^[A-Z0-9]{6}$/.test(team)) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This team link is not valid.' } } }];\ncount();\nreturn [{ json: { ok: true, slug, team, phone } }];"
       },
       "name": "Check Request",
       "type": "n8n-nodes-base.code",
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "d1558816-ad1f-45f9-8a93-3a138b97fa39"
+      "id": "745864fa-f315-4d50-8b3c-ba9b791ba26d"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "df030804-440d-4bcf-9bc4-44a576e7d299",
+              "id": "d69569a7-d607-49fe-9fff-6c5844d2e924",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,14 +67,14 @@
         440,
         0
       ],
-      "id": "d5dacc4f-f6f2-4dd2-9f57-2e97ce5d3e4b"
+      "id": "b30b9c11-04a7-47cf-9929-6499c251fbf7"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT l.fee_per_player, t.id AS tid, t.code, t.name, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, (t.registration_deadline < NOW()) AS closed, (t.start_date <= CURDATE()) AS started, t.area, t.city, (SELECT JSON_ARRAYAGG(g.name) FROM tournament_grounds g WHERE g.tournament_id = t.id) AS grounds, p.upi_id, p.upi_name, p.qr_key, p.note AS pay_note, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'min_age', d.min_age, 'max_age', d.max_age, 'squad_min', d.squad_min, 'squad_max', d.squad_max, 'max_teams', d.max_teams, 'approved', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED'), 'waiting', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status IN ('PENDING', 'WAITLISTED')))) FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, tm.code AS team_code, tm.name AS team_name, e.status AS entry_status, e.division_id AS team_division, e.paid_players, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id LEFT JOIN teams tm ON tm.code = $2 LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id WHERE l.slug = $1",
+        "query": "SELECT l.fee_per_player, t.id AS tid, t.code, t.name, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, (t.registration_deadline < NOW()) AS closed, (t.start_date <= CURDATE()) AS started, t.area, t.city, (SELECT JSON_ARRAYAGG(g.name) FROM tournament_grounds g WHERE g.tournament_id = t.id) AS grounds, p.upi_id, p.upi_name, p.qr_key, p.note AS pay_note, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'min_age', d.min_age, 'max_age', d.max_age, 'squad_min', d.squad_min, 'squad_max', d.squad_max, 'max_teams', d.max_teams, 'approved', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED'), 'waiting', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status IN ('PENDING', 'WAITLISTED')))) FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, tm.code AS team_code, tm.name AS team_name, e.status AS entry_status, e.division_id AS team_division, e.paid_players, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, (SELECT cu.name FROM app_users cu WHERE cu.phone = $3) AS coach_name, (SELECT JSON_ARRAYAGG(JSON_OBJECT('team', x.name, 'team_code', x.code, 'division_id', ce.division_id, 'status', ce.status, 'paid_players', ce.paid_players, 'reject_reason', ce.reject_reason, 'squad', (SELECT COUNT(*) FROM tournament_entry_players cp WHERE cp.entry_id = ce.id), 'waiting', (SELECT COUNT(*) FROM team_members cw WHERE cw.team_id = x.id AND cw.status = 'PENDING'))) FROM tournament_entries ce JOIN teams x ON x.id = ce.team_id JOIN app_users ru ON ru.id = ce.registered_by WHERE ce.tournament_id = t.id AND ru.phone = $3) AS coach_teams FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id LEFT JOIN teams tm ON tm.code = $2 LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id WHERE l.slug = $1",
         "options": {
-          "queryReplacement": "={{ [$json.slug, $json.team || '-'] }}"
+          "queryReplacement": "={{ [$json.slug, $json.team || '-', $json.phone || '-'] }}"
         }
       },
       "name": "Load",
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "e1c3afc3-08ff-4020-840a-ac52a5402a21",
+      "id": "07bd0543-e3ac-40de-8b33-22d5cdd58bea",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst r = $in, q = $('Check Request').first().json;\nif (!r.tid) return [{ json: { done: true, status: 404, body: { success: false, message: 'This registration link is not valid.' } } }];\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nconst divisions = (parse(r.divisions) || []).sort((a, b) => a.id - b.id);\nconst team = q.team && r.team_code && r.entry_status ? (d => ({ code: r.team_code, name: r.team_name, status: r.entry_status,\n  division_id: r.team_division, division: d ? d.name : null, min_age: d ? d.min_age : null, max_age: d ? d.max_age : null,\n  squad_max: d ? d.squad_max : null, paid_players: r.paid_players, squad_count: Number(r.squad_count) }))(divisions.find(d => d.id === r.team_division)) : null;\nconst body = { success: true,\n  tournament: { code: r.code, name: r.name, start_date: r.start_date, deadline: r.deadline, area: r.area, city: r.city, grounds: parse(r.grounds) || [],\n    open: r.status === 'REGISTRATION_OPEN' && Number(r.closed) !== 1, started: Number(r.started) === 1 },\n  fee_per_player: Number(r.fee_per_player), divisions, team,\n  payment: r.upi_id ? { upi_id: r.upi_id, upi_name: r.upi_name, note: r.pay_note || null, qr_url: null } : null };\nif (q.team && !team) body.team_error = 'This team link is not valid.';\n// The QR link is signed once and reused for about 20 hours.\nconst cached = ($getWorkflowStaticData('global').qr || {})[r.qr_key];\nif (!r.qr_key || !body.payment) return [{ json: { done: true, status: 200, body } }];\nif (cached && cached.exp > Date.now()) { body.payment.qr_url = cached.url; return [{ json: { done: true, status: 200, body } }]; }\nreturn [{ json: { done: false, body, qr_key: r.qr_key } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst r = $in, q = $('Check Request').first().json;\nif (!r.tid) return [{ json: { done: true, status: 404, body: { success: false, message: 'This registration link is not valid.' } } }];\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nconst divisions = (parse(r.divisions) || []).sort((a, b) => a.id - b.id);\nconst team = q.team && r.team_code && r.entry_status ? (d => ({ code: r.team_code, name: r.team_name, status: r.entry_status,\n  division_id: r.team_division, division: d ? d.name : null, min_age: d ? d.min_age : null, max_age: d ? d.max_age : null,\n  squad_max: d ? d.squad_max : null, paid_players: r.paid_players, squad_count: Number(r.squad_count) }))(divisions.find(d => d.id === r.team_division)) : null;\nconst body = { success: true,\n  tournament: { code: r.code, name: r.name, start_date: r.start_date, deadline: r.deadline, area: r.area, city: r.city, grounds: parse(r.grounds) || [],\n    open: r.status === 'REGISTRATION_OPEN' && Number(r.closed) !== 1, started: Number(r.started) === 1 },\n  fee_per_player: Number(r.fee_per_player), divisions, team,\n  payment: r.upi_id ? { upi_id: r.upi_id, upi_name: r.upi_name, note: r.pay_note || null, qr_url: null } : null };\nif (q.team && !team) body.team_error = 'This team link is not valid.';\n// With ?phone=, the teams this coach has registered (no private links: those are only shown once, or resent by staff).\nif (q.phone) body.coach = { phone: q.phone, name: r.coach_name || null,\n  teams: (parse(r.coach_teams) || []).map(t => ({ ...t, division: (divisions.find(d => d.id === t.division_id) || {}).name || null })) };\n// The QR link is signed once and reused for about 20 hours.\nconst cached = ($getWorkflowStaticData('global').qr || {})[r.qr_key];\nif (!r.qr_key || !body.payment) return [{ json: { done: true, status: 200, body } }];\nif (cached && cached.exp > Date.now()) { body.payment.qr_url = cached.url; return [{ json: { done: true, status: 200, body } }]; }\nreturn [{ json: { done: false, body, qr_key: r.qr_key } }];"
       },
       "name": "Shape",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "7911ceed-336c-4601-b597-3a71c7126543"
+      "id": "0453eb88-77d6-4975-b0b6-c9b48b0a86df"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "b744742e-fb84-42b4-8e2a-6633431ce001",
+              "id": "5cfebabc-7ec3-4fb4-a0b1-2ac06bd887fc",
               "leftValue": "={{ $json.done }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "59d5f9e8-9e0c-4bba-9feb-c536287d9e72"
+      "id": "27009f71-bf6d-4faa-a7ec-1c3e0b2b6910"
     },
     {
       "parameters": {
@@ -151,7 +151,7 @@
         1320,
         -200
       ],
-      "id": "2575ac81-5dfd-4ae5-a858-43dd81b3c8a8"
+      "id": "1305c5f3-dfb9-45d6-bd7e-1bd8faae43ee"
     },
     {
       "parameters": {
@@ -175,7 +175,7 @@
         1520,
         -200
       ],
-      "id": "939ae0c0-d2e8-48e7-bfd5-9af10be107f6"
+      "id": "05189a83-5069-4cfa-b065-711b5140e0c1"
     },
     {
       "parameters": {
@@ -206,7 +206,7 @@
         1720,
         -200
       ],
-      "id": "bf031ae1-1c07-4cb4-b2d1-3718f4dd31af",
+      "id": "0cea8275-5430-4f22-bdbb-ddc6ce9bc07f",
       "onError": "continueRegularOutput"
     },
     {
@@ -220,7 +220,7 @@
         1920,
         -200
       ],
-      "id": "64e3db01-08b3-46d4-9d9e-0dfce8fceb4f"
+      "id": "847d5ce6-f319-401a-abfc-38ec695bee46"
     },
     {
       "parameters": {
@@ -237,7 +237,7 @@
         2140,
         0
       ],
-      "id": "efefa150-b9af-4b89-96b6-91cec57cbadc"
+      "id": "5082a547-72df-4f86-97b0-3c9b2340343c"
     }
   ],
   "connections": {

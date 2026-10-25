@@ -189,10 +189,12 @@ n.append(webhook("v2/public/tournament-form", "GET"))
 n.append(code("Check Request", rate(600) + r"""
 const q = $in.query || {};
 const slug = String(q.slug ?? '').toLowerCase(), team = String(q.team ?? '').toUpperCase();
+const phone = String(q.phone ?? '').replace(/\D/g, '').slice(-10);
+if (phone && !/^[6-9]\d{9}$/.test(phone)) return [{ json: { ok: false, status: 422, body: { success: false, message: 'Enter a valid 10-digit mobile number.' } } }];
 if (!/^[a-z0-9-]{2,40}$/.test(slug)) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This registration link is not valid.' } } }];
 if (team && !/^[A-Z0-9]{6}$/.test(team)) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This team link is not valid.' } } }];
 count();
-return [{ json: { ok: true, slug, team } }];""", [220, 0]))
+return [{ json: { ok: true, slug, team, phone } }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load",
     "SELECT l.fee_per_player, t.id AS tid, t.code, t.name, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, "
@@ -204,11 +206,18 @@ n.append(mysql("Load",
     "'waiting', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status IN ('PENDING', 'WAITLISTED')))) "
     "FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, "
     "tm.code AS team_code, tm.name AS team_name, e.status AS entry_status, e.division_id AS team_division, e.paid_players, "
-    "(SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count "
+    "(SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, "
+    "(SELECT cu.name FROM app_users cu WHERE cu.phone = $3) AS coach_name, "
+    "(SELECT JSON_ARRAYAGG(JSON_OBJECT('team', x.name, 'team_code', x.code, 'division_id', ce.division_id, 'status', ce.status, "
+    "'paid_players', ce.paid_players, 'reject_reason', ce.reject_reason, "
+    "'squad', (SELECT COUNT(*) FROM tournament_entry_players cp WHERE cp.entry_id = ce.id), "
+    "'waiting', (SELECT COUNT(*) FROM team_members cw WHERE cw.team_id = x.id AND cw.status = 'PENDING'))) "
+    "FROM tournament_entries ce JOIN teams x ON x.id = ce.team_id JOIN app_users ru ON ru.id = ce.registered_by "
+    "WHERE ce.tournament_id = t.id AND ru.phone = $3) AS coach_teams "
     "FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id "
     "LEFT JOIN teams tm ON tm.code = $2 LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id "
     "WHERE l.slug = $1",
-    "={{ [$json.slug, $json.team || '-'] }}", [660, -100], always=True))
+    "={{ [$json.slug, $json.team || '-', $json.phone || '-'] }}", [660, -100], always=True))
 n.append(code("Shape", r"""
 const r = $json, q = $('Check Request').first().json;
 if (!r.tid) return [{ json: { done: true, status: 404, body: { success: false, message: 'This registration link is not valid.' } } }];
@@ -223,6 +232,9 @@ const body = { success: true,
   fee_per_player: Number(r.fee_per_player), divisions, team,
   payment: r.upi_id ? { upi_id: r.upi_id, upi_name: r.upi_name, note: r.pay_note || null, qr_url: null } : null };
 if (q.team && !team) body.team_error = 'This team link is not valid.';
+// With ?phone=, the teams this coach has registered (no private links: those are only shown once, or resent by staff).
+if (q.phone) body.coach = { phone: q.phone, name: r.coach_name || null,
+  teams: (parse(r.coach_teams) || []).map(t => ({ ...t, division: (divisions.find(d => d.id === t.division_id) || {}).name || null })) };
 // The QR link is signed once and reused for about 20 hours.
 const cached = ($getWorkflowStaticData('global').qr || {})[r.qr_key];
 if (!r.qr_key || !body.payment) return [{ json: { done: true, status: 200, body } }];
