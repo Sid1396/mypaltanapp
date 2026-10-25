@@ -289,7 +289,9 @@ n.append(mysql("Load",
     "(SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED') AS approved, "
     "u.id AS uid, (SELECT COUNT(*) FROM tournament_entries e JOIN teams x ON x.id = e.team_id WHERE e.tournament_id = t.id "
     "AND LOWER(x.name) = LOWER($4) AND e.status NOT IN ('REJECTED', 'WITHDRAWN')) AS same_name, "
-    "(SELECT COUNT(*) FROM teams x WHERE x.code = $5) AS code_taken "
+    "(SELECT COUNT(*) FROM teams x WHERE x.code = $5) AS code_taken, "
+    "(SELECT x.name FROM tournament_entries e JOIN teams x ON x.id = e.team_id JOIN app_users ru ON ru.id = e.registered_by "
+    "WHERE e.tournament_id = t.id AND e.division_id = d.id AND ru.phone = $3 AND e.status NOT IN ('REJECTED', 'WITHDRAWN') LIMIT 1) AS coach_team "
     "FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id "
     "LEFT JOIN tournament_divisions d ON d.id = $2 AND d.tournament_id = t.id LEFT JOIN app_users u ON u.phone = $3 WHERE l.slug = $1",
     "={{ [$json.slug, $json.division, $json.phone, $json.team, $json.code] }}", [660, -100], always=True))
@@ -300,6 +302,8 @@ if (!s.tid) return fail('This registration link is not valid.', 404);
 if (s.status !== 'REGISTRATION_OPEN' || Number(s.closed) === 1) return fail('Registration for this tournament is closed.', 409);
 if (!s.did) return fail('Choose the age group.');
 const players = Number(s.squad_max);  // a full squad
+// One team per coach in each age group; the same coach can register teams in other age groups.
+if (s.coach_team) return fail(`You have already registered ${s.coach_team} for ${s.dname}. A coach can register one team per age group. Choose another age group.`, 409);
 if (Number(s.same_name) > 0) return fail(`A team called ${r.team} is already registered. Please use a different name.`, 409);
 if (Number(s.code_taken) > 0) return fail('Please tap Register again.', 409);
 const perPlayer = Number(s.fee_per_player || 0), fee = perPlayer * players;
