@@ -1,7 +1,11 @@
 {
+  "updatedAt": "2026-10-18T16:20:16.235Z",
+  "createdAt": "2026-10-18T16:20:16.235Z",
   "id": "StfEvtPay026mPxB",
   "name": "MyPaltan v2 - Staff Event Payment Details",
-  "active": false,
+  "description": null,
+  "active": true,
+  "isArchived": false,
   "nodes": [
     {
       "id": "0eddb299-234d-4956-a90f-829eb6dd9774",
@@ -81,7 +85,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, role, is_active FROM users WHERE id = $1",
+        "query": "SELECT id, name, role, is_active, event_slug FROM users WHERE id = $1",
         "options": {
           "queryReplacement": "={{ [$json.sid] }}"
         }
@@ -104,7 +108,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst s = $in;\nif (!s.id || Number(s.is_active) !== 1) return [{ json: { ok: false, status: 401, body: { success: false, message: 'Please log in again.' } } }];\nif (s.role !== 'superadmin') return [{ json: { ok: false, status: 403, body: { success: false, message: 'Only the MyPaltan owner can review approvals.' } } }];\nreturn [{ json: { ok: true, sid: s.id, staff_name: s.name } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in;\nif (!s.id || Number(s.is_active) !== 1) return [{ json: { ok: false, status: 401, body: { success: false, message: 'Please log in again.' } } }];\n// The owner sees everything; a partner account only its own event (e.g. SSPL organisers).\nconst want = String($('Check Request').first().json.slug || '');\nconst partnerOk = s.role === 'partner' && s.event_slug && s.event_slug === want;\nif (s.role !== 'superadmin' && !partnerOk) return [{ json: { ok: false, status: 403, body: { success: false, message: s.role === 'partner' ? 'Your account can only open its own event.' : 'Only the MyPaltan owner can review approvals.' } } }];\nreturn [{ json: { ok: true, sid: s.id, staff_name: s.name } }];"
       }
     },
     {
@@ -720,5 +724,35 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "bc655d9b-a2cd-43de-8d08-d575798c0b1b",
+  "activeVersionId": "bc655d9b-a2cd-43de-8d08-d575798c0b1b",
+  "versionCounter": 3,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-10-18T16:20:16.240Z",
+      "createdAt": "2026-10-18T16:20:16.240Z",
+      "role": "workflow:owner",
+      "workflowId": "StfEvtPay026mPxB",
+      "projectId": "fRKzmE3Ijn4hJawA",
+      "project": {
+        "updatedAt": "2026-04-09T18:43:11.519Z",
+        "createdAt": "2026-04-09T17:06:30.742Z",
+        "id": "fRKzmE3Ijn4hJawA",
+        "name": "Sippzy Official <sippzy.official@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "2f4439bd-5910-4453-8e08-ddcea83022ba"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "Version bc655d9b",
+    "description": ""
+  }
 }
