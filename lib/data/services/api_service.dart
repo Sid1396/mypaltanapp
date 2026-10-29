@@ -136,6 +136,12 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  /// Sends batched home-banner views and taps: [{banner_id, views, taps}].
+  Future<Map<String, dynamic>> trackBanners(List<Map<String, int>> events) => _send(
+        () => http.post(Uri.parse('$_base/home/banners/track'), headers: _authHeaders, body: jsonEncode({'events': events})),
+        authed: true,
+      );
+
   /// Sends batched sponsor impressions: [{sponsor_id, views, taps}].
   Future<Map<String, dynamic>> trackSponsors(List<Map<String, int>> events) => _send(
         () => http.post(Uri.parse('$_base/sponsors/track'), headers: _authHeaders, body: jsonEncode({'events': events})),

@@ -1,7 +1,11 @@
 {
+  "updatedAt": "2026-10-06T21:40:30.543Z",
+  "createdAt": "2026-10-06T21:40:30.543Z",
   "id": "KANtgyKn9vtIlZu6",
   "name": "MyPaltan v2 - Home",
+  "description": null,
   "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "id": "747dcad0-e345-4313-a279-0c8f4b63615b",
@@ -78,7 +82,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT 'banner' AS _set, id, title, subtitle, badge, image_url, image_key, theme, cta_label, link_type, link_value FROM home_banners WHERE is_active = 1 AND (starts_at IS NULL OR starts_at <= NOW()) AND (ends_at IS NULL OR ends_at > NOW()) ORDER BY sort_order, id; SELECT 'tournament' AS _set, NULL AS slug, t.code, t.name, t.sport, NULL AS logo_url, t.logo_key, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, t.area, t.city, (SELECT IF(COUNT(*) > 1, JSON_ARRAY(CONCAT(COUNT(*), ' divisions'),   IF(MAX(v.entry_fee) = 0, 'Free entry', CONCAT(IF(MIN(v.entry_fee) = MAX(v.entry_fee), 'Entry \u20b9', 'Entry from \u20b9'), FORMAT(MIN(v.entry_fee), 0, 'en_IN')))),   JSON_ARRAY(CASE MIN(v.format) WHEN 'LEAGUE' THEN 'League' WHEN 'KNOCKOUT' THEN 'Knockout' ELSE 'Groups + knockout' END,   IF(MAX(v.entry_fee) > 0, CONCAT('Entry \u20b9', FORMAT(MAX(v.entry_fee), 0, 'en_IN')), 'Free entry'))) FROM tournament_divisions v WHERE v.tournament_id = t.id) AS tags, t.status FROM tournaments t WHERE t.visibility = 'PUBLIC' AND t.status IN ('REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'FIXTURES_READY', 'LIVE') AND t.end_date >= CURDATE() ORDER BY t.start_date LIMIT 20; SELECT 'tournament' AS _set, slug, NULL AS code, name, sport, logo_url, logo_key, DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date, area, city, tags, status FROM featured_tournaments WHERE is_active = 1 ORDER BY sort_order, id; SELECT 'unread' AS _set, COUNT(n.id) AS cnt FROM app_users u LEFT JOIN notifications n ON n.user_id = u.id AND n.read_at IS NULL WHERE u.phone = $1",
+        "query": "SELECT 'banner' AS _set, id, kind, title, subtitle, badge, image_url, image_key, theme, cta_label, link_type, link_value FROM home_banners WHERE is_active = 1 AND (starts_at IS NULL OR starts_at <= NOW()) AND (ends_at IS NULL OR ends_at > NOW()) ORDER BY sort_order, id; SELECT 'tournament' AS _set, NULL AS slug, t.code, t.name, t.sport, NULL AS logo_url, t.logo_key, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, t.area, t.city, (SELECT IF(COUNT(*) > 1, JSON_ARRAY(CONCAT(COUNT(*), ' divisions'),   IF(MAX(v.entry_fee) = 0, 'Free entry', CONCAT(IF(MIN(v.entry_fee) = MAX(v.entry_fee), 'Entry \u20b9', 'Entry from \u20b9'), FORMAT(MIN(v.entry_fee), 0, 'en_IN')))),   JSON_ARRAY(CASE MIN(v.format) WHEN 'LEAGUE' THEN 'League' WHEN 'KNOCKOUT' THEN 'Knockout' ELSE 'Groups + knockout' END,   IF(MAX(v.entry_fee) > 0, CONCAT('Entry \u20b9', FORMAT(MAX(v.entry_fee), 0, 'en_IN')), 'Free entry'))) FROM tournament_divisions v WHERE v.tournament_id = t.id) AS tags, t.status FROM tournaments t WHERE t.visibility = 'PUBLIC' AND t.status IN ('REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'FIXTURES_READY', 'LIVE') AND t.end_date >= CURDATE() ORDER BY t.start_date LIMIT 20; SELECT 'tournament' AS _set, slug, NULL AS code, name, sport, logo_url, logo_key, DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date, area, city, tags, status FROM featured_tournaments WHERE is_active = 1 ORDER BY sort_order, id; SELECT 'unread' AS _set, COUNT(n.id) AS cnt FROM app_users u LEFT JOIN notifications n ON n.user_id = u.id AND n.read_at IS NULL WHERE u.phone = $1",
         "options": {
           "queryReplacement": "={{ [$json.phone] }}"
         }
@@ -203,7 +207,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "\nconst rows = $('Load Home').all().map(i => i.json).filter(r => r && r._set);\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst signed = key => {\n  const t = key && tokenOf(key.startsWith('tournament_assets/') ? 'Assets Link' : 'Logo Link');\n  return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null;\n};\nconst parseTags = t => { if (Array.isArray(t)) return t; try { return JSON.parse(t || '[]'); } catch { return []; } };\n// Approved public tournaments first (they can be joined now), then the featured leagues.\nconst tournaments = rows.filter(r => r._set === 'tournament').map(r => ({\n  slug: r.slug || null, code: r.code || null, name: r.name, sport: r.sport, logo_url: signed(r.logo_key) || r.logo_url || null, start_date: r.start_date || null,\n  area: r.area || null, city: r.city, tags: parseTags(r.tags), status: r.status,\n}));\nconst banners = rows.filter(r => r._set === 'banner').map(r => ({\n  id: r.id, title: r.title, subtitle: r.subtitle || null, badge: r.badge || null, image_url: signed(r.image_key) || r.image_url || null,\n  theme: r.theme, cta_label: r.cta_label || null, link_type: r.link_type, link_value: r.link_value || null,\n}));\nconst unreadRow = rows.find(r => r._set === 'unread');\n\nreturn [{ json: { status: 200, body: {\n  success: true, banners, featured_tournaments: tournaments, unread_notifications: Number(unreadRow?.cnt || 0),\n  live_matches: [], next_match: null, my_teams: [], my_tournaments: [],\n} } }];"
+        "jsCode": "\nconst rows = $('Load Home').all().map(i => i.json).filter(r => r && r._set);\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst signed = key => {\n  const t = key && tokenOf(key.startsWith('tournament_assets/') ? 'Assets Link' : key.startsWith('home_banners/') ? 'Banner Link' : 'Logo Link');\n  return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null;\n};\nconst parseTags = t => { if (Array.isArray(t)) return t; try { return JSON.parse(t || '[]'); } catch { return []; } };\n// Approved public tournaments first (they can be joined now), then the featured leagues.\nconst tournaments = rows.filter(r => r._set === 'tournament').map(r => ({\n  slug: r.slug || null, code: r.code || null, name: r.name, sport: r.sport, logo_url: signed(r.logo_key) || r.logo_url || null, start_date: r.start_date || null,\n  area: r.area || null, city: r.city, tags: parseTags(r.tags), status: r.status,\n}));\nconst banners = rows.filter(r => r._set === 'banner').map(r => ({\n  id: r.id, kind: r.kind || 'CARD', title: r.title, subtitle: r.subtitle || null, badge: r.badge || null, image_url: signed(r.image_key) || r.image_url || null,\n  theme: r.theme, cta_label: r.cta_label || null, link_type: r.link_type, link_value: r.link_value || null,\n}));\nconst unreadRow = rows.find(r => r._set === 'unread');\n\nreturn [{ json: { status: 200, body: {\n  success: true, banners, featured_tournaments: tournaments, unread_notifications: Number(unreadRow?.cnt || 0),\n  live_matches: [], next_match: null, my_teams: [], my_tournaments: [],\n} } }];"
       }
     },
     {
@@ -222,6 +226,38 @@
           "responseCode": "={{ $json.status }}"
         }
       }
+    },
+    {
+      "id": "3970675e-a699-4346-9c31-094e7e795ba0",
+      "name": "Banner Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1740,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_download_authorization",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ bucketId: '57d8ff72a9534e199bf30918', fileNamePrefix: 'home_banners/', validDurationInSeconds: 86400 }) }}"
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -273,7 +309,7 @@
       "main": [
         [
           {
-            "node": "Build Response",
+            "node": "Banner Link",
             "type": "main",
             "index": 0
           }
@@ -330,10 +366,28 @@
           }
         ]
       ]
+    },
+    "Banner Link": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "690c0b5c-1451-4632-82a7-dfb60b7b6291",
+  "versionMetadata": {
+    "name": "Version 690c0b5c",
+    "description": ""
+  }
 }

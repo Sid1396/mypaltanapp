@@ -4,7 +4,6 @@ import '../../config/app_colors.dart';
 import '../../config/app_routes.dart';
 import '../../config/sports.dart';
 import '../../data/models/app_user.dart';
-import '../../data/models/home_models.dart';
 import '../../data/services/session_service.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/home_controller.dart';
@@ -13,13 +12,6 @@ import '../widgets/home_widgets.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
-
-  void _openBanner(HomeBanner b) {
-    if (b.linkType == 'TOURNAMENT') {
-      final t = Get.find<HomeController>().tournamentBySlug(b.linkValue);
-      if (t != null) Get.toNamed(AppRoutes.tournamentDetail, arguments: t);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +41,7 @@ class HomePage extends StatelessWidget {
                   if (c.errorMessage.value.isNotEmpty) _ErrorBanner(message: c.errorMessage.value, onRetry: c.load),
                   if (c.banners.isNotEmpty) ...[
                     SizedBox(height: SizeConfig.h(8)),
-                    BannerCarousel(banners: c.banners.toList(), onTap: _openBanner),
+                    BannerCarousel(banners: c.banners.toList(), onTap: c.openBanner, onSeen: c.bannerSeen),
                   ],
 
                   // Live now

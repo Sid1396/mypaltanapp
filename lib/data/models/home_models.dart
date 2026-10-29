@@ -1,5 +1,7 @@
 class HomeBanner {
   final int id;
+  /// IMAGE = a full sponsor / ad picture (2:1); CARD = text on a coloured card.
+  final String kind;
   final String title;
   final String? subtitle;
   final String? badge;
@@ -11,6 +13,7 @@ class HomeBanner {
 
   const HomeBanner({
     required this.id,
+    this.kind = 'CARD',
     required this.title,
     this.subtitle,
     this.badge,
@@ -22,9 +25,11 @@ class HomeBanner {
   });
 
   bool get isDark => theme == 'DARK';
+  bool get isImage => kind == 'IMAGE' && imageUrl != null;
 
   factory HomeBanner.fromJson(Map<String, dynamic> j) => HomeBanner(
         id: (j['id'] as num?)?.toInt() ?? 0,
+        kind: j['kind']?.toString() ?? 'CARD',
         title: j['title']?.toString() ?? '',
         subtitle: j['subtitle']?.toString(),
         badge: j['badge']?.toString(),

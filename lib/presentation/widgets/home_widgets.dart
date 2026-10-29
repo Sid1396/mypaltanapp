@@ -115,7 +115,9 @@ class SmallButton extends StatelessWidget {
 class BannerCarousel extends StatefulWidget {
   final List<HomeBanner> banners;
   final ValueChanged<HomeBanner> onTap;
-  const BannerCarousel({super.key, required this.banners, required this.onTap});
+  /// Called when a banner comes into view (for view counts).
+  final ValueChanged<HomeBanner>? onSeen;
+  const BannerCarousel({super.key, required this.banners, required this.onTap, this.onSeen});
 
   @override
   State<BannerCarousel> createState() => _BannerCarouselState();
@@ -129,11 +131,16 @@ class _BannerCarouselState extends State<BannerCarousel> {
   @override
   void initState() {
     super.initState();
+    if (widget.banners.isNotEmpty) WidgetsBinding.instance.addPostFrameCallback((_) => _seen(0));
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted || widget.banners.length < 2 || !_controller.hasClients) return;
       _controller.animateToPage((_page + 1) % widget.banners.length,
           duration: const Duration(milliseconds: 450), curve: Curves.easeInOut);
     });
+  }
+
+  void _seen(int i) {
+    if (mounted && i < widget.banners.length) widget.onSeen?.call(widget.banners[i]);
   }
 
   @override
@@ -146,14 +153,19 @@ class _BannerCarouselState extends State<BannerCarousel> {
   @override
   Widget build(BuildContext context) {
     final banners = widget.banners;
+    // Cards are 2:1 so sponsor pictures (made at 1200 × 600) show whole.
+    final cardWidth = SizeConfig.screenWidth * 0.9 - SizeConfig.w(10);
     return Column(
       children: [
         SizedBox(
-          height: SizeConfig.h(160),
+          height: cardWidth / 2,
           child: PageView.builder(
             controller: _controller,
             itemCount: banners.length,
-            onPageChanged: (i) => setState(() => _page = i),
+            onPageChanged: (i) {
+              setState(() => _page = i);
+              _seen(i);
+            },
             itemBuilder: (_, i) => Padding(
               padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(5)),
               child: _BannerCard(banner: banners[i], onTap: () => widget.onTap(banners[i])),
@@ -191,6 +203,24 @@ class _BannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (banner.isImage) {
+      return GestureDetector(
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(SizeConfig.r(20)),
+          child: Container(
+            color: _card,
+            child: Image.network(
+              banner.imageUrl!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+    }
     final dark = banner.isDark;
     return GestureDetector(
       onTap: onTap,
