@@ -8,6 +8,7 @@ import '../../data/models/app_user.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/session_service.dart';
 import '../../utils/helpers/image_prep.dart';
+import '../../utils/helpers/image_crop.dart';
 import '../../utils/helpers/snackbar_helper.dart';
 import '../../utils/mixins/logger_mixin.dart';
 
@@ -262,8 +263,10 @@ class OnboardingController extends GetxController with LoggerMixin {
     try {
       final picked = await _picker.pickImage(source: source, maxWidth: 1400, maxHeight: 1400, imageQuality: 92);
       if (picked == null) return;
+      final framed = await ImageCrop.frame(picked.path, ImageShape.square, circle: true);
+      if (framed == null) return;
       isPreparingPhoto.value = true;
-      photoPath.value = await ImagePrep.toJpeg(picked.path, ImageShape.square);
+      photoPath.value = await ImagePrep.toJpeg(framed, ImageShape.square);
     } catch (e) {
       final msg = e.toString();
       if (msg.contains('access_denied') || msg.contains('denied')) {

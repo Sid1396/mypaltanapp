@@ -8,6 +8,7 @@ import '../../config/app_routes.dart';
 import '../../data/models/tournament.dart';
 import '../../data/services/api_service.dart';
 import '../../utils/helpers/image_prep.dart';
+import '../../utils/helpers/image_crop.dart';
 import '../../utils/helpers/snackbar_helper.dart';
 import '../../utils/mixins/logger_mixin.dart';
 import 'division_draft.dart';
@@ -497,8 +498,10 @@ class CreateTournamentController extends GetxController with LoggerMixin {
     try {
       final picked = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2400, maxHeight: 2400, imageQuality: 95);
       if (picked == null) return null;
+      final framed = await ImageCrop.frame(picked.path, shape);
+      if (framed == null) return null;
       slot?.busy.value = true;
-      final path = await ImagePrep.toJpeg(picked.path, shape);
+      final path = await ImagePrep.toJpeg(framed, shape);
       return await _upload(kind, path, 'image/jpeg');
     } catch (e) {
       _pickError(e);

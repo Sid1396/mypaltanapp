@@ -10,6 +10,7 @@ import '../../data/models/team.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/deep_link_service.dart';
 import '../../utils/helpers/image_prep.dart';
+import '../../utils/helpers/image_crop.dart';
 import '../../utils/helpers/size_config.dart';
 import '../../utils/helpers/snackbar_helper.dart';
 import '../../utils/mixins/logger_mixin.dart';
@@ -21,8 +22,10 @@ Future<UploadedFile?> uploadSquareImage(String kind, UploadSlot slot, {ImageSour
   try {
     final picked = await ImagePicker().pickImage(source: source, maxWidth: 2000, maxHeight: 2000, imageQuality: 95);
     if (picked == null) return null;
+    final framed = await ImageCrop.frame(picked.path, ImageShape.square, circle: kind == 'PLAYER_PHOTO');
+    if (framed == null) return null;
     slot.busy.value = true;
-    final path = await ImagePrep.toJpeg(picked.path, ImageShape.square);
+    final path = await ImagePrep.toJpeg(framed, ImageShape.square);
     final res = await Get.find<ApiService>().uploadFile(kind, path, 'image/jpeg');
     if (res['success'] != true) {
       AppSnackbar.error('Upload failed', res['message']?.toString() ?? 'Please try again.');
