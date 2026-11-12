@@ -1,7 +1,11 @@
 {
+  "updatedAt": "2026-10-10T21:16:45.184Z",
+  "createdAt": "2026-10-10T21:16:45.184Z",
   "id": "FixturesGet26mP8",
   "name": "MyPaltan v2 - Fixtures",
+  "description": null,
   "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "id": "071b20d9-eda4-4d0a-95a0-350f0029ef8e",
@@ -368,5 +372,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "d107b8c5-9e5d-470e-8641-5fc5539997fc",
+  "sourceWorkflowId": null
 }

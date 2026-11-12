@@ -1,7 +1,11 @@
 {
+  "updatedAt": "2026-10-17T13:29:47.624Z",
+  "createdAt": "2026-10-17T13:29:47.624Z",
   "id": "TourStats026mPxF",
   "name": "MyPaltan v2 - Tournament Stats",
+  "description": null,
   "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "id": "e0254c26-aacc-4d0c-bb46-37e2406a48f9",
@@ -368,5 +372,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "8e5bbe9a-7eee-4547-88a0-201fb2379509",
+  "sourceWorkflowId": null
 }

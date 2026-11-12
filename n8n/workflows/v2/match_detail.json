@@ -1,7 +1,11 @@
 {
+  "updatedAt": "2026-10-17T05:18:58.185Z",
+  "createdAt": "2026-10-17T05:18:58.185Z",
   "id": "MatchDtl2026mPxC",
   "name": "MyPaltan v2 - Match Detail",
+  "description": null,
   "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "id": "ab0ddf30-9479-439e-8ed6-25e8db2e5d41",
@@ -368,5 +372,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "941bcd6d-80a4-4f60-9ee4-8eb11e989e56",
+  "sourceWorkflowId": null
 }
