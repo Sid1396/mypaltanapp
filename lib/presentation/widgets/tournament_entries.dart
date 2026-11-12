@@ -55,7 +55,7 @@ class MyEntryCard extends GetView<TournamentController> {
     if (controller.webLink != null) return _WebEntryCard(e: e, t: t);
     final div = t.divisions.firstWhereOrNull((d) => d.id == e.divisionId);
     final division = div?.name;
-    final squadOpen = e.isActive && t.status == 'REGISTRATION_OPEN';
+    final squadOpen = e.isActive && t.registrationOpen;
     final need = div != null && e.players < div.squadMin ? ' · need ${div.squadMin}' : '';
     final (String title, String body) = switch (e.status) {
       'APPROVED' => ('Your team is in!', '${e.teamName} has a confirmed place${division != null ? ' in $division' : ''}.'),

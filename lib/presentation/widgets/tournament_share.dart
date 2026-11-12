@@ -307,7 +307,7 @@ class TournamentPoster extends StatelessWidget {
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: u(9), vertical: u(4)),
                           decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(u(100))),
-                          child: Text(t.status == 'REGISTRATION_OPEN' ? 'REGISTRATION OPEN' : t.statusLabel.toUpperCase(), style: s(7.5, weight: FontWeight.w800, spacing: 0.6)),
+                          child: Text(t.registrationOpen ? 'REGISTRATION OPEN' : t.statusLabel.toUpperCase(), style: s(7.5, weight: FontWeight.w800, spacing: 0.6)),
                         ),
                       ],
                     ),

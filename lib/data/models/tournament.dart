@@ -269,7 +269,9 @@ class Tournament {
   });
 
   bool get isDraft => status == 'DRAFT';
-  String get statusLabel => TournamentOptions.statusLabels[status] ?? status;
+  /// Registration is open only until the deadline, even if the organiser hasn't closed it yet (same as the website).
+  bool get registrationOpen => status == 'REGISTRATION_OPEN' && (registrationDeadline == null || DateTime.now().isBefore(registrationDeadline!));
+  String get statusLabel => TournamentOptions.statusLabels[status == 'REGISTRATION_OPEN' && !registrationOpen ? 'REGISTRATION_CLOSED' : status] ?? status;
   String get location => [area, city].where((s) => s.isNotEmpty).join(', ');
   TournamentSponsor? get titleSponsor => sponsors.where((s) => s.isTitle).firstOrNull;
   bool get hasDivisions => divisions.length > 1;

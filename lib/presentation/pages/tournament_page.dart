@@ -889,7 +889,7 @@ class _BottomBar extends GetView<TournamentController> {
     } else if (t.isOwner) {
       label = 'Share tournament';
       onTap = () => showTournamentShareSheet(t);
-    } else if (t.status == 'REGISTRATION_OPEN') {
+    } else if (t.registrationOpen) {
       final mine = controller.myEntry;
       label = mine != null && mine.isActive ? 'Register another team' : 'Register my team';
       onTap = controller.register;
