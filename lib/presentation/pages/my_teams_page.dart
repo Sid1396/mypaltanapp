@@ -123,7 +123,7 @@ class TeamListCard extends StatelessWidget {
                   Text(role, style: tfStyle(10, weight: FontWeight.w800, color: t.role == 'PLAYER' ? Colors.white.withAlpha(120) : AppColors.primary)),
                   gapH(2),
                   Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(16, weight: FontWeight.w800)),
-                  Text('${Sports.byCode(t.sport)?.label ?? t.sport} · ${t.area} · ${t.members} ${t.members == 1 ? 'player' : 'players'}',
+                  Text([Sports.byCode(t.sport)?.label ?? t.sport, if (t.area.isNotEmpty) t.area, '${t.members} ${t.members == 1 ? 'player' : 'players'}'].join(' · '),
                       maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(12, color: Colors.white.withAlpha(140))),
                 ],
               ),
