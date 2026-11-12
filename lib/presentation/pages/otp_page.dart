@@ -19,9 +19,10 @@ class OtpPage extends StatefulWidget {
 class _OtpPageState extends State<OtpPage> {
   late final String _phone;
 
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  // One hidden field holds the whole code; the six boxes only show it. This way fast typing, paste and
+  // SMS auto-fill all land correctly, and backspace simply removes the last digit.
+  final TextEditingController _code = TextEditingController();
+  final FocusNode _focus = FocusNode();
 
   bool _loading = false;
   int _resendSeconds = 30;
@@ -32,19 +33,16 @@ class _OtpPageState extends State<OtpPage> {
     super.initState();
     _phone = (Get.arguments as String?) ?? '';
     _startTimer();
+    _focus.addListener(() => setState(() {})); // highlight the active box only while typing
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _focusNodes[0].requestFocus(),
+      (_) => _focus.requestFocus(),
     );
   }
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
+    _code.dispose();
+    _focus.dispose();
     _timer?.cancel();
     super.dispose();
   }
@@ -64,21 +62,13 @@ class _OtpPageState extends State<OtpPage> {
     });
   }
 
-  String get _otp => _controllers.map((c) => c.text).join();
+  String get _otp => _code.text;
   bool get _isComplete => _otp.length == 6;
 
-  void _onChanged(String value, int index) {
-    if (value.isNotEmpty) {
-      if (index < 5) {
-        _focusNodes[index + 1].requestFocus();
-      } else {
-        _focusNodes[index].unfocus();
-      }
-    } else if (value.isEmpty && index > 0) {
-      _focusNodes[index - 1].requestFocus();
-    }
+  void _onChanged(String value) {
     setState(() {});
     if (_isComplete) {
+      _focus.unfocus();
       Future.delayed(const Duration(milliseconds: 300), _verify);
     }
   }
@@ -106,11 +96,9 @@ class _OtpPageState extends State<OtpPage> {
   }
 
   void _clearBoxes() {
-    for (final c in _controllers) {
-      c.clear();
-    }
+    _code.clear();
     setState(() {});
-    _focusNodes[0].requestFocus();
+    _focus.requestFocus();
   }
 
   Future<void> _resend() async {
@@ -224,15 +212,45 @@ class _OtpPageState extends State<OtpPage> {
                     SizedBox(height: SizeConfig.h(40)),
 
                     // ── OTP boxes ─────────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(
-                        6,
-                        (i) => _OtpBox(
-                          controller: _controllers[i],
-                          focusNode: _focusNodes[i],
-                          onChanged: (v) => _onChanged(v, i),
-                        ),
+                    GestureDetector(
+                      onTap: () {
+                        _focus.requestFocus();
+                        SystemChannels.textInput.invokeMethod('TextInput.show');
+                      },
+                      child: Stack(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: List.generate(
+                              6,
+                              (i) => _OtpBox(
+                                digit: i < _otp.length ? _otp[i] : '',
+                                active: _focus.hasFocus && (i == _otp.length || (i == 5 && _isComplete)),
+                              ),
+                            ),
+                          ),
+                          // The real input, invisible, over the boxes.
+                          Positioned.fill(
+                            child: Opacity(
+                              opacity: 0,
+                              child: TextField(
+                                key: const ValueKey('otp-input'),
+                                controller: _code,
+                                focusNode: _focus,
+                                onChanged: _onChanged,
+                                keyboardType: TextInputType.number,
+                                autofillHints: const [AutofillHints.oneTimeCode],
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(6),
+                                ],
+                                showCursor: false,
+                                enableInteractiveSelection: false,
+                                decoration: const InputDecoration(border: InputBorder.none, counterText: ''),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
@@ -321,59 +339,35 @@ class _OtpPageState extends State<OtpPage> {
   }
 }
 
-// ─── OTP single-digit box ─────────────────────────────────────────────────────
+// ─── OTP single-digit box (display only) ──────────────────────────────────────
 
 class _OtpBox extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
+  final String digit;
+  final bool active;
 
-  const _OtpBox({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-  });
+  const _OtpBox({required this.digit, required this.active});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       width: SizeConfig.r(46),
       height: SizeConfig.r(56),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        onChanged: onChanged,
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(1),
-        ],
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withAlpha(8),
+        borderRadius: BorderRadius.circular(SizeConfig.r(12)),
+        border: Border.all(
+          color: active ? AppColors.primary : AppColors.primary.withAlpha(60),
+          width: active ? 1.8 : 1.2,
+        ),
+      ),
+      child: Text(
+        digit,
         style: TextStyle(
           color: Colors.white,
           fontFamily: 'Gilroy',
           fontWeight: FontWeight.w700,
           fontSize: SizeConfig.sp(20),
-        ),
-        decoration: InputDecoration(
-          counterText: '',
-          contentPadding: EdgeInsets.zero,
-          filled: true,
-          fillColor: AppColors.primary.withAlpha(8),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(SizeConfig.r(12)),
-            borderSide: BorderSide(
-              color: AppColors.primary.withAlpha(60),
-              width: 1.2,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(SizeConfig.r(12)),
-            borderSide: const BorderSide(
-              color: AppColors.primary,
-              width: 1.8,
-            ),
-          ),
         ),
       ),
     );
