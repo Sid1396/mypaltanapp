@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_routes.dart';
 import '../../data/services/api_service.dart';
@@ -250,15 +251,27 @@ class _LoginPageState extends State<LoginPage> {
 
                   SizedBox(height: SizeConfig.h(16)),
 
-                  Text(
-                    'By continuing, you agree to our\nTerms of Service & Privacy Policy',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withAlpha(110),
-                      fontFamily: 'Gilroy',
-                      fontWeight: FontWeight.w400,
-                      fontSize: SizeConfig.sp(12),
-                      height: 1.6,
+                  GestureDetector(
+                    key: const ValueKey('login-privacy'),
+                    onTap: () => launchUrl(Uri.parse('https://mypaltan.com/privacy'), mode: LaunchMode.externalApplication).catchError((_) => false),
+                    child: Text.rich(
+                      TextSpan(
+                        text: 'By continuing, you agree to our\n',
+                        children: [
+                          TextSpan(
+                            text: 'Privacy Policy',
+                            style: TextStyle(color: AppColors.primary, decoration: TextDecoration.underline, decorationColor: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withAlpha(110),
+                        fontFamily: 'Gilroy',
+                        fontWeight: FontWeight.w400,
+                        fontSize: SizeConfig.sp(12),
+                        height: 1.6,
+                      ),
                     ),
                   ),
                 ],

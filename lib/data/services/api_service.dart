@@ -136,6 +136,12 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  /// Deletes the logged-in person's account and personal data (Profile → Delete account).
+  Future<Map<String, dynamic>> deleteAccount() => _send(
+        () => http.post(Uri.parse('$_base/users/delete-account'), headers: _authHeaders, body: jsonEncode({'confirm': 'DELETE'})),
+        authed: true,
+      );
+
   /// The coach's squad for a tournament registered on mypaltan.com: load, or APPROVE / REJECT / REMOVE a player.
   /// Same endpoint and rules as the coach page on the website.
   Future<Map<String, dynamic>> manageWebSquad(int entryId, {String action = 'LOAD', int? memberId}) => _send(

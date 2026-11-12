@@ -101,7 +101,25 @@ class ProfilePage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  SizedBox(height: SizeConfig.h(120)),
+                  SizedBox(height: SizeConfig.h(12)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton(
+                        key: const ValueKey('profile-privacy'),
+                        onPressed: controller.openPrivacy,
+                        child: Text('Privacy policy', style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(13), color: Colors.white.withAlpha(150))),
+                      ),
+                      Text('·', style: TextStyle(color: Colors.white.withAlpha(80))),
+                      Obx(() => TextButton(
+                            key: const ValueKey('profile-delete-account'),
+                            onPressed: controller.deleting.value ? null : controller.deleteAccount,
+                            child: Text(controller.deleting.value ? 'Deleting…' : 'Delete account',
+                                style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(13), color: AppColors.negative)),
+                          )),
+                    ],
+                  ),
+                  SizedBox(height: SizeConfig.h(100)),
                 ],
               ),
             ),
