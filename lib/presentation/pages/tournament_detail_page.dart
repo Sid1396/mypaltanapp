@@ -4,9 +4,11 @@ import 'package:get/get.dart';
 import '../../config/app_colors.dart';
 import '../../config/sports.dart';
 import '../../data/models/home_models.dart';
+import '../../utils/helpers/snackbar_helper.dart';
+import '../controllers/home_controller.dart';
+import '../controllers/main_nav_controller.dart';
 import '../../utils/helpers/size_config.dart';
 import '../widgets/form_widgets.dart';
-import '../widgets/home_widgets.dart';
 
 class TournamentDetailPage extends StatelessWidget {
   const TournamentDetailPage({super.key});
@@ -141,13 +143,24 @@ class TournamentDetailPage extends StatelessWidget {
           ),
           SafeArea(
             top: false,
-            child: StepBottomButton(
-              label: t.status == 'REGISTRATION_OPEN' ? 'Register my team' : 'Notify me when registration opens',
-              onPressed: () => showComingSoon(
-                'Tournament registration',
-                detail: "We'll notify you when registrations for ${t.name} open.",
-              ),
-            ),
+            child: t.status == 'REGISTRATION_OPEN'
+                // Open leagues are listed as tournaments; registration happens there.
+                ? StepBottomButton(
+                    label: 'Register my team',
+                    onPressed: () {
+                      Get.back();
+                      if (Get.isRegistered<MainNavController>()) Get.find<MainNavController>().go(MainNavController.tournaments);
+                      AppSnackbar.info(t.name, 'Find ${t.name} in Tournaments and tap Register my team.');
+                    },
+                  )
+                : Obx(() {
+                    final home = Get.find<HomeController>();
+                    final on = home.interestedSlugs.contains(t.slug);
+                    return StepBottomButton(
+                      label: home.savingInterest.value ? 'Saving…' : (on ? "You'll be notified ✓ (tap to cancel)" : 'Notify me when registration opens'),
+                      onPressed: () => home.toggleInterest(t),
+                    );
+                  }),
           ),
         ],
       ),

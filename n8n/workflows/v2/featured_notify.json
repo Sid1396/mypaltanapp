@@ -1,0 +1,68 @@
+{
+  "id": "FeatNotify026mPx",
+  "name": "MyPaltan v2 - Featured Registration Notify",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "db8a8a18-522b-4c3d-b530-b26f83dee96c"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "START TRANSACTION; INSERT INTO notifications (user_id, type, title, body, data) SELECT fi.user_id, 'TOURNAMENT', LEFT(CONCAT(f.name, ': registration is open'), 120), 'Registration is open on MyPaltan. Open the Tournaments tab to register your team.', JSON_OBJECT('featured_slug', f.slug) FROM featured_interest fi JOIN featured_tournaments f ON f.slug = fi.slug WHERE f.status = 'REGISTRATION_OPEN' AND f.is_active = 1; DELETE fi FROM featured_interest fi JOIN featured_tournaments f ON f.slug = fi.slug WHERE f.status = 'REGISTRATION_OPEN' AND f.is_active = 1; COMMIT",
+        "options": {
+          "queryReplacement": ""
+        }
+      },
+      "name": "Notify And Clear",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "989c572a-5b15-4eb5-97c9-23470e2ec38e",
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Notify And Clear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

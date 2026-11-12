@@ -88,6 +88,60 @@ link(c, "Plan OK?", "Delete Data", 0); link(c, "Plan OK?", "Respond", 1)
 link(c, "Delete Data", "Delete Files"); link(c, "Delete Files", "Build Response"); link(c, "Build Response", "Respond")
 out['account_delete'] = workflow("AcctDelete026mPx", "MyPaltan v2 - Delete Account", n, c)
 
+# ───────────── Featured league: "Notify me when registration opens" (toggle) ─────────────
+n, c = [], {}
+n.append(webhook("v2/featured/interest", "POST"))
+n.append(code("Check Request", APP_AUTH + r"""
+const auth = verifyToken($in.headers);
+if (!auth.ok) return [{ json: { ok: false, status: 401, body: { success: false, message: auth.error } } }];
+const b = $in.body || {};
+const slug = String(b.slug || '').toLowerCase();
+if (!/^[a-z0-9-]{2,80}$/.test(slug)) return [{ json: { ok: false, status: 422, body: { success: false, message: 'Unknown league.' } } }];
+return [{ json: { ok: true, phone: auth.phone, slug, interested: b.interested !== false } }];""", [220, 0]))
+n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
+n.append(mysql("Load", "SELECT (SELECT id FROM app_users WHERE phone = $1 AND is_active = 1) AS uid, "
+    "(SELECT status FROM featured_tournaments WHERE slug = $2 AND is_active = 1) AS fstatus",
+    "={{ [$json.phone, $json.slug] }}", [660, -100], always=True))
+n.append(code("Plan", r"""
+const s = $json, r = $('Check Request').first().json;
+const fail = (st, m) => [{ json: { ok: false, status: st, body: { success: false, message: m } } }];
+if (!s.uid) return fail(401, 'Please log in again.');
+if (!s.fstatus) return fail(404, 'This league is no longer listed.');
+return [{ json: { ok: true, interested: r.interested,
+  sql: r.interested ? 'INSERT IGNORE INTO featured_interest (slug, user_id) VALUES ($1, $2)' : 'DELETE FROM featured_interest WHERE slug = $1 AND user_id = $2',
+  params: [r.slug, Number(s.uid)] } }];""", [880, -100]))
+n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
+n.append(mysql("Save", "={{ $json.sql }}", "={{ $json.params }}", [1320, -200], continue_on_error=True))
+n.append(code("Build Response", r"""
+if ($json.error || /ER_|syntax/i.test(String($json.message || ''))) return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];
+const on = $('Plan').first().json.interested;
+return [{ json: { status: 200, body: { success: true, interested: on,
+  message: on ? "You'll get a notification when registration opens." : "You won't be notified for this league." } } }];""", [1540, -200]))
+n.append(respond([1760, 0]))
+link(c, "Webhook", "Check Request"); link(c, "Check Request", "Valid?")
+link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
+link(c, "Load", "Plan"); link(c, "Plan", "Plan OK?")
+link(c, "Plan OK?", "Save", 0); link(c, "Plan OK?", "Respond", 1)
+link(c, "Save", "Build Response"); link(c, "Build Response", "Respond")
+out['featured_interest'] = workflow("FeatIntrst026mPx", "MyPaltan v2 - Featured Interest", n, c)
+
+# ───────────── Every 30 minutes: tell interested people when a featured league opens registration ─────────────
+n, c = [], {}
+n.append(node("Every 30 Minutes", "n8n-nodes-base.scheduleTrigger", 1.2, (0, 0),
+              {"rule": {"interval": [{"field": "minutes", "minutesInterval": 30}]}}))
+# One notification per person, then the interest list for that league is cleared so nobody is told twice.
+n.append(mysql("Notify And Clear",
+    "START TRANSACTION; "
+    "INSERT INTO notifications (user_id, type, title, body, data) "
+    "SELECT fi.user_id, 'TOURNAMENT', LEFT(CONCAT(f.name, ': registration is open'), 120), "
+    "'Registration is open on MyPaltan. Open the Tournaments tab to register your team.', JSON_OBJECT('featured_slug', f.slug) "
+    "FROM featured_interest fi JOIN featured_tournaments f ON f.slug = fi.slug WHERE f.status = 'REGISTRATION_OPEN' AND f.is_active = 1; "
+    "DELETE fi FROM featured_interest fi JOIN featured_tournaments f ON f.slug = fi.slug WHERE f.status = 'REGISTRATION_OPEN' AND f.is_active = 1; "
+    "COMMIT",
+    "", [220, 0], continue_on_error=True))
+link(c, "Every 30 Minutes", "Notify And Clear")
+out['featured_notify'] = workflow("FeatNotify026mPx", "MyPaltan v2 - Featured Registration Notify", n, c)
+
 for k, w in out.items():
     json.dump(w, open(os.path.join(OUT, f'{k}.json'), 'w'), indent=2)
     print(k, w['id'], len(w['nodes']), 'nodes')

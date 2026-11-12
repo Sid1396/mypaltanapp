@@ -14,6 +14,9 @@ class HomeController extends GetxController with LoggerMixin {
   final banners = <HomeBanner>[].obs;
   final tournaments = <FeaturedTournament>[].obs;
   final unreadNotifications = 0.obs;
+  /// Featured leagues the viewer asked to be notified about.
+  final interestedSlugs = <String>{}.obs;
+  final savingInterest = false.obs;
 
   // Filled once teams, tournaments and matches exist on the server.
   final liveMatches = <Map<String, dynamic>>[].obs;
@@ -38,6 +41,9 @@ class HomeController extends GetxController with LoggerMixin {
       }
       banners.assignAll(_list(res['banners']).map(HomeBanner.fromJson));
       tournaments.assignAll(_list(res['featured_tournaments']).map(FeaturedTournament.fromJson));
+      interestedSlugs
+        ..clear()
+        ..addAll(tournaments.where((t) => t.interested).map((t) => t.slug));
       unreadNotifications.value = (res['unread_notifications'] as num?)?.toInt() ?? 0;
       liveMatches.assignAll(_list(res['live_matches']));
       myTeams.assignAll(_list(res['my_teams']));
@@ -47,6 +53,26 @@ class HomeController extends GetxController with LoggerMixin {
       errorMessage.value = e.message;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// Turns "Notify me when registration opens" on or off for a featured league.
+  Future<void> toggleInterest(FeaturedTournament t) async {
+    if (savingInterest.value) return;
+    final on = !interestedSlugs.contains(t.slug);
+    savingInterest.value = true;
+    try {
+      final res = await Get.find<ApiService>().featuredInterest(t.slug, on);
+      if (res['success'] == true) {
+        on ? interestedSlugs.add(t.slug) : interestedSlugs.remove(t.slug);
+        AppSnackbar.success(t.name, res['message']?.toString() ?? 'Saved.');
+      } else {
+        AppSnackbar.error(t.name, res['message']?.toString() ?? 'Could not save. Please try again.');
+      }
+    } on ApiException catch (e) {
+      AppSnackbar.error(t.name, e.message);
+    } finally {
+      savingInterest.value = false;
     }
   }
 

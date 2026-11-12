@@ -54,6 +54,7 @@ class FeaturedTournament {
   final String city;
   final List<String> tags;
   final String status;
+  final bool interested; // the viewer tapped "Notify me when registration opens"
 
   const FeaturedTournament({
     required this.slug,
@@ -66,6 +67,7 @@ class FeaturedTournament {
     this.city = 'Mumbai',
     this.tags = const [],
     this.status = 'COMING_SOON',
+    this.interested = false,
   });
 
   static const _statusLabels = {
@@ -95,6 +97,7 @@ class FeaturedTournament {
         city: j['city']?.toString() ?? 'Mumbai',
         tags: ((j['tags'] as List?) ?? []).map((t) => t.toString()).toList(),
         status: j['status']?.toString() ?? 'COMING_SOON',
+        interested: j['interested'] == true,
       );
 }
 

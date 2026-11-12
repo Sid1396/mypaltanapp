@@ -136,6 +136,12 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  /// "Notify me when registration opens" on a featured league (or undo it).
+  Future<Map<String, dynamic>> featuredInterest(String slug, bool interested) => _send(
+        () => http.post(Uri.parse('$_base/featured/interest'), headers: _authHeaders, body: jsonEncode({'slug': slug, 'interested': interested})),
+        authed: true,
+      );
+
   /// Deletes the logged-in person's account and personal data (Profile → Delete account).
   Future<Map<String, dynamic>> deleteAccount() => _send(
         () => http.post(Uri.parse('$_base/users/delete-account'), headers: _authHeaders, body: jsonEncode({'confirm': 'DELETE'})),
