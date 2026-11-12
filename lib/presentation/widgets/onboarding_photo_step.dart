@@ -43,9 +43,10 @@ class OnboardingPhotoStep extends GetView<OnboardingController> {
                 child: Container(
                   width: size,
                   height: size,
-                  decoration: BoxDecoration(
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary.withAlpha(12)),
+                  // Ring drawn over the photo so it stays an even circle.
+                  foregroundDecoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppColors.primary.withAlpha(12),
                     border: Border.all(color: path != null ? AppColors.primary : AppColors.primary.withAlpha(60), width: 2.5),
                   ),
                   clipBehavior: Clip.antiAlias,

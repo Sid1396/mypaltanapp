@@ -180,7 +180,9 @@ class _Header extends StatelessWidget {
             child: Container(
               width: size,
               height: size,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary.withAlpha(30), border: Border.all(color: AppColors.primary, width: 1.5)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary.withAlpha(30)),
+              // Ring drawn over the photo so it stays an even circle (under the photo it only peeked out at the edges).
+              foregroundDecoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppColors.primary, width: 1.5)),
               clipBehavior: Clip.antiAlias,
               child: user?.photoUrl != null
                   ? Image.network(user!.photoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _initials())
