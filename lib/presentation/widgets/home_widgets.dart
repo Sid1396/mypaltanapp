@@ -7,6 +7,9 @@ import '../../config/sports.dart';
 import '../../data/models/home_models.dart';
 import '../../data/models/tournament.dart';
 import '../../utils/helpers/size_config.dart';
+import '../../utils/helpers/snackbar_helper.dart';
+import '../controllers/home_controller.dart';
+import '../controllers/main_nav_controller.dart';
 
 const _card = Color(0xFF1A1A1A);
 
@@ -479,7 +482,7 @@ void showCreateSheet() {
             SizedBox(height: SizeConfig.h(10)),
             option(Icons.sports_score_rounded, 'Score a match', 'Ball by ball, goal by goal', () {
               Get.back();
-              showComingSoon('Live scoring');
+              startScoring();
             }),
           ],
         ),
@@ -570,4 +573,17 @@ class MyTournamentCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Score a match": opens the user's live or next match (the scorer enters the match PIN there); otherwise
+/// explains that matches are scored from a tournament's fixtures and opens the Tournaments tab.
+void startScoring() {
+  final home = Get.isRegistered<HomeController>() ? Get.find<HomeController>() : null;
+  final match = home == null ? null : (home.liveMatches.isNotEmpty ? home.liveMatches.first : home.nextMatch.value);
+  if (match != null && match['id'] != null) {
+    Get.toNamed(AppRoutes.match, arguments: {'id': match['id']});
+    return;
+  }
+  if (Get.isRegistered<MainNavController>()) Get.find<MainNavController>().go(MainNavController.tournaments);
+  AppSnackbar.info('Score a match', 'Open your tournament, go to Fixtures and pick the match. The organiser gives scorers the scoring PIN.');
 }

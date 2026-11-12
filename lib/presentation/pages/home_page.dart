@@ -9,7 +9,9 @@ import '../../utils/helpers/size_config.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/main_nav_controller.dart';
 import '../widgets/home_widgets.dart';
-import 'my_teams_page.dart' show showJoinTeamWithCode;
+import '../../data/models/team.dart';
+import '../widgets/create_tournament_steps.dart' show fmtDateTime;
+import 'my_teams_page.dart' show showJoinTeamWithCode, TeamListCard;
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -54,20 +56,26 @@ class HomePage extends StatelessWidget {
                       decoration: BoxDecoration(color: c.liveMatches.isEmpty ? Colors.white.withAlpha(60) : AppColors.negative, shape: BoxShape.circle),
                     ),
                   ),
-                  const EmptyCard(
-                    icon: Icons.sensors_rounded,
-                    title: 'No live matches right now',
-                    message: 'When a match from your teams or tournaments is being scored, the live score shows up here.',
-                  ),
+                  if (c.liveMatches.isEmpty)
+                    const EmptyCard(
+                      icon: Icons.sensors_rounded,
+                      title: 'No live matches right now',
+                      message: 'When a match from your teams or tournaments is being scored, the live score shows up here.',
+                    )
+                  else
+                    for (final m in c.liveMatches) _HomeMatchCard(m: m),
 
                   // Next match
                   const SectionHeader(title: 'My next match'),
-                  EmptyCard(
-                    icon: Icons.event_rounded,
-                    title: 'No upcoming matches',
-                    message: 'Join a team or register for a tournament and your fixtures will appear here.',
-                    actions: [SmallButton(label: 'Find tournaments', onTap: () => nav.go(MainNavController.tournaments))],
-                  ),
+                  if (c.nextMatch.value != null)
+                    _HomeMatchCard(m: c.nextMatch.value!)
+                  else
+                    EmptyCard(
+                      icon: Icons.event_rounded,
+                      title: 'No upcoming matches',
+                      message: 'Join a team or register for a tournament and your fixtures will appear here.',
+                      actions: [SmallButton(label: 'Find tournaments', onTap: () => nav.go(MainNavController.tournaments))],
+                    ),
 
                   // Quick actions
                   const SectionHeader(title: 'Quick actions'),
@@ -95,15 +103,28 @@ class HomePage extends StatelessWidget {
 
                   // My teams
                   SectionHeader(title: 'My teams', actionLabel: 'See all', onAction: () => nav.go(MainNavController.myTeams)),
-                  EmptyCard(
-                    icon: Icons.shield_rounded,
-                    title: "You're not in a team yet",
-                    message: 'Ask your captain for the team link, or create your own team and invite players.',
-                    actions: [
-                      SmallButton(label: 'Join a team', filled: false, onTap: showJoinTeamWithCode),
-                      SmallButton(label: 'Create team', onTap: () => Get.toNamed(AppRoutes.teamForm)),
-                    ],
-                  ),
+                  if (c.myTeams.isNotEmpty)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
+                      child: Column(
+                        children: [
+                          for (final t in c.myTeams.take(3).map(MyTeam.fromJson)) ...[
+                            TeamListCard(t: t, onTap: () => Get.toNamed(AppRoutes.team, arguments: {'code': t.code})),
+                            SizedBox(height: SizeConfig.h(10)),
+                          ],
+                        ],
+                      ),
+                    )
+                  else
+                    EmptyCard(
+                      icon: Icons.shield_rounded,
+                      title: "You're not in a team yet",
+                      message: 'Ask your captain for the team link, or create your own team and invite players.',
+                      actions: [
+                        SmallButton(label: 'Join a team', filled: false, onTap: showJoinTeamWithCode),
+                        SmallButton(label: 'Create team', onTap: () => Get.toNamed(AppRoutes.teamForm)),
+                      ],
+                    ),
 
                   // Stats snapshot
                   const SectionHeader(title: 'My stats'),
@@ -185,9 +206,7 @@ class _Header extends StatelessWidget {
               // Ring drawn over the photo so it stays an even circle (under the photo it only peeked out at the edges).
               foregroundDecoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppColors.primary, width: 1.5)),
               clipBehavior: Clip.antiAlias,
-              child: user?.photoUrl != null
-                  ? Image.network(user!.photoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _initials())
-                  : _initials(),
+              child: user?.photoUrl != null ? Image.network(user!.photoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _initials()) : _initials(),
             ),
           ),
         ],
@@ -212,7 +231,7 @@ class _QuickActions extends StatelessWidget {
       (Icons.emoji_events_rounded, 'Create tournament', () => Get.toNamed(AppRoutes.createTournament)),
       (Icons.shield_rounded, 'Create team', () => Get.toNamed(AppRoutes.teamForm)),
       (Icons.qr_code_rounded, 'Join with code', showJoinTeamWithCode),
-      (Icons.sports_score_rounded, 'Score a match', () => showComingSoon('Live scoring')),
+      (Icons.sports_score_rounded, 'Score a match', startScoring),
     ];
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
@@ -292,7 +311,8 @@ class _StatsSnapshot extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(sport.label, style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(15), color: Colors.white)),
+                        Text(sport.label,
+                            style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(15), color: Colors.white)),
                         Text(Sports.labelOf(sport.roles, s.role),
                             style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(12), color: Colors.white.withAlpha(130))),
                       ],
@@ -353,6 +373,90 @@ class _ErrorBanner extends StatelessWidget {
             child: Text('Retry', style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(13), color: AppColors.primary)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A match on the home screen (next match or live): tournament, teams, time or live score. Opens the match.
+class _HomeMatchCard extends StatelessWidget {
+  final Map<String, dynamic> m;
+  const _HomeMatchCard({required this.m});
+
+  @override
+  Widget build(BuildContext context) {
+    final live = m['status'] == 'LIVE';
+    final when = fmtDateTime(DateTime.tryParse('${m['scheduled_at'] ?? ''}'.replaceFirst(' ', 'T')));
+    final pitch = m['pitch'] != null ? ' · Pitch ${m['pitch']}' : '';
+    Widget side(String name, String? logo, Object? score) => Expanded(
+          child: Column(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(SizeConfig.r(10)),
+                child: SizedBox(
+                  width: SizeConfig.r(44),
+                  height: SizeConfig.r(44),
+                  child: logo != null
+                      ? Image.network(logo, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFF2A2A2A)))
+                      : const ColoredBox(color: Color(0xFF2A2A2A)),
+                ),
+              ),
+              SizedBox(height: SizeConfig.h(6)),
+              Text(name,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(13), color: Colors.white)),
+              if (live && score != null)
+                Text('$score', style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w900, fontSize: SizeConfig.sp(22), color: Colors.white)),
+            ],
+          ),
+        );
+    return GestureDetector(
+      onTap: () => Get.toNamed(AppRoutes.match, arguments: {'id': m['id']}),
+      child: Container(
+        margin: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(10)),
+        padding: EdgeInsets.all(SizeConfig.r(14)),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(SizeConfig.r(18)),
+          border: Border.all(color: live ? AppColors.negative.withAlpha(120) : Colors.white.withAlpha(12)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                if (live) ...[
+                  Text('LIVE', style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w800, fontSize: SizeConfig.sp(11), color: AppColors.negative)),
+                  SizedBox(width: SizeConfig.w(8)),
+                ],
+                Expanded(
+                  child: Text('${m['tournament'] ?? ''}${m['division'] != null ? ' · ${m['division']}' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(12), color: Colors.white.withAlpha(150))),
+                ),
+              ],
+            ),
+            SizedBox(height: SizeConfig.h(12)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                side('${m['home'] ?? 'TBC'}', m['home_logo'] as String?, m['home_score']),
+                Padding(
+                  padding: EdgeInsets.only(top: SizeConfig.h(12)),
+                  child: Text('vs',
+                      style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(13), color: Colors.white.withAlpha(120))),
+                ),
+                side('${m['away'] ?? 'TBC'}', m['away_logo'] as String?, m['away_score']),
+              ],
+            ),
+            if (!live && when.isNotEmpty) ...[
+              SizedBox(height: SizeConfig.h(10)),
+              Text('$when$pitch', style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w600, fontSize: SizeConfig.sp(12.5), color: AppColors.primary)),
+            ],
+          ],
+        ),
       ),
     );
   }

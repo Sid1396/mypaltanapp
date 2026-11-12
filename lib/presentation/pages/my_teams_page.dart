@@ -74,7 +74,7 @@ class MyTeamsPage extends StatelessWidget {
                     for (final t in c.items)
                       Padding(
                         padding: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(12)),
-                        child: _TeamCard(t: t, onTap: () => c.open(t.code)),
+                        child: TeamListCard(t: t, onTap: () => c.open(t.code)),
                       ),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
@@ -89,10 +89,11 @@ class MyTeamsPage extends StatelessWidget {
   }
 }
 
-class _TeamCard extends StatelessWidget {
+/// A team row: logo, your role, name, sport, area and player count (My Teams tab and the home screen).
+class TeamListCard extends StatelessWidget {
   final MyTeam t;
   final VoidCallback onTap;
-  const _TeamCard({required this.t, required this.onTap});
+  const TeamListCard({super.key, required this.t, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
