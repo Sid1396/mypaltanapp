@@ -142,15 +142,23 @@ class RegisterTeamPage extends GetView<RegisterTeamController> {
 
   List<Widget> _paymentStep(RegisterTeamController c, RegOptions o) {
     final p = o.payment;
+    final web = c.web;
     return [
-      StepIntro(title: 'Pay the entry fee', subtitle: 'The organiser checks your payment and then confirms your team.'),
+      StepIntro(
+        title: web != null ? 'Pay and confirm' : 'Pay the entry fee',
+        subtitle: web != null
+            ? 'Every team pays for a full squad. MyPaltan checks your payment, then confirms your team and opens your player link for parents.'
+            : 'The organiser checks your payment and then confirms your team.',
+      ),
       gapH(16),
       _Summary(c: c),
       gapH(16),
-      if (p == null)
+      if (!c.needsPayment)
+        const SizedBox.shrink()
+      else if (p == null)
         const InfoNote('The organiser has not added payment details. Contact them before registering.')
       else ...[
-        if (p.acceptCash) ...[
+        if (p.acceptCash && web == null) ...[
           OptionCard(
             key: const ValueKey('reg-pay-upi'),
             title: 'Pay by UPI',
@@ -170,12 +178,15 @@ class RegisterTeamPage extends GetView<RegisterTeamController> {
           ),
           gapH(16),
         ],
-        if (c.method.value == 'UPI') ...[
+        if (web != null || c.method.value == 'UPI') ...[
           FormCard(
             padding: EdgeInsets.all(SizeConfig.r(16)),
             child: Column(
               children: [
                 Text(rupees(c.fee), style: tfStyle(30, weight: FontWeight.w900)),
+                if (web != null)
+                  Text('Full squad of ${c.paidPlayers} players × ${rupees(web.feePerPlayer)}',
+                      style: tfStyle(13, weight: FontWeight.w700, color: Colors.white.withAlpha(200))),
                 Text('to ${p.upiName}', style: tfStyle(13, color: Colors.white.withAlpha(160))),
                 if (p.qrUrl != null) ...[
                   gapH(14),
@@ -225,16 +236,20 @@ class RegisterTeamPage extends GetView<RegisterTeamController> {
             ),
           ),
           gapH(20),
-          const FormLabel('UTR number', hint: 'The 12-digit reference in your UPI app\'s payment details.'),
-          FieldTextInput(
-            key: const ValueKey('reg-utr'),
-            controller: c.utrCtrl,
-            hint: 'e.g. 412345678901',
-            maxLength: 30,
-            textCapitalization: TextCapitalization.characters,
-          ),
-          gapH(16),
-          const FormLabel('Payment screenshot', optional: true),
+          if (web == null) ...[
+            const FormLabel('UTR number', hint: 'The 12-digit reference in your UPI app\'s payment details.'),
+            FieldTextInput(
+              key: const ValueKey('reg-utr'),
+              controller: c.utrCtrl,
+              hint: 'e.g. 412345678901',
+              maxLength: 30,
+              textCapitalization: TextCapitalization.characters,
+            ),
+            gapH(16),
+          ],
+          web != null
+              ? const FormLabel('Payment screenshot', hint: 'The screenshot from your UPI app after paying.')
+              : const FormLabel('Payment screenshot', optional: true),
           Align(
             alignment: Alignment.centerLeft,
             child: UploadBox(
@@ -251,7 +266,54 @@ class RegisterTeamPage extends GetView<RegisterTeamController> {
         ] else
           InfoNote('Pay ${rupees(c.fee)} in cash to the organiser. Your place is confirmed only after they mark it paid.', icon: Icons.payments_rounded),
       ],
+      if (web != null) ...[
+        gapH(20),
+        FormCard(
+          padding: EdgeInsets.all(SizeConfig.r(14)),
+          child: Column(
+            children: [
+              _AgreeTick(
+                key: const ValueKey('reg-agree-rules'),
+                value: c.agreeRules,
+                text: 'I have read the tournament rules, and my team, players and parents will follow them.',
+              ),
+              _AgreeTick(key: const ValueKey('reg-agree-refund'), value: c.agreeRefund, text: 'I understand the entry fee is non-refundable.'),
+              _AgreeTick(
+                key: const ValueKey('reg-agree-parents'),
+                value: c.agreeParents,
+                text: "I have the permission of my players' parents or guardians to register them and share their details with the organisers.",
+              ),
+            ],
+          ),
+        ),
+      ],
     ];
+  }
+}
+
+/// One of the website's three registration boxes (same wording as mypaltan.com).
+class _AgreeTick extends StatelessWidget {
+  final RxBool value;
+  final String text;
+  const _AgreeTick({super.key, required this.value, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() => InkWell(
+          onTap: () => value.value = !value.value,
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: SizeConfig.h(8)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(value.value ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                    color: value.value ? AppColors.primary : Colors.white.withAlpha(120), size: SizeConfig.r(22)),
+                SizedBox(width: SizeConfig.w(10)),
+                Expanded(child: Text(text, style: tfStyle(13, color: Colors.white.withAlpha(210), height: 1.4))),
+              ],
+            ),
+          ),
+        ));
   }
 }
 
@@ -529,8 +591,13 @@ class _Summary extends StatelessWidget {
         children: [
           row('Team', c.team!.name),
           row('Division', d.name),
-          row('Squad', '${c.picked.length} players'),
-          row('Entry fee', d.entryFee > 0 ? rupees(d.entryFee) : 'Free'),
+          if (c.web != null) ...[
+            row('Squad', 'Full squad of ${c.paidPlayers} players'),
+            row('Entry fee', c.fee > 0 ? rupees(c.fee) : 'Free'),
+          ] else ...[
+            row('Squad', '${c.picked.length} players'),
+            row('Entry fee', d.entryFee > 0 ? rupees(d.entryFee) : 'Free'),
+          ],
           if (d.isFull) ...[
             gapH(8),
             const InfoNote('This division is full. Your team goes on the waitlist and moves up if a place opens.', icon: Icons.hourglass_top_rounded),

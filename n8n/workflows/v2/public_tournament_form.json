@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "8144e0ea-1d15-48eb-bb0f-8be03096bb53",
-      "webhookId": "6a31753f-5361-4fc9-b6e5-43701775c75b"
+      "id": "5cf6b609-42eb-4e40-9bea-e7fc608733f1",
+      "webhookId": "997b7b63-7854-4215-8b04-126dfc7221bc"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "eaf9ef0b-0ef4-4e09-b0e9-555d8d1d4d6e"
+      "id": "e832976c-5588-41f1-aa29-4c750cd9ee4e"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "32f21eb3-145e-4874-b3a8-1633494240ab",
+              "id": "d5aea6b8-9533-4af7-b958-1b887b285f22",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,12 +67,12 @@
         440,
         0
       ],
-      "id": "74b4ae94-878d-4624-aaf5-6614aaddf913"
+      "id": "5f4b07af-a47e-494b-b9f0-6081719ff842"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT l.fee_per_player, t.id AS tid, t.code, t.name, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, (t.registration_deadline < NOW()) AS closed, (t.start_date <= CURDATE()) AS started, t.area, t.city, (SELECT JSON_ARRAYAGG(g.name) FROM tournament_grounds g WHERE g.tournament_id = t.id) AS grounds, p.upi_id, p.upi_name, p.qr_key, p.note AS pay_note, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'min_age', d.min_age, 'max_age', d.max_age, 'squad_min', d.squad_min, 'squad_max', d.squad_max, 'max_teams', d.max_teams, 'approved', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED'), 'waiting', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status IN ('PENDING', 'WAITLISTED')))) FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, tm.code AS team_code, tm.name AS team_name, e.status AS entry_status, e.division_id AS team_division, e.paid_players, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, (SELECT cu.name FROM app_users cu WHERE cu.phone = $3) AS coach_name, (SELECT COUNT(*) FROM coach_web_pins cp JOIN app_users cu ON cu.id = cp.user_id WHERE cu.phone = $3) AS coach_has_pin, (SELECT COUNT(*) FROM tournament_entries ce JOIN app_users ru ON ru.id = ce.registered_by WHERE ce.tournament_id = t.id AND ru.phone = $3) AS coach_team_count FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id LEFT JOIN teams tm ON tm.code = $2 LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id WHERE l.slug = $1",
+        "query": "SELECT l.fee_per_player, t.id AS tid, t.code, t.name, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, (t.registration_deadline < NOW()) AS closed, (t.start_date <= CURDATE()) AS started, t.area, t.city, (SELECT JSON_ARRAYAGG(g.name) FROM tournament_grounds g WHERE g.tournament_id = t.id) AS grounds, p.upi_id, p.upi_name, p.qr_key, p.note AS pay_note, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'min_age', d.min_age, 'max_age', d.max_age, 'squad_min', d.squad_min, 'squad_max', d.squad_max, 'max_teams', d.max_teams, 'approved', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED'), 'waiting', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status IN ('PENDING', 'WAITLISTED')))) FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, tm.code AS team_code, tm.name AS team_name, e.status AS entry_status, e.division_id AS team_division, COALESCE(e.paid_players, (SELECT dd.squad_max FROM tournament_divisions dd WHERE dd.id = e.division_id)) AS paid_players, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, (SELECT cu.name FROM app_users cu WHERE cu.phone = $3) AS coach_name, (SELECT COUNT(*) FROM coach_web_pins cp JOIN app_users cu ON cu.id = cp.user_id WHERE cu.phone = $3) AS coach_has_pin, (SELECT COUNT(*) FROM tournament_entries ce JOIN app_users ru ON ru.id = ce.registered_by WHERE ce.tournament_id = t.id AND ru.phone = $3) AS coach_team_count FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id LEFT JOIN tournament_payment_details p ON p.tournament_id = t.id LEFT JOIN teams tm ON tm.code = $2 LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id WHERE l.slug = $1",
         "options": {
           "queryReplacement": "={{ [$json.slug, $json.team || '-', $json.phone || '-'] }}"
         }
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "fcc3717e-7732-4be4-82fb-2ebf2588a07b",
+      "id": "8112072a-b3b0-4d89-8373-366e14d6d944",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "095ee75c-ae19-483b-a0c8-96dfe853ae33"
+      "id": "335f3b01-bf96-41d6-9f54-51a79b59ce56"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "1caad8bb-afc6-4f83-a8c5-1e2ea17ba840",
+              "id": "470cb535-ef2f-47a0-bf0a-12788a0f52f3",
               "leftValue": "={{ $json.done }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "99d02a35-fc2c-43ba-a97d-f7a943f37fb8"
+      "id": "c0fae385-41bc-44f8-9697-248732026574"
     },
     {
       "parameters": {
@@ -151,7 +151,7 @@
         1320,
         -200
       ],
-      "id": "d72fc968-a290-4353-bf6c-a91808a984d1"
+      "id": "7e16d5c4-3fff-4105-b70f-c38f3bd27b00"
     },
     {
       "parameters": {
@@ -175,7 +175,7 @@
         1520,
         -200
       ],
-      "id": "a70419ef-e94d-43f1-8c0b-1d6bbe2a9d58"
+      "id": "11a5c53a-fc9f-4abd-934b-18dc5d936ce1"
     },
     {
       "parameters": {
@@ -206,7 +206,7 @@
         1720,
         -200
       ],
-      "id": "fd97e600-7c9f-44a5-89b3-5b8a6c46d310",
+      "id": "cd366b46-36a7-49e8-b066-df2f264a9113",
       "onError": "continueRegularOutput"
     },
     {
@@ -220,7 +220,7 @@
         1920,
         -200
       ],
-      "id": "82a2cd1d-eb75-43e5-8fbf-2dbcdbe13d5e"
+      "id": "b21975da-f979-4754-b03f-51d728af60ab"
     },
     {
       "parameters": {
@@ -237,7 +237,7 @@
         2140,
         0
       ],
-      "id": "ad959033-c429-42d2-8946-50e0ef5fcf4a"
+      "id": "769d2192-213b-47e1-98c8-c02a1e38f7ef"
     }
   ],
   "connections": {

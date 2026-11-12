@@ -30,6 +30,10 @@ class RegisterTeamController extends GetxController {
   final method = 'UPI'.obs;
   final utrCtrl = TextEditingController();
   final proof = UploadSlot();
+  // Website tournaments: the same three boxes as the mypaltan.com form.
+  final agreeRules = false.obs;
+  final agreeRefund = false.obs;
+  final agreeParents = false.obs;
   final _tick = 0.obs;
 
   @override
@@ -75,10 +79,19 @@ class RegisterTeamController extends GetxController {
 
   RegTeam? get team => options.value?.teams.firstWhereOrNull((t) => t.code == teamCode.value);
   RegDivision? get division => options.value?.divisions.firstWhereOrNull((d) => d.id == divisionId.value);
-  int get fee => division?.entryFee ?? 0;
+
+  /// Set when the tournament also registers on mypaltan.com; the app then follows the website's rules.
+  RegWebLink? get web => options.value?.web;
+
+  /// Website tournaments: every team pays per player for a full squad of its age group.
+  int get paidPlayers => division?.squadMax ?? 0;
+  int get fee => web != null ? web!.feePerPlayer * paidPlayers : division?.entryFee ?? 0;
   bool get needsPayment => fee > 0;
 
-  List<RegStep> get steps => [RegStep.team, RegStep.division, RegStep.squad, if (needsPayment) RegStep.payment];
+  // Website tournaments start with an empty squad (parents add their child by the link), so there is no squad step,
+  // and the last step always shows the three boxes.
+  List<RegStep> get steps =>
+      web != null ? [RegStep.team, RegStep.division, RegStep.payment] : [RegStep.team, RegStep.division, RegStep.squad, if (needsPayment) RegStep.payment];
   RegStep get current => steps[step.value.clamp(0, steps.length - 1)];
   bool get isLast => step.value >= steps.length - 1;
 
@@ -128,6 +141,12 @@ class RegisterTeamController extends GetxController {
         if (picked.length > d.squadMax) return 'Pick at most ${d.squadMax} players.';
         return null;
       case RegStep.payment:
+        if (web != null) {
+          if (needsPayment && proof.busy.value) return 'Wait for the screenshot to finish uploading.';
+          if (needsPayment && !proof.isSet) return 'Add the screenshot of your payment.';
+          if (!agreeRules.value || !agreeRefund.value || !agreeParents.value) return 'Please tick all three boxes to continue.';
+          return null;
+        }
         if (method.value == 'CASH') return null;
         if (proof.busy.value) return 'Wait for the screenshot to finish uploading.';
         final utr = utrCtrl.text.replaceAll(' ', '');
@@ -203,7 +222,8 @@ class RegisterTeamController extends GetxController {
     } on ApiException catch (e) {
       AppSnackbar.error('Upload failed', e.message);
     } catch (e) {
-      AppSnackbar.error('Image', e.toString().contains('denied') ? 'Allow photo access for MyPaltan in Settings.' : "Couldn't use that image. Try another one.");
+      AppSnackbar.error(
+          'Image', e.toString().contains('denied') ? 'Allow photo access for MyPaltan in Settings.' : "Couldn't use that image. Try another one.");
     } finally {
       proof.busy.value = false;
     }
@@ -220,22 +240,36 @@ class RegisterTeamController extends GetxController {
   Future<void> submit() async {
     isSubmitting.value = true;
     try {
-      final res = await _api.registerTeam({
-        'tournament_code': code,
-        'team_code': teamCode.value,
-        'division_id': divisionId.value,
-        'member_ids': picked.toList(),
-        'payment_method': needsPayment ? method.value : 'NONE',
-        if (needsPayment && method.value == 'UPI' && utrCtrl.text.trim().isNotEmpty) 'utr': utrCtrl.text.replaceAll(' ', ''),
-        if (needsPayment && method.value == 'UPI' && proof.isSet) 'proof_key': proof.file.value!.key,
-      });
+      final isWeb = web != null;
+      final res = await _api.registerTeam(isWeb
+          ? {
+              'tournament_code': code,
+              'team_code': teamCode.value,
+              'division_id': divisionId.value,
+              'member_ids': const <int>[],
+              'payment_method': needsPayment ? 'UPI' : 'NONE',
+              if (needsPayment && proof.isSet) 'proof_key': proof.file.value!.key,
+              'agree_rules': agreeRules.value,
+              'agree_refund': agreeRefund.value,
+              'agree_parents': agreeParents.value,
+            }
+          : {
+              'tournament_code': code,
+              'team_code': teamCode.value,
+              'division_id': divisionId.value,
+              'member_ids': picked.toList(),
+              'payment_method': needsPayment ? method.value : 'NONE',
+              if (needsPayment && method.value == 'UPI' && utrCtrl.text.trim().isNotEmpty) 'utr': utrCtrl.text.replaceAll(' ', ''),
+              if (needsPayment && method.value == 'UPI' && proof.isSet) 'proof_key': proof.file.value!.key,
+            });
       if (res['success'] != true) {
         AppSnackbar.error('Could not register', res['message']?.toString() ?? 'Please try again.');
         if (res['message']?.toString().contains('Refresh') == true) load();
         return;
       }
       Get.back(result: {'team_code': teamCode.value, 'team_name': team?.name ?? '', 'division': division?.name});
-      AppSnackbar.success(res['status'] == 'WAITLISTED' ? 'On the waitlist' : 'Registered', res['message']?.toString() ?? 'The organiser will confirm your team.');
+      AppSnackbar.success(
+          res['status'] == 'WAITLISTED' ? 'On the waitlist' : 'Registered', res['message']?.toString() ?? 'The organiser will confirm your team.');
     } on ApiException catch (e) {
       AppSnackbar.error('Could not register', e.message);
     } finally {

@@ -24,6 +24,7 @@ import '../presentation/pages/onboarding_page.dart';
 import '../presentation/pages/otp_page.dart';
 import '../presentation/pages/register_team_page.dart';
 import '../presentation/pages/splash_page.dart';
+import '../presentation/pages/manage_players_page.dart';
 import '../presentation/pages/tournament_detail_page.dart';
 import '../presentation/pages/tournament_page.dart';
 import '../presentation/pages/verify_identity_page.dart';
@@ -41,6 +42,7 @@ class AppRoutes {
   static const String tournament = '/tournament';
   static const String createTournament = '/tournament/create';
   static const String registerTeam = '/tournament/register';
+  static const String managePlayers = '/tournament/players';
   static const String fixturesSetup = '/tournament/fixtures';
   static const String match = '/match';
   static const String matchSetup = '/match/setup';
@@ -127,6 +129,7 @@ class AppRoutes {
           }),
           transition: Transition.downToUp,
         ),
+        GetPage(name: managePlayers, page: () => const ManagePlayersPage()),
         GetPage(
           name: registerTeam,
           page: () => const RegisterTeamPage(),

@@ -52,6 +52,7 @@ class MyEntryCard extends GetView<TournamentController> {
 
   @override
   Widget build(BuildContext context) {
+    if (controller.webLink != null) return _WebEntryCard(e: e, t: t);
     final div = t.divisions.firstWhereOrNull((d) => d.id == e.divisionId);
     final division = div?.name;
     final squadOpen = e.isActive && t.status == 'REGISTRATION_OPEN';
@@ -117,6 +118,67 @@ class MyEntryCard extends GetView<TournamentController> {
                   child: Text(controller.busyEntry.value == e.id ? 'Withdrawing…' : 'Withdraw registration',
                       style: tfStyle(13, weight: FontWeight.w700, color: AppColors.negative)),
                 )),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "Your team" for a tournament registered on mypaltan.com: same statuses and actions as the coach page on the website.
+class _WebEntryCard extends GetView<TournamentController> {
+  final MyEntry e;
+  final Tournament t;
+  const _WebEntryCard({required this.e, required this.t});
+
+  @override
+  Widget build(BuildContext context) {
+    final division = t.divisions.firstWhereOrNull((d) => d.id == e.divisionId)?.name;
+    final (String title, String body) = switch (e.status) {
+      'APPROVED' => ('Confirmed by the organiser', 'Share the player link with parents. You approve each child before they join the squad.'),
+      'WAITLISTED' => ('On the waitlist (age group full)', 'You get the player link if a place opens and your team is approved.'),
+      'REJECTED' => ('Not accepted', e.rejectReason != null ? 'Reason: ${e.rejectReason}' : 'Contact the organiser.'),
+      'WITHDRAWN' => ('Withdrawn', 'This team is no longer registered.'),
+      _ => ('Verification pending', 'MyPaltan is checking your payment. Your player link will appear here once your team is approved.'),
+    };
+    final color = _statusColor(e.status);
+    final approved = e.status == 'APPROVED';
+    return Container(
+      key: const ValueKey('my-entry-card'),
+      padding: EdgeInsets.all(SizeConfig.r(14)),
+      decoration: BoxDecoration(
+        color: color.withAlpha(18),
+        borderRadius: BorderRadius.circular(SizeConfig.r(14)),
+        border: Border.all(color: color.withAlpha(70)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${e.teamName}${division != null ? ' · $division' : ''}', style: tfStyle(12.5, color: Colors.white.withAlpha(170))),
+          gapH(4),
+          Row(
+            children: [
+              Icon(approved ? Icons.verified_rounded : (e.status == 'REJECTED' ? Icons.error_outline_rounded : Icons.hourglass_top_rounded),
+                  color: color, size: SizeConfig.r(20)),
+              SizedBox(width: SizeConfig.w(8)),
+              Expanded(child: Text(title, style: tfStyle(15, weight: FontWeight.w800))),
+            ],
+          ),
+          gapH(6),
+          Text(body, style: tfStyle(12.5, color: Colors.white.withAlpha(190), height: 1.4)),
+          if (approved) ...[
+            gapH(4),
+            Text('Squad ${e.players}${e.paidPlayers != null ? ' of ${e.paidPlayers}' : ''}${e.waiting > 0 ? ' · ${e.waiting} waiting for your approval' : ''}',
+                style: tfStyle(12, color: Colors.white.withAlpha(150))),
+            gapH(12),
+            _ActionButton(
+              key: const ValueKey('entry-manage-players'),
+              label: e.waiting > 0 ? 'Manage players (${e.waiting} waiting)' : 'Manage players',
+              filled: true,
+              onTap: () => controller.openPlayers(e),
+            ),
+            gapH(8),
+            _ActionButton(key: const ValueKey('entry-player-link'), label: 'Share player link', onTap: () => controller.sharePlayerLink(e)),
           ],
         ],
       ),

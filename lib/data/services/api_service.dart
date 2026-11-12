@@ -136,6 +136,14 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  /// The coach's squad for a tournament registered on mypaltan.com: load, or APPROVE / REJECT / REMOVE a player.
+  /// Same endpoint and rules as the coach page on the website.
+  Future<Map<String, dynamic>> manageWebSquad(int entryId, {String action = 'LOAD', int? memberId}) => _send(
+        () => http.post(Uri.parse('$_base/public/team-manage'),
+            headers: _authHeaders, body: jsonEncode({'entry_id': entryId, 'action': action, if (memberId != null) 'member_id': memberId})),
+        authed: true,
+      );
+
   /// Sends batched home-banner views and taps: [{banner_id, views, taps}].
   Future<Map<String, dynamic>> trackBanners(List<Map<String, int>> events) => _send(
         () => http.post(Uri.parse('$_base/home/banners/track'), headers: _authHeaders, body: jsonEncode({'events': events})),

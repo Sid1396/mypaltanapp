@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "65440f09-1074-4697-9d15-526ddc2a3870",
-      "webhookId": "67cc1472-1b24-46bb-8c97-f009fb2a9f3f"
+      "id": "162f64eb-2e18-4d68-9a49-9bfa71c6cce6",
+      "webhookId": "bbd73f05-5ca0-43dd-826b-bd6833d0ba8e"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "05dabe46-ae87-4769-8b4e-02fc7a46b665"
+      "id": "bafe20b5-645c-4f34-8e84-c9c2507c853a"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "159b0d6b-508b-4772-8b69-555ee2ddd406",
+              "id": "25c791f6-5069-47be-8a2b-e854e963d0ba",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,12 +67,12 @@
         440,
         0
       ],
-      "id": "93909bc9-5d20-4124-a702-f06612ee9ca5"
+      "id": "b7ce2117-4bf8-40ba-a827-0f338987a833"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.id AS tid, u.id AS uid, u.name, cp.pin_hash, cp.failed_attempts, (cp.locked_until > NOW()) AS locked, DATE_FORMAT(CONVERT_TZ(cp.locked_until, '+00:00', '+05:30'), '%l:%i %p') AS locked_until, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'team', x.name, 'team_code', x.code, 'division_id', e.division_id, 'division', d.name, 'status', e.status, 'paid_players', e.paid_players, 'reject_reason', e.reject_reason, 'squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id), 'waiting', (SELECT COUNT(*) FROM team_members w WHERE w.team_id = x.id AND w.status = 'PENDING'))) FROM tournament_entries e JOIN teams x ON x.id = e.team_id LEFT JOIN tournament_divisions d ON d.id = e.division_id WHERE e.tournament_id = t.id AND e.registered_by = u.id) AS teams FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id LEFT JOIN app_users u ON u.phone = $2 LEFT JOIN coach_web_pins cp ON cp.user_id = u.id WHERE l.slug = $1",
+        "query": "SELECT t.id AS tid, u.id AS uid, u.name, cp.pin_hash, cp.failed_attempts, (cp.locked_until > NOW()) AS locked, DATE_FORMAT(CONVERT_TZ(cp.locked_until, '+00:00', '+05:30'), '%l:%i %p') AS locked_until, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'team', x.name, 'team_code', x.code, 'division_id', e.division_id, 'division', d.name, 'status', e.status, 'paid_players', COALESCE(e.paid_players, (SELECT dd.squad_max FROM tournament_divisions dd WHERE dd.id = e.division_id)), 'reject_reason', e.reject_reason, 'squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id), 'waiting', (SELECT COUNT(*) FROM team_members w WHERE w.team_id = x.id AND w.status = 'PENDING'))) FROM tournament_entries e JOIN teams x ON x.id = e.team_id LEFT JOIN tournament_divisions d ON d.id = e.division_id WHERE e.tournament_id = t.id AND e.registered_by = u.id) AS teams FROM tournament_web_links l JOIN tournaments t ON t.id = l.tournament_id LEFT JOIN app_users u ON u.phone = $2 LEFT JOIN coach_web_pins cp ON cp.user_id = u.id WHERE l.slug = $1",
         "options": {
           "queryReplacement": "={{ [$json.slug, $json.phone] }}"
         }
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "4307ac3e-981c-43aa-9084-1ca472895eae",
+      "id": "2c9b6383-85d3-4797-a905-688d4c03fdc2",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "0a55ba48-8b0c-488f-acff-0a4706663ad8"
+      "id": "40ab2a8a-ae08-46b5-a1e0-84f7cd6fa2b0"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "541d7e64-1874-4a4c-b670-3804ca4b0392",
+              "id": "8a196f12-6281-487e-bc2e-9035952cd061",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "10d8395c-9e3f-432c-b002-362e489158e5"
+      "id": "19487594-956b-4ecf-8833-b956fd741a03"
     },
     {
       "parameters": {
@@ -151,7 +151,7 @@
           },
           "conditions": [
             {
-              "id": "18a51b37-995a-441b-8e92-978ae58d586e",
+              "id": "2a4d1363-5662-42bf-9744-a131f19ecf9c",
               "leftValue": "={{ !!$json.sql }}",
               "rightValue": "",
               "operator": {
@@ -172,7 +172,7 @@
         1320,
         -200
       ],
-      "id": "0938eecc-c94f-4548-ae77-a96fef54f14d"
+      "id": "14e3eab1-e22e-4646-9038-856927a825f6"
     },
     {
       "parameters": {
@@ -189,7 +189,7 @@
         1540,
         -300
       ],
-      "id": "040e79a5-a4cb-4b26-bdf9-bc0c19421189",
+      "id": "13013598-ebc4-46e6-996d-6492c0b6b41b",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -209,7 +209,7 @@
         1760,
         -200
       ],
-      "id": "7ef78965-eb72-4fb5-86a9-5b2ff186ca25"
+      "id": "5318ee62-b191-4475-8ed1-380ee30184ea"
     },
     {
       "parameters": {
@@ -226,7 +226,7 @@
         1980,
         0
       ],
-      "id": "fdeefbd6-0da1-49e5-ad6c-5b228db4e8fb"
+      "id": "99375cf9-c329-4765-a811-9626ed5f2d5c"
     }
   ],
   "connections": {

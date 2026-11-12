@@ -263,10 +263,33 @@ class TournamentController extends GetxController with LoggerMixin {
   MyEntry? get myEntry =>
       myEntries.firstWhereOrNull((e) => e.isActive) ?? myEntries.where((e) => e.status == 'REJECTED').lastOrNull;
 
+  /// Set when the tournament registers on mypaltan.com; the app then works like the website (player link for parents,
+  /// coach approves each child).
+  RegWebLink? get webLink => regOptions.value?.web;
+
+  /// Coach's squad page for a website tournament (same as the coach page on mypaltan.com).
+  Future<void> openPlayers(MyEntry e) async {
+    final w = webLink;
+    if (w == null) return;
+    await Get.toNamed(AppRoutes.managePlayers, arguments: {'entry_id': e.id, 'slug': w.slug, 'tournament': tournament.value?.name ?? ''});
+    await loadMine();
+  }
+
+  Future<void> sharePlayerLink(MyEntry e) async {
+    final w = webLink;
+    if (w == null) return;
+    final text = '${e.teamName} – ${tournament.value?.name ?? ''}\nParents, please add your child to our team here:\n${w.playerLink(e.teamCode)}';
+    final opened = await launchUrl(Uri.parse('whatsapp://send?text=${Uri.encodeComponent(text)}'), mode: LaunchMode.externalApplication)
+        .catchError((_) => false);
+    if (!opened) await SharePlus.instance.share(ShareParams(text: text, subject: e.teamName));
+  }
+
   Future<void> register() async {
     final done = await Get.toNamed(AppRoutes.registerTeam, arguments: {'code': code});
     if (done is Map) {
       await Future.wait([load(), loadMine()]);
+      // Website tournaments: the player link opens only after MyPaltan approves the team.
+      if (webLink != null) return;
       final e = myEntries.firstWhereOrNull((e) => e.teamCode == done['team_code'] && e.isActive);
       if (e != null) showSquadLinkSheet(e, justRegistered: true);
     }

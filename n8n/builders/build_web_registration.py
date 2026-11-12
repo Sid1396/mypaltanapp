@@ -206,7 +206,7 @@ n.append(mysql("Load",
     "'max_teams', d.max_teams, 'approved', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED'), "
     "'waiting', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status IN ('PENDING', 'WAITLISTED')))) "
     "FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, "
-    "tm.code AS team_code, tm.name AS team_name, e.status AS entry_status, e.division_id AS team_division, e.paid_players, "
+    "tm.code AS team_code, tm.name AS team_name, e.status AS entry_status, e.division_id AS team_division, COALESCE(e.paid_players, (SELECT dd.squad_max FROM tournament_divisions dd WHERE dd.id = e.division_id)) AS paid_players, "
     "(SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, "
     "(SELECT cu.name FROM app_users cu WHERE cu.phone = $3) AS coach_name, "
     "(SELECT COUNT(*) FROM coach_web_pins cp JOIN app_users cu ON cu.id = cp.user_id WHERE cu.phone = $3) AS coach_has_pin, "
@@ -441,7 +441,18 @@ out['public_team_join'] = workflow("PubTeamJn026mPxG", "MyPaltan v2 - Public Tea
 n, c = [], {}
 n.append(webhook("v2/public/team-manage", "POST"))
 n.append(code("Check Request", COACH_AUTH + rate(300) + COMMON + r"""
-const auth = verifyCoach($in.headers, b.token);
+// The coach's website session, or the coach's MyPaltan app login (app tokens carry the phone and are signed with JWT_SECRET).
+const verifyApp = headers => {
+  const t = String((headers || {}).authorization || '').trim().replace(/^Bearer /, '').trim();
+  const parts = t.split('.');
+  if (parts.length !== 3 || b64url(hmacSha256($env.JWT_SECRET, `${parts[0]}.${parts[1]}`)) !== parts[2]) return { ok: false };
+  let c;
+  try { c = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8')); } catch { return { ok: false }; }
+  if (c.typ || !/^[6-9]\d{9}$/.test(String(c.phone || '')) || !c.exp || c.exp < Math.floor(Date.now() / 1000)) return { ok: false };
+  return { ok: true, phone: String(c.phone) };
+};
+const coachAuth = verifyCoach($in.headers, b.token);
+const auth = coachAuth.ok ? coachAuth : (verifyApp($in.headers).ok ? verifyApp($in.headers) : coachAuth);
 if (!auth.ok) return bad(auth.error, 401);
 const entry = Number(b.entry_id);
 if (!(Number.isInteger(entry) && entry > 0)) return bad('Choose a team.');
@@ -453,7 +464,7 @@ count();
 return [{ json: { ok: true, phone: auth.phone, entry, action, member } }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load",
-    "SELECT e.id AS eid, e.status AS estatus, e.reject_reason, e.paid_players, e.amount, t.id AS tid, t.code AS tcode, t.name AS tname, "
+    "SELECT e.id AS eid, e.status AS estatus, e.reject_reason, COALESCE(e.paid_players, (SELECT dd.squad_max FROM tournament_divisions dd WHERE dd.id = e.division_id)) AS paid_players, e.amount, t.id AS tid, t.code AS tcode, t.name AS tname, "
     "DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.start_date, '%e %b') AS day, (t.start_date <= CURDATE()) AS started, t.organizer_user_id, "
     "(SELECT l.slug FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS slug, "
     "(SELECT l.fee_per_player FROM tournament_web_links l WHERE l.tournament_id = t.id LIMIT 1) AS fee_per_player, "
@@ -575,7 +586,7 @@ n.append(mysql("Load",
     "SELECT t.id AS tid, u.id AS uid, u.name, cp.pin_hash, cp.failed_attempts, (cp.locked_until > NOW()) AS locked, "
     "DATE_FORMAT(CONVERT_TZ(cp.locked_until, '+00:00', '+05:30'), '%l:%i %p') AS locked_until, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'team', x.name, 'team_code', x.code, 'division_id', e.division_id, 'division', d.name, "
-    "'status', e.status, 'paid_players', e.paid_players, 'reject_reason', e.reject_reason, "
+    "'status', e.status, 'paid_players', COALESCE(e.paid_players, (SELECT dd.squad_max FROM tournament_divisions dd WHERE dd.id = e.division_id)), 'reject_reason', e.reject_reason, "
     "'squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id), "
     "'waiting', (SELECT COUNT(*) FROM team_members w WHERE w.team_id = x.id AND w.status = 'PENDING'))) "
     "FROM tournament_entries e JOIN teams x ON x.id = e.team_id LEFT JOIN tournament_divisions d ON d.id = e.division_id "

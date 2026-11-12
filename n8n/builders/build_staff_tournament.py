@@ -45,7 +45,7 @@ n.append(mysql("Load Teams",
     "'approved', (SELECT COUNT(*) FROM tournament_entries x WHERE x.division_id = d.id AND x.status = 'APPROVED'))) "
     "FROM tournament_divisions d WHERE d.tournament_id = t.id) AS divisions, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', e.id, 'status', e.status, 'division_id', e.division_id, 'team', tm.name, 'team_code', tm.code, "
-    "'logo_key', tm.logo_key, 'area', tm.area, 'coach', u.name, 'coach_phone', u.phone, 'coach_has_pin', (SELECT COUNT(*) FROM coach_web_pins cp WHERE cp.user_id = u.id) > 0, 'amount', e.amount, 'paid_players', e.paid_players, "
+    "'logo_key', tm.logo_key, 'area', tm.area, 'coach', u.name, 'coach_phone', u.phone, 'coach_has_pin', (SELECT COUNT(*) FROM coach_web_pins cp WHERE cp.user_id = u.id) > 0, 'amount', e.amount, 'paid_players', COALESCE(e.paid_players, (SELECT dd.squad_max FROM tournament_divisions dd WHERE dd.id = e.division_id)), "
     "'utr', e.utr, 'proof_key', e.proof_key, 'reject_reason', e.reject_reason, 'web', e.manage_key_hash IS NOT NULL, "
     "'registered', DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'), "
     "'reviewed', DATE_FORMAT(CONVERT_TZ(e.reviewed_at, '+00:00', '+05:30'), '%Y-%m-%d %H:%i'), "

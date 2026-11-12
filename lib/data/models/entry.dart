@@ -120,6 +120,8 @@ class MyEntry {
   final String paymentMethod;
   final String? rejectReason;
   final int players;
+  final int? paidPlayers; // website tournaments: squad places paid for
+  final int waiting; // website tournaments: children added by parents, waiting for the coach
   final List<int> memberIds; // team member ids in the squad
 
   const MyEntry({
@@ -132,6 +134,8 @@ class MyEntry {
     required this.paymentMethod,
     this.rejectReason,
     required this.players,
+    this.paidPlayers,
+    this.waiting = 0,
     this.memberIds = const [],
   });
 
@@ -147,6 +151,8 @@ class MyEntry {
         paymentMethod: j['payment_method']?.toString() ?? 'NONE',
         rejectReason: _str(j['reject_reason']),
         players: _int(j['players']),
+        paidPlayers: _intOrNull(j['paid_players']),
+        waiting: _int(j['waiting']),
         memberIds: (j['member_ids'] as List? ?? []).map((v) => _int(v)).toList(),
       );
 }
@@ -169,6 +175,21 @@ class RegPayment {
       );
 }
 
+/// A tournament that also registers on mypaltan.com (e.g. Football Fiesta). The app then follows the website's
+/// rules: every team pays per player for a full squad, adds a payment screenshot, ticks the three boxes and
+/// starts with an empty squad that parents fill through the player link.
+class RegWebLink {
+  final String slug;
+  final int feePerPlayer;
+  const RegWebLink({required this.slug, required this.feePerPlayer});
+
+  /// The page parents open to add their child to [teamCode]'s squad.
+  String playerLink(String teamCode) => 'https://mypaltan.com/register/$slug/team/$teamCode';
+
+  factory RegWebLink.fromJson(Map<String, dynamic> j) =>
+      RegWebLink(slug: j['slug']?.toString() ?? '', feePerPlayer: _int(j['fee_per_player']));
+}
+
 /// Everything needed to register a team: divisions, the user's teams and players, existing registrations.
 class RegOptions {
   final String code;
@@ -183,6 +204,7 @@ class RegOptions {
   final List<MyEntry> myEntries;
   final List<({int userId, String teamCode, String teamName})> taken; // players already in another squad
   final RegPayment? payment;
+  final RegWebLink? web;
 
   const RegOptions({
     required this.code,
@@ -197,6 +219,7 @@ class RegOptions {
     required this.myEntries,
     required this.taken,
     this.payment,
+    this.web,
   });
 
   factory RegOptions.fromJson(Map<String, dynamic> j) => RegOptions(
@@ -215,6 +238,7 @@ class RegOptions {
             (userId: _int(t['user_id']), teamCode: t['team_code']?.toString() ?? '', teamName: t['team_name']?.toString() ?? 'another team'),
         ],
         payment: j['payment'] is Map ? RegPayment.fromJson(Map<String, dynamic>.from(j['payment'] as Map)) : null,
+        web: j['web'] is Map ? RegWebLink.fromJson(Map<String, dynamic>.from(j['web'] as Map)) : null,
       );
 }
 
