@@ -73,7 +73,7 @@ def make_public(src_name, wid, name, path, check_js, cache_key_js, filter_js, sq
     filt = {"id": str(uuid.uuid4()), "name": "Public Filter", "type": "n8n-nodes-base.code", "typeVersion": 2,
             "position": [br['position'][0] + 220, br['position'][1]],
             "parameters": {"jsCode": "const out = JSON.parse(JSON.stringify($input.first().json));\n" + SHORT_JS +
-                           "if (out.status === 200 && out.body && out.body.success) {\n  const b = out.body;\n" + filter_js + "\n}\n" +
+                           "if (out.status === 200 && out.body && out.body.success) {\n  // The match endpoint wraps its data in body.match.\n  const b = out.body.match || out.body;\n" + filter_js + "\n}\n" +
                            (CACHE_STORE % cache_key_js.replace('$in.query', "$('%s').first().json._q" % check_name))}}
     w['nodes'].append(filt)
     for src, conns in w['connections'].items():
