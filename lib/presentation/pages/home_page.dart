@@ -9,6 +9,7 @@ import '../../utils/helpers/size_config.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/main_nav_controller.dart';
 import '../widgets/home_widgets.dart';
+import 'my_teams_page.dart' show showJoinTeamWithCode;
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -99,8 +100,8 @@ class HomePage extends StatelessWidget {
                     title: "You're not in a team yet",
                     message: 'Ask your captain for the team link, or create your own team and invite players.',
                     actions: [
-                      SmallButton(label: 'Join a team', filled: false, onTap: () => showComingSoon('Joining teams')),
-                      SmallButton(label: 'Create team', onTap: () => showComingSoon('Creating teams')),
+                      SmallButton(label: 'Join a team', filled: false, onTap: showJoinTeamWithCode),
+                      SmallButton(label: 'Create team', onTap: () => Get.toNamed(AppRoutes.teamForm)),
                     ],
                   ),
 
@@ -208,9 +209,9 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      (Icons.emoji_events_rounded, 'Create tournament', () => showComingSoon('Creating tournaments')),
-      (Icons.shield_rounded, 'Create team', () => showComingSoon('Creating teams')),
-      (Icons.qr_code_rounded, 'Join with code', () => showComingSoon('Joining with a code')),
+      (Icons.emoji_events_rounded, 'Create tournament', () => Get.toNamed(AppRoutes.createTournament)),
+      (Icons.shield_rounded, 'Create team', () => Get.toNamed(AppRoutes.teamForm)),
+      (Icons.qr_code_rounded, 'Join with code', showJoinTeamWithCode),
       (Icons.sports_score_rounded, 'Score a match', () => showComingSoon('Live scoring')),
     ];
     return Padding(
