@@ -1,7 +1,11 @@
 {
+  "updatedAt": "2026-10-17T05:18:58.190Z",
+  "createdAt": "2026-10-17T05:18:58.190Z",
   "id": "MatchSync026mPxE",
   "name": "MyPaltan v2 - Match Sync",
+  "description": null,
   "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "id": "3e082846-5e5d-4e84-aa58-b4b1bc7defff",
@@ -300,5 +304,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "80e93dea-270b-48f0-9f22-0a00a26d4ab0",
+  "sourceWorkflowId": null
 }

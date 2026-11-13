@@ -1,7 +1,11 @@
 {
+  "updatedAt": "2026-10-17T05:18:58.188Z",
+  "createdAt": "2026-10-17T05:18:58.188Z",
   "id": "MatchSetp026mPxD",
   "name": "MyPaltan v2 - Match Setup",
+  "description": null,
   "active": false,
+  "isArchived": false,
   "nodes": [
     {
       "id": "0fd7d444-817d-4739-b64b-3e4f4ccd1f5d",
@@ -300,5 +304,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "dd80b9a2-c693-40d9-8eaf-4b55aa84cb6b",
+  "sourceWorkflowId": null
 }
