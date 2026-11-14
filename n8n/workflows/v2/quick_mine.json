@@ -1,6 +1,7 @@
 {
   "id": "QuickMine0026mPx",
   "name": "MyPaltan v2 - Quick Match Mine",
+  "description": null,
   "active": false,
   "nodes": [
     {
@@ -19,8 +20,8 @@
         0,
         0
       ],
-      "id": "18efd5ec-7b5c-48e3-aa16-ecd8afa116d5",
-      "webhookId": "cd10abaf-4756-4336-8971-821caf2b95db"
+      "id": "fe9ef427-318c-4c3f-a740-af220a76085d",
+      "webhookId": "54901ef8-3a7a-4251-b9ae-a217f672560f"
     },
     {
       "parameters": {
@@ -33,7 +34,7 @@
         220,
         0
       ],
-      "id": "feffe6b9-cac4-4989-9e9a-02dc8e1a1a31"
+      "id": "ec25b9ca-7737-44cf-8b0e-4632d7cf2033"
     },
     {
       "parameters": {
@@ -46,7 +47,7 @@
           },
           "conditions": [
             {
-              "id": "a5b7fcc2-6efd-4b84-b016-81224dd93f28",
+              "id": "af618e83-0ea0-4b9f-ab97-6f347a30623f",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,7 +68,7 @@
         440,
         0
       ],
-      "id": "16a5acb2-5b59-427f-abcb-c95845e127d9"
+      "id": "e9b1ac8e-48f6-41e7-8259-b36230f5772c"
     },
     {
       "parameters": {
@@ -84,7 +85,7 @@
         660,
         -100
       ],
-      "id": "cb3ecb30-69ab-49e1-bff1-09dec5e892c7",
+      "id": "d6cf58c7-09b5-455d-92bc-52243b75f53c",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -104,7 +105,7 @@
         880,
         -100
       ],
-      "id": "1f977ece-9c51-4464-a252-a374a564b569"
+      "id": "ca4d8cae-b973-4cc7-96f9-cdb74945c600"
     },
     {
       "parameters": {
@@ -121,7 +122,7 @@
         1100,
         0
       ],
-      "id": "831472e9-af35-453c-8288-aeeb55cdb86a"
+      "id": "056f7223-90b2-435a-a718-ab5083fe39b4"
     }
   ],
   "connections": {
@@ -191,5 +192,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "nodeGroups": [],
+  "pinData": {},
+  "sourceWorkflowId": null
 }

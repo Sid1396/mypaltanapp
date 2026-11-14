@@ -1,6 +1,7 @@
 {
   "id": "QuickDetail026mP",
   "name": "MyPaltan v2 - Quick Match Detail",
+  "description": null,
   "active": false,
   "nodes": [
     {
@@ -19,8 +20,8 @@
         0,
         0
       ],
-      "id": "4535d2e8-f309-4c34-9abb-a72130d10018",
-      "webhookId": "95d20979-a260-44c0-872a-51450ba95fc8"
+      "id": "1419e93d-5abf-4d48-8c28-1b3268da624e",
+      "webhookId": "deed1968-ad8e-4666-9773-f720806c1d52"
     },
     {
       "parameters": {
@@ -33,7 +34,7 @@
         220,
         0
       ],
-      "id": "c12c1a0c-b17c-4080-b9c1-017e9b08b0b1"
+      "id": "2738ad7a-d957-4e41-91da-d8639034fdc0"
     },
     {
       "parameters": {
@@ -46,7 +47,7 @@
           },
           "conditions": [
             {
-              "id": "3a5c9eae-8f08-4602-99e9-42b32d660bf9",
+              "id": "5f479ddb-4d3d-46e1-a2c2-7f554aa196d9",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,7 +68,7 @@
         440,
         0
       ],
-      "id": "4e536c2b-4f07-49a9-9b7f-2020b5a0e0a9"
+      "id": "7d139145-5ea9-443c-a4cb-ceaa3ae74d21"
     },
     {
       "parameters": {
@@ -84,7 +85,7 @@
         660,
         -100
       ],
-      "id": "a5cd62be-b2fc-44d4-98a7-aeaf5b14effd",
+      "id": "69bd18e1-296c-43d5-86d2-7b6d036fa244",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -104,7 +105,7 @@
         880,
         -100
       ],
-      "id": "d5d1aba2-ea9e-499e-bafb-2e8a8ec795da"
+      "id": "bee6f898-1e20-4380-964c-cc30634bf24b"
     },
     {
       "parameters": {
@@ -121,7 +122,7 @@
         1100,
         0
       ],
-      "id": "45fc8b4b-ca1f-4eaf-ad86-c58051acbc97"
+      "id": "fadb1abf-ada2-4755-9498-7c8f800df730"
     }
   ],
   "connections": {
@@ -191,5 +192,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "nodeGroups": [],
+  "pinData": {},
+  "sourceWorkflowId": null
 }

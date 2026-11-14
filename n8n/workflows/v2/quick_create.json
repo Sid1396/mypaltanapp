@@ -1,6 +1,7 @@
 {
   "id": "QuickCreate026mP",
   "name": "MyPaltan v2 - Quick Match Create",
+  "description": null,
   "active": false,
   "nodes": [
     {
@@ -19,8 +20,8 @@
         0,
         0
       ],
-      "id": "ecb2dda9-9f55-4626-ae5b-4754503bea43",
-      "webhookId": "da646bdc-3d49-4e4c-8916-206d3b9ffe9e"
+      "id": "343eb8c1-9f42-4d3d-8a82-25b0c414de92",
+      "webhookId": "876fabc1-4742-42cc-a525-d378e127fa59"
     },
     {
       "parameters": {
@@ -33,7 +34,7 @@
         220,
         0
       ],
-      "id": "584e7cc4-73e9-4ca5-a4a1-502989ae40c8"
+      "id": "491b379e-78d8-4c3c-82e0-d100286d3bce"
     },
     {
       "parameters": {
@@ -46,7 +47,7 @@
           },
           "conditions": [
             {
-              "id": "7fc99227-56d7-4370-9e86-96cc2376820b",
+              "id": "4416ba45-183b-42f5-a842-c5fc1ccf86d2",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,7 +68,7 @@
         440,
         0
       ],
-      "id": "1dd22ef8-ace7-454a-9940-92d83bfd8ac5"
+      "id": "51a44929-15f5-4257-9a01-e0962adf1472"
     },
     {
       "parameters": {
@@ -84,7 +85,7 @@
         660,
         -100
       ],
-      "id": "6afe100c-1431-4744-89a9-2c40edd5b2cf",
+      "id": "699f4dc5-fba4-4a4e-a737-02a387acd1a8",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -104,7 +105,7 @@
         880,
         -100
       ],
-      "id": "d37bbfc9-6b07-41dd-8e36-46c664fcf4b3"
+      "id": "cf01b9b2-eb59-425f-8fc5-fda802385b5d"
     },
     {
       "parameters": {
@@ -117,7 +118,7 @@
           },
           "conditions": [
             {
-              "id": "0b50343b-1daf-4994-85bb-584291ac04e1",
+              "id": "9c3fa77e-55e1-4c10-ae04-0b9c4c57fd76",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +139,7 @@
         1100,
         -100
       ],
-      "id": "aef63f49-434b-4941-8c39-b154d28b1496"
+      "id": "67f1a0b1-c44d-4b38-9948-bbf91e5948a6"
     },
     {
       "parameters": {
@@ -155,7 +156,7 @@
         1320,
         -200
       ],
-      "id": "7da9ebd2-3af8-4b5b-8172-9e1092c3c25e",
+      "id": "c6ee7fcf-c6c7-4f40-a325-305277c33626",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -175,7 +176,7 @@
         1540,
         -200
       ],
-      "id": "d9ab241d-7392-44f1-b143-dde923ec621a"
+      "id": "e2e5c9e1-703d-4f67-b867-67270b605f55"
     },
     {
       "parameters": {
@@ -192,7 +193,7 @@
         1760,
         0
       ],
-      "id": "3f56a4bd-61f9-4ff5-9fae-851463a3bf6f"
+      "id": "dd82f197-544c-4569-8ce2-6b54dac50c33"
     }
   ],
   "connections": {
@@ -302,5 +303,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "nodeGroups": [],
+  "pinData": {},
+  "sourceWorkflowId": null
 }
