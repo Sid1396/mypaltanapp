@@ -114,7 +114,7 @@ const match = {
     return { match_no: x.match_no, status: x.status, started: x.events > 0,
       result_text: x.result_text ? String(x.result_text).replace(/\{(\d+)\}/g, (_, id) => names[id] || 'Team') : null,
       scores: sides.map(y => sum[String(y.entry_id)] ?? null) }; }),
-  rules: { overs: rules.overs ?? null, half_minutes: rules.half_minutes ?? null, last_batter: rules.last_batter === true,
+  rules: { overs: rules.overs ?? null, half_minutes: rules.half_minutes ?? null, last_batter: rules.last_batter === true, free_hit: rules.free_hit === true, box_out: rules.box_out === true,
     event: rules.event ?? null, games: rules.games ?? null, points_per_game: rules.points_per_game ?? null },
   result_text: s.result_text ? String(s.result_text).replace(/\{(\d+)\}/g, (_, id) => names[id] || 'Team') : null,
   sides: sides.map(x => ({ side: x.side, name: x.name, score: summary[String(x.entry_id)] ?? null, squad_max: Number(s.squad_max),

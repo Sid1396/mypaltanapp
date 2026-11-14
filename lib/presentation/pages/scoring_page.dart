@@ -364,7 +364,15 @@ class _ScorePad extends GetView<ScoringController> {
     final i = s.current!;
     final how = 'BOWLED'.obs, out = Rx<int?>(i.striker), fielder = Rx<int?>(null), runs = 0.obs, ballType = 'NONE'.obs;
     final fielders = s.playersOf(i.bowling);
-    const hows = [('BOWLED', 'Bowled'), ('CAUGHT', 'Caught'), ('LBW', 'LBW'), ('RUN_OUT', 'Run out'), ('STUMPED', 'Stumped'), ('HIT_WICKET', 'Hit wicket')];
+    final hows = [
+      ('BOWLED', 'Bowled'),
+      ('CAUGHT', 'Caught'),
+      ('LBW', 'LBW'),
+      ('RUN_OUT', 'Run out'),
+      ('STUMPED', 'Stumped'),
+      ('HIT_WICKET', 'Hit wicket'),
+      if (s.rules.boxOut) ('BOX_OUT', 'Box out'), // ball hit the roof
+    ];
     Get.bottomSheet(
       Builder(
           builder: (sheet) => Obx(() {

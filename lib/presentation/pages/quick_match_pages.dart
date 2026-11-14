@@ -142,6 +142,17 @@ class CreateQuickMatchPage extends GetView<CreateQuickMatchController> {
             value: c.lastManStands.value,
             onChanged: (v) => c.lastManStands.value = v,
           ),
+          SwitchRow(
+            label: 'Free hit after a no-ball',
+            value: c.freeHit.value,
+            onChanged: (v) => c.freeHit.value = v,
+          ),
+          SwitchRow(
+            label: 'Box out',
+            hint: 'Out if the ball hits the roof',
+            value: c.boxOut.value,
+            onChanged: (v) => c.boxOut.value = v,
+          ),
         ];
       case 'FOOTBALL':
         return [

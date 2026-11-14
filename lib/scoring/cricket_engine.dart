@@ -31,6 +31,7 @@ class CricketRules {
   final int noBallRuns;
   final bool freeHit;
   final bool lastManStands;
+  final bool boxOut; // box cricket: the batter is out if the ball hits the roof
 
   const CricketRules({
     required this.overs,
@@ -40,6 +41,7 @@ class CricketRules {
     this.noBallRuns = 1,
     this.freeHit = true,
     this.lastManStands = false,
+    this.boxOut = false,
   });
 
   /// Wickets that end an innings (with last man stands the last batter bats alone).
@@ -56,6 +58,7 @@ class CricketRules {
       noBallRuns: i('no_ball_runs', 1).clamp(0, 5),
       freeHit: r['free_hit'] != false,
       lastManStands: r['last_man_stands'] == true || r['last_batter'] == true,
+      boxOut: r['box_out'] == true,
     );
   }
 }
@@ -537,7 +540,8 @@ class CricketEngine {
     final how = w?['how']?.toString();
     final wasFreeHit = c.freeHit;
     if (w != null) {
-      if (!const {'BOWLED', 'CAUGHT', 'LBW', 'RUN_OUT', 'STUMPED', 'HIT_WICKET'}.contains(how)) throw const ScoringError('Unknown way out.');
+      if (!const {'BOWLED', 'CAUGHT', 'LBW', 'RUN_OUT', 'STUMPED', 'HIT_WICKET', 'BOX_OUT'}.contains(how)) throw const ScoringError('Unknown way out.');
+      if (how == 'BOX_OUT' && !s.rules.boxOut) throw const ScoringError('Box out is not on for this match.');
       if (extra == 'NO_BALL' && how != 'RUN_OUT') throw const ScoringError('On a no-ball a batter can only be run out.');
       if (extra == 'WIDE' && how != 'RUN_OUT' && how != 'STUMPED') throw const ScoringError('On a wide a batter can only be run out or stumped.');
       if (wasFreeHit && how != 'RUN_OUT') throw const ScoringError('On a free hit a batter can only be run out.');
@@ -622,6 +626,7 @@ class CricketEngine {
         'LBW' => 'lbw b ${bowler.name}',
         'STUMPED' => 'st ${fielder ?? 'keeper'} b ${bowler.name}',
         'HIT_WICKET' => 'hit wicket b ${bowler.name}',
+        'BOX_OUT' => 'box out',
         _ => 'run out${fielder == null ? '' : ' ($fielder)'}',
       };
       if (_bowlerWickets.contains(how)) bowler.wickets++;

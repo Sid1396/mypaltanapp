@@ -48,7 +48,7 @@ function rulesFor(sport, r) {
     const opb = int('overs_per_bowler', overs <= 10 ? Math.min(2, overs) : Math.ceil(overs / 5), 1, overs);
     if (opb == null) return { error: `Overs per bowler must be between 1 and ${overs}.` };
     return { rules: { players_per_side: 11, overs, overs_per_bowler: opb, powerplay_overs: 0, wide_runs: 1, no_ball_runs: 1,
-      free_hit: false, last_batter: r.last_batter === true }, squadMax: 11 }; // friendlies: no free hit
+      free_hit: r.free_hit === true, box_out: r.box_out === true, last_batter: r.last_batter === true }, squadMax: 11 };
   }
   if (sport === 'FOOTBALL') {
     const half = int('half_minutes', 10, 1, 45);

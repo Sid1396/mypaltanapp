@@ -197,7 +197,13 @@ class QuickMatch {
   String get rulesText {
     int r(String k, int d) => _int(rules[k], d);
     return switch (sport) {
-      'CRICKET' => '${r('overs', 6)} overs · ${r('overs_per_bowler', 2)} per bowler${rules['last_batter'] == true ? ' · last man stands' : ''}',
+      'CRICKET' => [
+          '${r('overs', 6)} overs',
+          '${r('overs_per_bowler', 2)} per bowler',
+          if (rules['last_batter'] == true) 'last man stands',
+          if (rules['free_hit'] == true) 'free hit',
+          if (rules['box_out'] == true) 'box out',
+        ].join(' · '),
       'FOOTBALL' => '${r('half_minutes', 10)} min halves',
       _ =>
         '${rules['event'] == 'SINGLES' ? 'Singles' : 'Doubles'} · ${r('games', 1) == 1 ? '1 game' : '${r('games', 3)} games'} to ${r('points_per_game', 21)}',
