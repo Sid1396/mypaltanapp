@@ -51,6 +51,10 @@ class MatchController extends GetxController {
                 ...Map<String, dynamic>.from(res['match'] as Map),
                 'home': {'entry_id': old.home?.entryId, 'name': old.home?.name, 'short': old.home?.short, 'logo_url': old.home?.logoUrl},
                 'away': {'entry_id': old.away?.entryId, 'name': old.away?.name, 'short': old.away?.short, 'logo_url': old.away?.logoUrl},
+                // Without these the match looks un-set-up and "Continue scoring" would open the toss / Playing XI again.
+                'lineups': [
+                  for (final p in old.lineups) {'entry_id': p.entryId, 'member_id': p.memberId, 'name': p.name, 'captain': p.captain, 'keeper': p.keeper},
+                ],
               })
             : m;
       } else if (!quiet) {
@@ -88,43 +92,44 @@ class MatchController extends GetxController {
     final ctrl = TextEditingController();
     final busy = false.obs;
     final ok = await Get.bottomSheet<bool>(
-      Builder(builder: (sheet) => Obx(() => SheetFrame(title: 'Scoring PIN', children: [
-            Text('Ask the organiser for the 6-digit scoring PIN. You only enter it once for this tournament.',
-                style: tfStyle(13.5, color: Colors.white.withAlpha(170), height: 1.4)),
-            gapH(14),
-            FieldTextInput(
-              key: const ValueKey('scoring-pin'),
-              controller: ctrl,
-              hint: '6-digit PIN',
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-            ),
-            gapH(14),
-            SizedBox(
-              width: double.infinity,
-              child: SmallButtonLarge(
-                key: const ValueKey('scoring-pin-go'),
-                label: busy.value ? 'Checking…' : 'Start scoring',
-                onTap: busy.value
-                    ? null
-                    : () async {
-                        busy.value = true;
-                        try {
-                          final res = await _api.joinScoring(tournamentCode, ctrl.text.trim());
-                          busy.value = false;
-                          if (res['success'] == true) {
-                            if (sheet.mounted) Navigator.of(sheet).pop(true);
-                          } else {
-                            AppSnackbar.error('Scoring PIN', res['message']?.toString() ?? 'Wrong PIN.');
-                          }
-                        } on ApiException catch (e) {
-                          busy.value = false;
-                          AppSnackbar.error('Scoring PIN', e.message);
-                        }
-                      },
-              ),
-            ),
-          ]))),
+      Builder(
+          builder: (sheet) => Obx(() => SheetFrame(title: 'Scoring PIN', children: [
+                Text('Ask the organiser or a captain for the 6-digit scoring PIN. You only enter it once.',
+                    style: tfStyle(13.5, color: Colors.white.withAlpha(170), height: 1.4)),
+                gapH(14),
+                FieldTextInput(
+                  key: const ValueKey('scoring-pin'),
+                  controller: ctrl,
+                  hint: '6-digit PIN',
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                ),
+                gapH(14),
+                SizedBox(
+                  width: double.infinity,
+                  child: SmallButtonLarge(
+                    key: const ValueKey('scoring-pin-go'),
+                    label: busy.value ? 'Checking…' : 'Start scoring',
+                    onTap: busy.value
+                        ? null
+                        : () async {
+                            busy.value = true;
+                            try {
+                              final res = await _api.joinScoring(tournamentCode, ctrl.text.trim());
+                              busy.value = false;
+                              if (res['success'] == true) {
+                                if (sheet.mounted) Navigator.of(sheet).pop(true);
+                              } else {
+                                AppSnackbar.error('Scoring PIN', res['message']?.toString() ?? 'Wrong PIN.');
+                              }
+                            } on ApiException catch (e) {
+                              busy.value = false;
+                              AppSnackbar.error('Scoring PIN', e.message);
+                            }
+                          },
+                  ),
+                ),
+              ]))),
       isScrollControlled: true,
     );
     return ok == true;
