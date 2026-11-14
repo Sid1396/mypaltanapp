@@ -62,6 +62,29 @@ class QuickPerson {
       QuickPerson(userId: _int(j['user_id']), name: j['name']?.toString() ?? 'Player', side: _str(j['side']));
 }
 
+/// One match of a quick-match session (a group can play several on the same link).
+class QuickGame {
+  final int matchId;
+  final int matchNo;
+  final String status; // SCHEDULED, LIVE, COMPLETED, CANCELLED
+  final bool started;
+  final String? resultText;
+  final Map<String, String> summary;
+  const QuickGame({required this.matchId, required this.matchNo, required this.status, required this.started, this.resultText, this.summary = const {}});
+
+  factory QuickGame.fromJson(Map<String, dynamic> j) {
+    final sum = j['summary'] is Map ? Map<String, dynamic>.from(j['summary'] as Map) : const <String, dynamic>{};
+    return QuickGame(
+      matchId: _int(j['match_id']),
+      matchNo: _int(j['match_no'], 1),
+      status: j['status']?.toString() ?? 'SCHEDULED',
+      started: j['started'] == true,
+      resultText: _str(j['result_text']),
+      summary: sum.map((k, v) => MapEntry(k, '$v')),
+    );
+  }
+}
+
 /// A quick match: a friendly game made by one person and shared as a link (stored as a private 1-match tournament).
 class QuickMatch {
   final String code;
@@ -74,8 +97,11 @@ class QuickMatch {
   final int squadMax;
   final int creatorId;
   final String creatorName;
-  final int matchId;
+  final int matchId; // the latest match of the session
+  final int matchNo;
   final String matchStatus; // SCHEDULED, LIVE, COMPLETED, CANCELLED
+  final bool sessionOpen; // false once the creator ends the session (or cancels)
+  final List<QuickGame> games;
   final bool started;
   final String? resultText;
   final int? winnerEntryId;
@@ -102,7 +128,10 @@ class QuickMatch {
     required this.creatorId,
     required this.creatorName,
     required this.matchId,
+    this.matchNo = 1,
     required this.matchStatus,
+    this.sessionOpen = true,
+    this.games = const [],
     required this.started,
     this.resultText,
     this.winnerEntryId,
@@ -121,8 +150,13 @@ class QuickMatch {
   bool get isCancelled => status == 'CANCELLED' || matchStatus == 'CANCELLED';
   bool get isCompleted => matchStatus == 'COMPLETED';
 
-  /// Before the first ball / kick-off: people can still join and captains can change.
-  bool get isOpen => matchStatus == 'SCHEDULED' && !started && !isCancelled;
+  /// Before the current match starts: captains and teams can change.
+  bool get isOpen => sessionOpen && matchStatus == 'SCHEDULED' && !started && !isCancelled;
+
+  /// The current match is over and the session goes on: the creator can start the next one.
+  bool get betweenMatches => sessionOpen && isCompleted;
+  bool get sessionEnded => !sessionOpen && !isCancelled;
+  bool get anyPlayed => games.any((g) => g.started);
   bool get isLead => isCreator || captainOf != null;
 
   /// Badminton / pickleball: 1 or 2 per team. Cricket and football: as many as the creator puts in.
@@ -163,7 +197,7 @@ class QuickMatch {
   String get rulesText {
     int r(String k, int d) => _int(rules[k], d);
     return switch (sport) {
-      'CRICKET' => '${r('overs', 6)} overs${rules['last_batter'] == true ? ' · last man stands' : ''}',
+      'CRICKET' => '${r('overs', 6)} overs · ${r('overs_per_bowler', 2)} per bowler${rules['last_batter'] == true ? ' · last man stands' : ''}',
       'FOOTBALL' => '${r('half_minutes', 10)} min halves',
       _ =>
         '${rules['event'] == 'SINGLES' ? 'Singles' : 'Doubles'} · ${r('games', 1) == 1 ? '1 game' : '${r('games', 3)} games'} to ${r('points_per_game', 21)}',
@@ -186,7 +220,10 @@ class QuickMatch {
       creatorId: _int(creator['user_id']),
       creatorName: creator['name']?.toString() ?? '',
       matchId: _int(j['match_id']),
+      matchNo: _int(j['match_no'], 1),
       matchStatus: j['match_status']?.toString() ?? 'SCHEDULED',
+      sessionOpen: j['session_open'] != false,
+      games: _maps(j['matches']).map(QuickGame.fromJson).toList(),
       started: j['started'] == true,
       resultText: _str(j['result_text']),
       winnerEntryId: _intOrNull(j['winner_entry_id']),
@@ -213,6 +250,7 @@ class MyQuickMatch {
   final bool isCreator;
   final String matchStatus;
   final String? scheduledAt;
+  final int matchCount;
   final String homeName;
   final String? homeScore;
   final String awayName;
@@ -227,6 +265,7 @@ class MyQuickMatch {
     required this.isCreator,
     required this.matchStatus,
     this.scheduledAt,
+    this.matchCount = 1,
     required this.homeName,
     this.homeScore,
     required this.awayName,
@@ -245,6 +284,7 @@ class MyQuickMatch {
       isCreator: j['is_creator'] == true,
       matchStatus: j['match_status']?.toString() ?? 'SCHEDULED',
       scheduledAt: _str(j['scheduled_at']),
+      matchCount: _int(j['match_count'], 1),
       homeName: h['name']?.toString() ?? 'Team A',
       homeScore: _str(h['score']),
       awayName: a['name']?.toString() ?? 'Team B',

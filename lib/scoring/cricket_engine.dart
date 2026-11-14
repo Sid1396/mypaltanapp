@@ -178,6 +178,9 @@ class CricketState implements EngineState {
   String? result;
   bool finished = false;
 
+  /// Catches, and stumpings / run outs, per fielder (team_members.id), for player of the match.
+  final catches = <int, int>{}, runOuts = <int, int>{};
+
   /// Players the batting team has: its Playing XI, capped at players per side. Teams can be uneven (7 v 8 in a
   /// friendly), so "all out" and "last man" follow each team's own number.
   int sideSize(int entry) {
@@ -248,6 +251,48 @@ class CricketState implements EngineState {
     }).toList();
   }
 
+  /// Most points when the match is over: 1 a run, 20 a wicket, 10 a catch / stumping / run out. Ties go to the
+  /// winning team, then more runs. Null when nobody earned points.
+  Map<String, dynamic>? playerOfMatch() {
+    final runs = <int, int>{}, balls = <int, int>{}, notOut = <int, bool>{}, wkts = <int, int>{};
+    for (final i in innings) {
+      for (final b in i.batters.values) {
+        runs[b.id] = (runs[b.id] ?? 0) + b.runs;
+        balls[b.id] = (balls[b.id] ?? 0) + b.balls;
+        notOut[b.id] = !b.out;
+      }
+      for (final b in i.bowlers.values) {
+        wkts[b.id] = (wkts[b.id] ?? 0) + b.wickets;
+      }
+    }
+    int? teamOf(int id) {
+      for (final e in setup.players.entries) {
+        if (e.value.any((p) => p.id == id)) return e.key;
+      }
+      return null;
+    }
+
+    final ids = {...runs.keys, ...wkts.keys, ...catches.keys, ...runOuts.keys};
+    int points(int id) => (runs[id] ?? 0) + 20 * (wkts[id] ?? 0) + 10 * ((catches[id] ?? 0) + (runOuts[id] ?? 0));
+    final ranked = ids.where((id) => points(id) > 0).toList()
+      ..sort((a, b) {
+        final p = points(b).compareTo(points(a));
+        if (p != 0) return p;
+        final w = (teamOf(b) == winner ? 1 : 0).compareTo(teamOf(a) == winner ? 1 : 0);
+        return w != 0 ? w : (runs[b] ?? 0).compareTo(runs[a] ?? 0);
+      });
+    if (ranked.isEmpty) return null;
+    final id = ranked.first;
+    String plural(int n, String w) => '$n $w${n == 1 ? '' : (w == 'catch' ? 'es' : 's')}';
+    final reason = [
+      if (balls.containsKey(id) && ((runs[id] ?? 0) > 0 || (wkts[id] ?? 0) == 0)) '${runs[id]}${notOut[id] == true ? '*' : ''} (${balls[id]})',
+      if ((wkts[id] ?? 0) > 0) plural(wkts[id]!, 'wicket'),
+      if ((catches[id] ?? 0) > 0) plural(catches[id]!, 'catch'),
+      if ((runOuts[id] ?? 0) > 0) plural(runOuts[id]!, 'run out'),
+    ].join(' · ');
+    return {'id': id, 'name': nameOf(id), 'team': teamOf(id), 'points': points(id), 'reason': reason};
+  }
+
   @override
   Map<String, dynamic> toJson() {
     final c = current;
@@ -280,6 +325,7 @@ class CricketState implements EngineState {
       'result': result,
       'winner_entry_id': winner,
       'outcome': outcome,
+      if (finished) 'potm': playerOfMatch(),
       // What the points table needs. For net run rate, a team bowled out counts as having faced its full overs.
       'standing': [
         for (final i in innings)
@@ -579,6 +625,9 @@ class CricketEngine {
         _ => 'run out${fielder == null ? '' : ' ($fielder)'}',
       };
       if (_bowlerWickets.contains(how)) bowler.wickets++;
+      final fid = w['fielder'] is num ? (w['fielder'] as num).toInt() : (how == 'CAUGHT' ? bowler.id : null);
+      if (fid != null && how == 'CAUGHT') s.catches[fid] = (s.catches[fid] ?? 0) + 1;
+      if (fid != null && (how == 'STUMPED' || how == 'RUN_OUT')) s.runOuts[fid] = (s.runOuts[fid] ?? 0) + 1;
       c.wickets++;
       c.fallOfWickets.add({'wicket': c.wickets, 'score': c.runs, 'over': c.overs, 'name': o.name});
       if (c.striker == outId) c.striker = null;

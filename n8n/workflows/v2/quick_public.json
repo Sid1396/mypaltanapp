@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "4426f1c7-15ff-4bd3-b244-25e9b6bed8dc",
-      "webhookId": "943bc19b-d97e-4d9b-872d-d959acaa5e7a"
+      "id": "d7605f34-88cd-43f9-803a-7c9401632807",
+      "webhookId": "86808310-cf84-4115-ab47-f505757c6f2a"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "88df1e76-e787-4462-ab4d-83c59ce0053f"
+      "id": "63206d26-2e03-4e27-b2cc-66959ccf03fb"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "eb33efeb-a9d9-4cd2-be7b-ab7d2b7b5ee8",
+              "id": "778ea21f-ff4b-40a9-849b-c91bf85e0539",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,12 +67,12 @@
         440,
         0
       ],
-      "id": "ed9778a9-d0dd-4baf-a270-717a5b20af76"
+      "id": "8c673364-9e68-4e33-938f-fd5679cc6f02"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.id AS tid, t.code, t.sport, t.name, t.status, t.area, d.squad_max, d.match_rules, m.id AS match_id, m.status AS match_status, m.event_count, DATE_FORMAT(m.scheduled_at, '%Y-%m-%d %H:%i') AS scheduled_at, m.result_text, m.home_entry_id, m.away_entry_id, JSON_EXTRACT(m.live, '$.summary') AS summary, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'team_id', tm.id, 'team_code', tm.code, 'name', tm.name, 'registered_by', e.registered_by, 'captain_id', (SELECT x.user_id FROM team_members x WHERE x.team_id = tm.id AND x.role = 'CAPTAIN' AND x.status = 'ACTIVE' LIMIT 1), 'players', (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', ep.user_id, 'name', COALESCE(u.name, x.guest_name))) FROM tournament_entry_players ep JOIN team_members x ON x.id = ep.team_member_id LEFT JOIN app_users u ON u.id = x.user_id WHERE ep.entry_id = e.id))) FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id WHERE e.tournament_id = t.id) AS sides, (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', p.user_id, 'name', pu.name)) FROM quick_match_people p JOIN app_users pu ON pu.id = p.user_id WHERE p.tournament_id = t.id) AS people, t.organizer_user_id, (SELECT CONCAT_WS('|', v.id, v.is_active) FROM app_users v WHERE v.phone = $2 AND $2 <> '') AS viewer FROM tournaments t JOIN tournament_divisions d ON d.tournament_id = t.id JOIN tournament_matches m ON m.tournament_id = t.id WHERE t.code = $1 AND t.kind = 'QUICK'",
+        "query": "SELECT t.id AS tid, t.code, t.sport, t.name, t.status, t.area, d.squad_max, d.match_rules, m.id AS match_id, m.match_no, m.status AS match_status, m.event_count, DATE_FORMAT(m.scheduled_at, '%Y-%m-%d %H:%i') AS scheduled_at, m.result_text, m.home_entry_id, m.away_entry_id, JSON_EXTRACT(m.live, '$.summary') AS summary, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'team_id', tm.id, 'team_code', tm.code, 'name', tm.name, 'registered_by', e.registered_by, 'captain_id', (SELECT x.user_id FROM team_members x WHERE x.team_id = tm.id AND x.role = 'CAPTAIN' AND x.status = 'ACTIVE' LIMIT 1), 'players', (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', ep.user_id, 'name', COALESCE(u.name, x.guest_name))) FROM tournament_entry_players ep JOIN team_members x ON x.id = ep.team_member_id LEFT JOIN app_users u ON u.id = x.user_id WHERE ep.entry_id = e.id))) FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id WHERE e.tournament_id = t.id) AS sides, (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', p.user_id, 'name', pu.name)) FROM quick_match_people p JOIN app_users pu ON pu.id = p.user_id WHERE p.tournament_id = t.id) AS people, t.organizer_user_id, (SELECT CONCAT_WS('|', v.id, v.is_active) FROM app_users v WHERE v.phone = $2 AND $2 <> '') AS viewer, (SELECT JSON_ARRAYAGG(JSON_OBJECT('match_no', x.match_no, 'status', x.status, 'events', x.event_count, 'result_text', x.result_text, 'summary', JSON_EXTRACT(x.live, '$.summary'))) FROM tournament_matches x WHERE x.tournament_id = t.id) AS matches FROM tournaments t JOIN tournament_matches m ON m.id = (SELECT MAX(z.id) FROM tournament_matches z WHERE z.tournament_id = t.id) JOIN tournament_divisions d ON d.id = m.division_id WHERE t.code = $1 AND t.kind = 'QUICK'",
         "options": {
           "queryReplacement": "={{ [$json.code, $json.phone] }}"
         }
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "b9d4cb85-63e4-4c58-bd6b-b07557e2d3fe",
+      "id": "7b847e3c-80e1-46e7-9502-0320dfcc6844",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nif (!s.tid) return [{ json: { status: 404, body: { success: false, message: 'This match link is not valid.' } } }];\n\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n// Public pages: \"Aarav S.\" (no full names; anyone with the link can see this page).\nconst short = n => { const w = String(n || '').trim().split(/\\s+/).filter(Boolean); return w.length ? (w.length > 1 ? `${w[0]} ${w[w.length - 1][0].toUpperCase()}.` : w[0]) : 'Player'; };\nconst [vid, vactive] = String(s.viewer || '').split('|');\nconst me = vid ? Number(vid) : null;\nconst sides = (parse(s.sides) || []).map(x => ({ ...x, side: Number(x.entry_id) === Number(s.home_entry_id) ? 'HOME' : 'AWAY',\n  captain_id: x.captain_id == null ? null : Number(x.captain_id), players: parse(x.players) || [] }))\n  .sort((a, b) => (a.side === 'HOME' ? 0 : 1) - (b.side === 'HOME' ? 0 : 1));\nconst people = parse(s.people) || [];\nconst open = s.match_status === 'SCHEDULED' && Number(s.event_count) === 0 && s.status !== 'CANCELLED';\nconst mySide = me == null ? null : sides.find(x => x.players.some(p => Number(p.user_id) === me)) || null;\n\nconst team = r.team ? sides.find(x => x.team_code === r.team) : null;\nif (r.team && !team) return [{ json: { status: 404, body: { success: false, message: 'This team is not in this match.' } } }];\nconst summary = parse(s.summary) || {};\nconst names = Object.fromEntries(sides.map(x => [String(x.entry_id), x.name]));\nconst rules = parse(s.match_rules) || {};\nconst match = {\n  code: s.code, sport: s.sport, name: s.name, status: s.status, ground: s.area === 'Quick match' ? '' : s.area,\n  scheduled_at: s.scheduled_at, match_status: s.match_status, started: Number(s.event_count) > 0, open,\n  rules: { overs: rules.overs ?? null, half_minutes: rules.half_minutes ?? null, last_batter: rules.last_batter === true,\n    event: rules.event ?? null, games: rules.games ?? null, points_per_game: rules.points_per_game ?? null },\n  result_text: s.result_text ? String(s.result_text).replace(/\\{(\\d+)\\}/g, (_, id) => names[id] || 'Team') : null,\n  sides: sides.map(x => ({ side: x.side, name: x.name, score: summary[String(x.entry_id)] ?? null, squad_max: Number(s.squad_max),\n    captain: x.captain_id == null ? null : short((x.players.find(p => Number(p.user_id) === x.captain_id) || {}).name),\n    players: x.players.map(p => short(p.name)).sort() })),\n  in_list: people.length,\n  people: people.map(p => short(p.name)).sort(),\n  me: me == null ? null : { in_list: people.some(p => Number(p.user_id) === me), side: mySide ? mySide.side : null },\n  ...(team ? { team: { side: team.side, name: team.name, players: team.players.length, squad_max: Number(s.squad_max) } } : {}),\n};\nreturn [{ json: { status: 200, body: { success: true, match } } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nif (!s.tid) return [{ json: { status: 404, body: { success: false, message: 'This match link is not valid.' } } }];\n\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n// Public pages: \"Aarav S.\" (no full names; anyone with the link can see this page).\nconst short = n => { const w = String(n || '').trim().split(/\\s+/).filter(Boolean); return w.length ? (w.length > 1 ? `${w[0]} ${w[w.length - 1][0].toUpperCase()}.` : w[0]) : 'Player'; };\nconst [vid, vactive] = String(s.viewer || '').split('|');\nconst me = vid ? Number(vid) : null;\nconst sides = (parse(s.sides) || []).map(x => ({ ...x, side: Number(x.entry_id) === Number(s.home_entry_id) ? 'HOME' : 'AWAY',\n  captain_id: x.captain_id == null ? null : Number(x.captain_id), players: parse(x.players) || [] }))\n  .sort((a, b) => (a.side === 'HOME' ? 0 : 1) - (b.side === 'HOME' ? 0 : 1));\nconst people = parse(s.people) || [];\n// A session can have several matches; the page works on the latest. \"I'm in\" stays open all session; teams are set\n// before each match starts.\nconst sessionOpen = !['CANCELLED', 'COMPLETED'].includes(s.status);\nconst open = sessionOpen && s.match_status === 'SCHEDULED' && Number(s.event_count) === 0;\nconst matches = (parse(s.matches) || []).map(x => ({ ...x, match_no: Number(x.match_no), events: Number(x.events) })).sort((a, b) => a.match_no - b.match_no);\nconst mySide = me == null ? null : sides.find(x => x.players.some(p => Number(p.user_id) === me)) || null;\n\nconst team = r.team ? sides.find(x => x.team_code === r.team) : null;\nif (r.team && !team) return [{ json: { status: 404, body: { success: false, message: 'This team is not in this match.' } } }];\nconst summary = parse(s.summary) || {};\nconst names = Object.fromEntries(sides.map(x => [String(x.entry_id), x.name]));\nconst rules = parse(s.match_rules) || {};\nconst match = {\n  code: s.code, sport: s.sport, name: s.name, status: s.status, ground: s.area === 'Quick match' ? '' : s.area,\n  scheduled_at: s.scheduled_at, match_status: s.match_status, match_no: Number(s.match_no), started: Number(s.event_count) > 0,\n  open: sessionOpen, teams_open: open, session_open: sessionOpen,\n  matches: matches.map(x => { const sum = parse(x.summary) || {};\n    return { match_no: x.match_no, status: x.status, started: x.events > 0,\n      result_text: x.result_text ? String(x.result_text).replace(/\\{(\\d+)\\}/g, (_, id) => names[id] || 'Team') : null,\n      scores: sides.map(y => sum[String(y.entry_id)] ?? null) }; }),\n  rules: { overs: rules.overs ?? null, half_minutes: rules.half_minutes ?? null, last_batter: rules.last_batter === true,\n    event: rules.event ?? null, games: rules.games ?? null, points_per_game: rules.points_per_game ?? null },\n  result_text: s.result_text ? String(s.result_text).replace(/\\{(\\d+)\\}/g, (_, id) => names[id] || 'Team') : null,\n  sides: sides.map(x => ({ side: x.side, name: x.name, score: summary[String(x.entry_id)] ?? null, squad_max: Number(s.squad_max),\n    captain: x.captain_id == null ? null : short((x.players.find(p => Number(p.user_id) === x.captain_id) || {}).name),\n    players: x.players.map(p => short(p.name)).sort() })),\n  in_list: people.length,\n  people: people.map(p => short(p.name)).sort(),\n  me: me == null ? null : { in_list: people.some(p => Number(p.user_id) === me), side: mySide ? mySide.side : null },\n  ...(team ? { team: { side: team.side, name: team.name, players: team.players.length, squad_max: Number(s.squad_max) } } : {}),\n};\nreturn [{ json: { status: 200, body: { success: true, match } } }];"
       },
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "f6c3d5c1-c5b1-4070-9b26-2e670b702029"
+      "id": "d6294560-834a-4fc1-9cfd-4777bbd173ce"
     },
     {
       "parameters": {
@@ -121,7 +121,7 @@
         1100,
         0
       ],
-      "id": "6a20d3d2-b022-4fe5-8925-6c451354eb08"
+      "id": "2e3c4fe8-6911-4bb8-8f9a-2857e2d2c1f1"
     }
   ],
   "connections": {

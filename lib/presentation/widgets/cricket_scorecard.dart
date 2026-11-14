@@ -80,8 +80,24 @@ class LiveScoreHeader extends StatelessWidget {
             ),
           if (innings.isEmpty) Text('Match not started', style: tfStyle(16, weight: FontWeight.w700)),
           gapH(6),
-          if (status == 'COMPLETED' || status == 'TIE_DECISION')
-            Text(fill(live['result']?.toString()), style: tfStyle(14, weight: FontWeight.w800, color: AppColors.primary))
+          if (status == 'COMPLETED' || status == 'TIE_DECISION') ...[
+            Text(fill(live['result']?.toString()), style: tfStyle(14, weight: FontWeight.w800, color: AppColors.primary)),
+            if (live['potm'] is Map) ...[
+              gapH(10),
+              Row(key: const ValueKey('cricket-potm'), children: [
+                Icon(Icons.star_rounded, color: AppColors.primary, size: SizeConfig.r(20)),
+                SizedBox(width: SizeConfig.w(6)),
+                Expanded(
+                  child: Text.rich(TextSpan(children: [
+                    TextSpan(text: 'Player of the match: ', style: tfStyle(12.5, color: Colors.white.withAlpha(160))),
+                    TextSpan(text: '${(live['potm'] as Map)['name']}', style: tfStyle(13.5, weight: FontWeight.w800)),
+                    if (((live['potm'] as Map)['reason'] ?? '').toString().isNotEmpty)
+                      TextSpan(text: ' · ${(live['potm'] as Map)['reason']}', style: tfStyle(12.5, color: Colors.white.withAlpha(160))),
+                  ])),
+                ),
+              ]),
+            ],
+          ]
           else if (status == 'INNINGS_BREAK')
             Text('Innings break · ${teamName(innings.isNotEmpty ? innings.last['bowling_entry_id'] as int? : null)} need ${(innings.last['runs'] as int) + 1} to win',
                 style: tfStyle(13.5, weight: FontWeight.w700, color: AppColors.primary))

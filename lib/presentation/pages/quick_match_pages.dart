@@ -134,7 +134,8 @@ class CreateQuickMatchPage extends GetView<CreateQuickMatchController> {
     switch (c.sport.value) {
       case 'CRICKET':
         return [
-          NumberStepper(label: 'Overs per innings', value: c.overs.value, min: 1, max: 50, onChanged: (v) => c.overs.value = v),
+          NumberStepper(label: 'Overs per innings', value: c.overs.value, min: 1, max: 50, onChanged: c.setOvers),
+          NumberStepper(label: 'Overs per bowler', value: c.oversPerBowler.value, min: 1, max: c.overs.value, onChanged: c.setOversPerBowler),
           SwitchRow(
             label: 'Last man stands',
             hint: 'The last batter can bat on alone',
@@ -230,7 +231,8 @@ class QuickMatchPage extends GetView<QuickMatchController> {
           Row(children: [
             if (sport != null) Image.asset(sport.asset, height: SizeConfig.r(22)),
             SizedBox(width: SizeConfig.w(8)),
-            Text('QUICK MATCH · ${sport?.label.toUpperCase() ?? ''}', style: tfStyle(11.5, weight: FontWeight.w800, color: AppColors.primary)),
+            Text('${m.games.length > 1 ? 'MATCH ${m.matchNo}' : 'QUICK MATCH'} · ${sport?.label.toUpperCase() ?? ''}',
+                style: tfStyle(11.5, weight: FontWeight.w800, color: AppColors.primary)),
             const Spacer(),
             _StatusPill(m: m),
           ]),
@@ -265,7 +267,22 @@ class QuickMatchPage extends GetView<QuickMatchController> {
       // Main action
       if (m.isCancelled)
         const InfoNote('This match was cancelled.')
-      else if (m.started || m.isCompleted)
+      else if (m.sessionEnded)
+        const InfoNote('This session has ended. Well played!')
+      else if (m.betweenMatches) ...[
+        if (m.isCreator)
+          SizedBox(
+            width: double.infinity,
+            child: SmallButtonLarge(key: const ValueKey('quick-next'), label: 'Next match', onTap: c.busy.value ? null : c.nextMatch),
+          )
+        else if (!m.inList && m.mySide == null)
+          SizedBox(
+            width: double.infinity,
+            child: SmallButtonLarge(key: const ValueKey('quick-im-in'), label: c.busy.value ? 'Saving…' : "I'm in", onTap: c.busy.value ? null : c.join),
+          )
+        else
+          InfoNote('Match ${m.matchNo} is over. ${m.creatorName} will set up the next one.'),
+      ] else if (m.started || m.isCompleted)
         SizedBox(
           width: double.infinity,
           child: SmallButtonLarge(
@@ -301,7 +318,7 @@ class QuickMatchPage extends GetView<QuickMatchController> {
       ],
 
       // Scoring PIN (creator and captains)
-      if (m.scoringPin != null && !m.isCompleted && !m.isCancelled) ...[
+      if (m.scoringPin != null && m.sessionOpen && !m.isCancelled) ...[
         gapH(16),
         FormCard(
           padding: EdgeInsets.all(SizeConfig.r(14)),
@@ -330,11 +347,43 @@ class QuickMatchPage extends GetView<QuickMatchController> {
         gapH(12),
       ],
 
+      // Every match of the session; tap for its scorecard.
+      if (m.anyPlayed) ...[
+        gapH(8),
+        Text('MATCHES', style: tfStyle(12, weight: FontWeight.w800, color: Colors.white.withAlpha(140))),
+        gapH(8),
+        for (final g in m.games.reversed)
+          if (g.started)
+            Padding(
+              padding: EdgeInsets.only(bottom: SizeConfig.h(8)),
+              child: GestureDetector(
+                key: ValueKey('quick-game-${g.matchNo}'),
+                onTap: () => c.openGame(g.matchId),
+                child: FormCard(
+                  padding: EdgeInsets.all(SizeConfig.r(12)),
+                  child: Row(children: [
+                    Text('Match ${g.matchNo}', style: tfStyle(13, weight: FontWeight.w800, color: AppColors.primary)),
+                    SizedBox(width: SizeConfig.w(10)),
+                    Expanded(
+                      child: Text(
+                        g.status == 'COMPLETED'
+                            ? (g.resultText ?? 'Finished')
+                            : 'LIVE · ${[for (final s in m.sides) '${s.short} ${g.summary['${s.entryId}'] ?? ''}'].join('  ')}',
+                        style: tfStyle(13, weight: FontWeight.w600, color: g.status == 'COMPLETED' ? Colors.white : AppColors.negative),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: Colors.white.withAlpha(120)),
+                  ]),
+                ),
+              ),
+            ),
+      ],
+
       // "I'm in" list: the creator puts each person in a team (or shuffles); everyone else sees who's where.
       if (m.isCreator && m.isOpen && m.people.isNotEmpty) ...[
         gapH(8),
         _MakeTeams(c: c, m: m),
-      ] else if (!m.started && !m.isCancelled && m.people.isNotEmpty) ...[
+      ] else if ((!m.started || m.betweenMatches) && !m.isCancelled && m.people.isNotEmpty) ...[
         gapH(8),
         Text("WHO'S IN (${m.people.length})", style: tfStyle(12, weight: FontWeight.w800, color: Colors.white.withAlpha(140))),
         gapH(8),
@@ -355,14 +404,22 @@ class QuickMatchPage extends GetView<QuickMatchController> {
       ],
 
       // Creator / player options
-      if (m.isOpen) ...[
+      if (m.sessionOpen && !m.isCancelled && (m.isOpen || m.betweenMatches)) ...[
         gapH(24),
-        if (m.isCreator)
+        if (m.isCreator && !m.anyPlayed)
           Center(
             child: TextButton(
               key: const ValueKey('quick-cancel'),
               onPressed: c.confirmCancel,
               child: Text('Cancel match', style: tfStyle(13.5, color: AppColors.negative)),
+            ),
+          )
+        else if (m.isCreator)
+          Center(
+            child: TextButton(
+              key: const ValueKey('quick-end'),
+              onPressed: c.confirmEndSession,
+              child: Text('End session', style: tfStyle(13.5, color: AppColors.negative)),
             ),
           )
         else if (m.inList && m.mySide == null && m.captainOf == null)
@@ -386,11 +443,13 @@ class _StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, color) = m.isCancelled
         ? ('Cancelled', AppColors.negative)
-        : m.isCompleted
+        : m.sessionEnded
             ? ('Finished', Colors.white.withAlpha(150))
-            : m.started
-                ? ('LIVE', AppColors.negative)
-                : ('Open', AppColors.positive);
+            : m.betweenMatches
+                ? ('Match ${m.matchNo} done', Colors.white.withAlpha(170))
+                : m.started
+                    ? ('LIVE', AppColors.negative)
+                    : ('Open', AppColors.positive);
     return Container(
       padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(10), vertical: SizeConfig.h(4)),
       decoration: BoxDecoration(color: color.withAlpha(40), borderRadius: BorderRadius.circular(SizeConfig.r(100))),
@@ -527,13 +586,16 @@ class QuickMatchRow extends StatelessWidget {
     final sport = Sports.byCode(q.sport);
     final at = parseQuickTime(q.scheduledAt);
     final cancelled = q.status == 'CANCELLED' || q.matchStatus == 'CANCELLED';
+    final many = q.matchCount > 1;
     final status = cancelled
         ? 'Cancelled'
-        : q.matchStatus == 'COMPLETED'
-            ? (q.resultText ?? 'Finished')
+        : q.status == 'COMPLETED'
+            ? (many ? 'Finished · ${q.matchCount} matches' : (q.resultText ?? 'Finished'))
             : q.matchStatus == 'LIVE'
-                ? 'LIVE'
-                : (at != null ? fmtQuickTime(at) : 'Open');
+                ? (many ? 'LIVE · match ${q.matchCount}' : 'LIVE')
+                : q.matchStatus == 'COMPLETED'
+                    ? (many ? 'Match ${q.matchCount}: ${q.resultText ?? 'finished'}' : (q.resultText ?? 'Finished'))
+                    : (many ? 'Match ${q.matchCount} next' : (at != null ? fmtQuickTime(at) : 'Open'));
     return GestureDetector(
       onTap: onTap,
       child: FormCard(

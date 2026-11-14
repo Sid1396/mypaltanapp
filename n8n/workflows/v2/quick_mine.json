@@ -1,7 +1,6 @@
 {
   "id": "QuickMine0026mPx",
   "name": "MyPaltan v2 - Quick Match Mine",
-  "description": null,
   "active": false,
   "nodes": [
     {
@@ -20,8 +19,8 @@
         0,
         0
       ],
-      "id": "fe9ef427-318c-4c3f-a740-af220a76085d",
-      "webhookId": "54901ef8-3a7a-4251-b9ae-a217f672560f"
+      "id": "7dc3118b-e8e6-4982-85ec-380422dc49dc",
+      "webhookId": "f0b30467-549e-47df-b0ac-927077cb5ea9"
     },
     {
       "parameters": {
@@ -34,7 +33,7 @@
         220,
         0
       ],
-      "id": "ec25b9ca-7737-44cf-8b0e-4632d7cf2033"
+      "id": "cb463034-7e3f-47cd-939b-52fb982b259d"
     },
     {
       "parameters": {
@@ -47,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "af618e83-0ea0-4b9f-ab97-6f347a30623f",
+              "id": "16f3f811-5b3d-4d31-8c88-47d902bb954e",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -68,12 +67,12 @@
         440,
         0
       ],
-      "id": "e9b1ac8e-48f6-41e7-8259-b36230f5772c"
+      "id": "69c7a5b4-1b87-47a2-973f-ab67b0967376"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.code, t.sport, t.name, t.status, t.area, (t.organizer_user_id = u.id) AS is_creator, m.status AS match_status, DATE_FORMAT(m.scheduled_at, '%Y-%m-%d %H:%i') AS scheduled_at, m.result_text, m.home_entry_id, m.away_entry_id, JSON_EXTRACT(m.live, '$.summary') AS summary, hm.name AS home_name, aw.name AS away_name FROM tournaments t JOIN app_users u ON u.phone = $1 JOIN tournament_matches m ON m.tournament_id = t.id JOIN tournament_entries he ON he.id = m.home_entry_id JOIN teams hm ON hm.id = he.team_id JOIN tournament_entries ae ON ae.id = m.away_entry_id JOIN teams aw ON aw.id = ae.team_id WHERE t.kind = 'QUICK' AND (t.organizer_user_id = u.id OR EXISTS (SELECT 1 FROM quick_match_people p WHERE p.tournament_id = t.id AND p.user_id = u.id) OR EXISTS (SELECT 1 FROM tournament_entry_players ep WHERE ep.tournament_id = t.id AND ep.user_id = u.id)) ORDER BY m.scheduled_at DESC LIMIT 50",
+        "query": "SELECT t.code, t.sport, t.name, t.status, t.area, (t.organizer_user_id = u.id) AS is_creator, m.status AS match_status, m.match_no, (SELECT COUNT(*) FROM tournament_matches z WHERE z.tournament_id = t.id) AS match_count, DATE_FORMAT(m.scheduled_at, '%Y-%m-%d %H:%i') AS scheduled_at, m.result_text, m.home_entry_id, m.away_entry_id, JSON_EXTRACT(m.live, '$.summary') AS summary, hm.name AS home_name, aw.name AS away_name FROM tournaments t JOIN app_users u ON u.phone = $1 JOIN tournament_matches m ON m.id = (SELECT MAX(z.id) FROM tournament_matches z WHERE z.tournament_id = t.id) JOIN tournament_entries he ON he.id = m.home_entry_id JOIN teams hm ON hm.id = he.team_id JOIN tournament_entries ae ON ae.id = m.away_entry_id JOIN teams aw ON aw.id = ae.team_id WHERE t.kind = 'QUICK' AND (t.organizer_user_id = u.id OR EXISTS (SELECT 1 FROM quick_match_people p WHERE p.tournament_id = t.id AND p.user_id = u.id) OR EXISTS (SELECT 1 FROM tournament_entry_players ep WHERE ep.tournament_id = t.id AND ep.user_id = u.id)) ORDER BY m.scheduled_at DESC LIMIT 50",
         "options": {
           "queryReplacement": "={{ [$json.phone] }}"
         }
@@ -85,7 +84,7 @@
         660,
         -100
       ],
-      "id": "d6cf58c7-09b5-455d-92bc-52243b75f53c",
+      "id": "40fd97c1-ec4a-4373-a5e9-ce69b779159f",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -96,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nconst rows = $input.all().map(i => i.json).filter(x => x.code);\nconst matches = rows.map(x => {\n  const sum = parse(x.summary) || {};\n  const names = { [x.home_entry_id]: x.home_name, [x.away_entry_id]: x.away_name };\n  return { code: x.code, sport: x.sport, name: x.name, status: x.status, ground: x.area, is_creator: Number(x.is_creator) === 1,\n    match_status: x.match_status, scheduled_at: x.scheduled_at,\n    home: { name: x.home_name, score: sum[x.home_entry_id] ?? null }, away: { name: x.away_name, score: sum[x.away_entry_id] ?? null },\n    result_text: x.result_text ? String(x.result_text).replace(/\\{(\\d+)\\}/g, (_, id) => names[id] || 'Team') : null };\n});\nreturn [{ json: { status: 200, body: { success: true, matches } } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nconst rows = $input.all().map(i => i.json).filter(x => x.code);\nconst matches = rows.map(x => {\n  const sum = parse(x.summary) || {};\n  const names = { [x.home_entry_id]: x.home_name, [x.away_entry_id]: x.away_name };\n  return { code: x.code, sport: x.sport, name: x.name, status: x.status, ground: x.area, is_creator: Number(x.is_creator) === 1,\n    match_status: x.match_status, scheduled_at: x.scheduled_at, match_no: Number(x.match_no), match_count: Number(x.match_count),\n    home: { name: x.home_name, score: sum[x.home_entry_id] ?? null }, away: { name: x.away_name, score: sum[x.away_entry_id] ?? null },\n    result_text: x.result_text ? String(x.result_text).replace(/\\{(\\d+)\\}/g, (_, id) => names[id] || 'Team') : null };\n});\nreturn [{ json: { status: 200, body: { success: true, matches } } }];"
       },
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
@@ -105,7 +104,7 @@
         880,
         -100
       ],
-      "id": "ca4d8cae-b973-4cc7-96f9-cdb74945c600"
+      "id": "a63c0cec-8819-4f79-8a1c-a1362281399c"
     },
     {
       "parameters": {
@@ -122,7 +121,7 @@
         1100,
         0
       ],
-      "id": "056f7223-90b2-435a-a718-ab5083fe39b4"
+      "id": "f7d9ae6c-4235-4be9-9f0e-dba41d6ad11e"
     }
   ],
   "connections": {
@@ -192,7 +191,5 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "nodeGroups": [],
-  "pinData": {},
-  "sourceWorkflowId": null
+  "pinData": {}
 }

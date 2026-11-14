@@ -197,6 +197,50 @@ void main() {
     expect(s5.innings.first.endReason, 'All out');
   });
 
+  test('player of the match: runs, wickets and catches; only once the match is over', () {
+    MatchEvent outC(int id, int f) => ball(0, wicket: {'how': 'CAUGHT', 'out': id, 'fielder': f});
+    const one = CricketRules(overs: 1, playersPerSide: 6, oversPerBowler: 1);
+    // A1 hits 10 and is caught by B2 off B1; Team B makes 1 in reply.
+    final first = [
+      start(11, 12, 21),
+      ball(6),
+      ball(4, four: true),
+      outC(11, 22),
+      ev('NEW_BATTER', {'id': 13}),
+      ball(1),
+      ball(0),
+      ball(0)
+    ];
+    expect(play(first, r: one).toJson().containsKey('potm'), false);
+    final done = play([...first, start(21, 22, 11), ball(1), ball(0), ball(0), ball(0), ball(0), ball(0)], r: one);
+    expect(done.finished, true);
+    expect(done.catches[22], 1);
+    final potm = done.toJson()['potm'] as Map;
+    // B1: 1 run + 1 wicket (21 points) beats A1's 10 runs and B2's catch (10).
+    expect(potm['name'], 'B1');
+    expect(potm['reason'], '1* (1) · 1 wicket');
+    expect(potm['team'], 2);
+    // Level on points: the winning team's player gets it (A1 10 runs v B2 1 catch = 10 each, Team A won).
+    final s2 = play([
+      ...first.take(3),
+      outC(11, 22),
+      ev('NEW_BATTER', {'id': 13}),
+      ball(0),
+      ball(0),
+      ball(0),
+      start(21, 22, 12),
+      ball(0),
+      ball(0),
+      ball(0),
+      ball(0),
+      ball(0),
+      ball(0)
+    ], r: const CricketRules(overs: 1, playersPerSide: 6, oversPerBowler: 1));
+    final p2 = s2.toJson()['potm'] as Map;
+    expect(s2.winner, 1);
+    expect(p2['points'], 20); // B1 still has the wicket: 20 points
+  });
+
   test('scoring after the match or before the innings is refused', () {
     expect(() => play([ball(1)]), throwsA(isA<ScoringError>()));
     expect(() => play([start(11, 21, 21)]), throwsA(isA<ScoringError>()));

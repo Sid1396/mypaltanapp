@@ -28,6 +28,8 @@ class CreateQuickMatchController extends GetxController {
 
   // Rules
   final overs = 6.obs;
+  final oversPerBowler = 2.obs;
+  bool _opbTouched = false;
   final lastManStands = false.obs;
   final halfMinutes = 10.obs;
   final racketEvent = 'DOUBLES'.obs;
@@ -50,6 +52,18 @@ class CreateQuickMatchController extends GetxController {
     super.onClose();
   }
 
+  /// Overs per bowler follows the overs (2 for short games, a fifth for longer ones) until the creator sets it.
+  void setOvers(int v) {
+    overs.value = v;
+    if (!_opbTouched) oversPerBowler.value = defaultOversPerBowler(v);
+    if (oversPerBowler.value > v) oversPerBowler.value = v;
+  }
+
+  void setOversPerBowler(int v) {
+    _opbTouched = true;
+    oversPerBowler.value = v;
+  }
+
   void selectSport(String s) {
     sport.value = s;
     pointsPerGame.value = s == 'PICKLEBALL' ? 11 : 21;
@@ -57,7 +71,7 @@ class CreateQuickMatchController extends GetxController {
   }
 
   Map<String, dynamic> get _rules => switch (sport.value) {
-        'CRICKET' => {'overs': overs.value, 'last_batter': lastManStands.value},
+        'CRICKET' => {'overs': overs.value, 'overs_per_bowler': oversPerBowler.value, 'last_batter': lastManStands.value},
         'FOOTBALL' => {'half_minutes': halfMinutes.value},
         _ => {'event': racketEvent.value, 'points_per_game': pointsPerGame.value, 'games': games.value},
       };
@@ -117,6 +131,9 @@ class CreateQuickMatchController extends GetxController {
     }
   }
 }
+
+/// 2 overs a bowler in short games, a fifth of the overs in longer ones (same as the server's default).
+int defaultOversPerBowler(int overs) => overs <= 10 ? (overs < 2 ? overs : 2) : (overs / 5).ceil();
 
 String _pad2(int v) => v.toString().padLeft(2, '0');
 
@@ -186,10 +203,10 @@ class QuickMatchController extends GetxController with LoggerMixin {
     }
   }
 
-  Future<void> _action(String action, {String? side, int? userId, String? title}) async {
+  Future<void> _action(String action, {String? side, int? userId, Map<String, dynamic>? rules, String? title}) async {
     busy.value = true;
     try {
-      final res = await _api.quickMatchAction(code, action, side: side, userId: userId);
+      final res = await _api.quickMatchAction(code, action, side: side, userId: userId, rules: rules);
       if (res['success'] == true) {
         AppSnackbar.success(title ?? 'Quick match', res['message']?.toString() ?? 'Done.');
         await load(quiet: true);
@@ -204,6 +221,85 @@ class QuickMatchController extends GetxController with LoggerMixin {
   }
 
   Future<void> join() => _action('JOIN', title: "I'm in");
+
+  /// Creator: the next match on the same link. Same teams to start with (they can change before it starts); the
+  /// rules can change for this match.
+  void nextMatch() {
+    final m = match.value;
+    if (m == null) return;
+    int r(String k, int d) => (m.rules[k] as num?)?.toInt() ?? d;
+    final overs = r('overs', 6).obs, opb = r('overs_per_bowler', 2).obs, half = r('half_minutes', 10).obs;
+    final ppg = r('points_per_game', 21).obs, games = r('games', 1).obs, lastMan = (m.rules['last_batter'] == true).obs;
+    Get.bottomSheet(
+      Builder(
+          builder: (sheet) => Obx(() => SheetFrame(title: 'Match ${m.matchNo + 1}', children: [
+                Text('Same teams to start with. You can change the teams before it starts.',
+                    style: tfStyle(13.5, color: Colors.white.withAlpha(170), height: 1.4)),
+                gapH(12),
+                FormCard(
+                  child: Column(children: [
+                    if (m.sport == 'CRICKET') ...[
+                      NumberStepper(
+                          label: 'Overs per innings',
+                          value: overs.value,
+                          min: 1,
+                          max: 50,
+                          onChanged: (v) {
+                            overs.value = v;
+                            if (opb.value > v) opb.value = v;
+                          }),
+                      NumberStepper(label: 'Overs per bowler', value: opb.value, min: 1, max: overs.value, onChanged: (v) => opb.value = v),
+                      SwitchRow(label: 'Last man stands', value: lastMan.value, onChanged: (v) => lastMan.value = v),
+                    ] else if (m.sport == 'FOOTBALL')
+                      NumberStepper(label: 'Each half', hint: 'Minutes', value: half.value, min: 1, max: 45, onChanged: (v) => half.value = v)
+                    else ...[
+                      NumberStepper(label: 'Points per game', value: ppg.value, min: 5, max: 30, onChanged: (v) => ppg.value = v),
+                      NumberStepper(label: 'Games', hint: 'Best of', value: games.value, min: 1, max: 5, step: 2, onChanged: (v) => games.value = v),
+                    ],
+                  ]),
+                ),
+                gapH(16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    key: const ValueKey('quick-next-go'),
+                    onPressed: busy.value
+                        ? null
+                        : () {
+                            Navigator.of(sheet).pop();
+                            _action('NEXT_MATCH',
+                                rules: switch (m.sport) {
+                                  'CRICKET' => {'overs': overs.value, 'overs_per_bowler': opb.value, 'last_batter': lastMan.value},
+                                  'FOOTBALL' => {'half_minutes': half.value},
+                                  _ => {'points_per_game': ppg.value, 'games': games.value},
+                                },
+                                title: 'Next match');
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: EdgeInsets.symmetric(vertical: SizeConfig.h(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(SizeConfig.r(14))),
+                    ),
+                    child: Text('Set up match ${m.matchNo + 1}', style: tfStyle(15, weight: FontWeight.w700)),
+                  ),
+                ),
+              ]))),
+      isScrollControlled: true,
+    );
+  }
+
+  void confirmEndSession() => _confirm(
+        'End the session?',
+        'Everyone sees the results. No more matches can be added on this link.',
+        'End session',
+        () => _action('END_SESSION', title: 'Quick match'),
+      );
+
+  /// Scorecard / scoring for one match of the session.
+  Future<void> openGame(int matchId) async {
+    await Get.toNamed(AppRoutes.match, arguments: {'id': matchId});
+    await load(quiet: true);
+  }
 
   /// Creator: put someone in a team (side HOME / AWAY) or take them out of both (null).
   Future<void> assign(QuickPerson p, String? side) => _action('ASSIGN', side: side, userId: p.userId, title: 'Teams');

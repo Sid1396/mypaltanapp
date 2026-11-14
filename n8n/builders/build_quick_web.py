@@ -46,7 +46,7 @@ function passPhone(headers) {
 # Match, both sides with squads, the "I'm in" list, and who the viewer is (by phone; '' = nobody).
 LOAD = (
     "SELECT t.id AS tid, t.code, t.sport, t.name, t.status, t.area, d.squad_max, d.match_rules, "
-    "m.id AS match_id, m.status AS match_status, m.event_count, DATE_FORMAT(m.scheduled_at, '%Y-%m-%d %H:%i') AS scheduled_at, "
+    "m.id AS match_id, m.match_no, m.status AS match_status, m.event_count, DATE_FORMAT(m.scheduled_at, '%Y-%m-%d %H:%i') AS scheduled_at, "
     "m.result_text, m.home_entry_id, m.away_entry_id, JSON_EXTRACT(m.live, '$.summary') AS summary, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'team_id', tm.id, 'team_code', tm.code, 'name', tm.name, 'registered_by', e.registered_by, "
     "'captain_id', (SELECT x.user_id FROM team_members x WHERE x.team_id = tm.id AND x.role = 'CAPTAIN' AND x.status = 'ACTIVE' LIMIT 1), "
@@ -55,8 +55,11 @@ LOAD = (
     "FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id WHERE e.tournament_id = t.id) AS sides, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', p.user_id, 'name', pu.name)) FROM quick_match_people p JOIN app_users pu ON pu.id = p.user_id "
     "WHERE p.tournament_id = t.id) AS people, t.organizer_user_id, "
-    "(SELECT CONCAT_WS('|', v.id, v.is_active) FROM app_users v WHERE v.phone = $2 AND $2 <> '') AS viewer "
-    "FROM tournaments t JOIN tournament_divisions d ON d.tournament_id = t.id JOIN tournament_matches m ON m.tournament_id = t.id "
+    "(SELECT CONCAT_WS('|', v.id, v.is_active) FROM app_users v WHERE v.phone = $2 AND $2 <> '') AS viewer, "
+    "(SELECT JSON_ARRAYAGG(JSON_OBJECT('match_no', x.match_no, 'status', x.status, 'events', x.event_count, 'result_text', x.result_text, "
+    "'summary', JSON_EXTRACT(x.live, '$.summary'))) FROM tournament_matches x WHERE x.tournament_id = t.id) AS matches "
+    "FROM tournaments t JOIN tournament_matches m ON m.id = (SELECT MAX(z.id) FROM tournament_matches z WHERE z.tournament_id = t.id) "
+    "JOIN tournament_divisions d ON d.id = m.division_id "
     "WHERE t.code = $1 AND t.kind = 'QUICK'"
 )
 
@@ -70,7 +73,11 @@ const sides = (parse(s.sides) || []).map(x => ({ ...x, side: Number(x.entry_id) 
   captain_id: x.captain_id == null ? null : Number(x.captain_id), players: parse(x.players) || [] }))
   .sort((a, b) => (a.side === 'HOME' ? 0 : 1) - (b.side === 'HOME' ? 0 : 1));
 const people = parse(s.people) || [];
-const open = s.match_status === 'SCHEDULED' && Number(s.event_count) === 0 && s.status !== 'CANCELLED';
+// A session can have several matches; the page works on the latest. "I'm in" stays open all session; teams are set
+// before each match starts.
+const sessionOpen = !['CANCELLED', 'COMPLETED'].includes(s.status);
+const open = sessionOpen && s.match_status === 'SCHEDULED' && Number(s.event_count) === 0;
+const matches = (parse(s.matches) || []).map(x => ({ ...x, match_no: Number(x.match_no), events: Number(x.events) })).sort((a, b) => a.match_no - b.match_no);
 const mySide = me == null ? null : sides.find(x => x.players.some(p => Number(p.user_id) === me)) || null;
 """
 
@@ -101,7 +108,12 @@ const names = Object.fromEntries(sides.map(x => [String(x.entry_id), x.name]));
 const rules = parse(s.match_rules) || {};
 const match = {
   code: s.code, sport: s.sport, name: s.name, status: s.status, ground: s.area === 'Quick match' ? '' : s.area,
-  scheduled_at: s.scheduled_at, match_status: s.match_status, started: Number(s.event_count) > 0, open,
+  scheduled_at: s.scheduled_at, match_status: s.match_status, match_no: Number(s.match_no), started: Number(s.event_count) > 0,
+  open: sessionOpen, teams_open: open, session_open: sessionOpen,
+  matches: matches.map(x => { const sum = parse(x.summary) || {};
+    return { match_no: x.match_no, status: x.status, started: x.events > 0,
+      result_text: x.result_text ? String(x.result_text).replace(/\{(\d+)\}/g, (_, id) => names[id] || 'Team') : null,
+      scores: sides.map(y => sum[String(y.entry_id)] ?? null) }; }),
   rules: { overs: rules.overs ?? null, half_minutes: rules.half_minutes ?? null, last_batter: rules.last_batter === true,
     event: rules.event ?? null, games: rules.games ?? null, points_per_game: rules.points_per_game ?? null },
   result_text: s.result_text ? String(s.result_text).replace(/\{(\d+)\}/g, (_, id) => names[id] || 'Team') : null,
@@ -140,10 +152,11 @@ const fail = (st, m) => [{ json: { ok: false, status: st, body: { success: false
 if (!s.tid) return fail(404, 'This match link is not valid.');
 """ + SHAPE + r"""
 if (s.status === 'CANCELLED') return fail(409, 'This match was cancelled.');
-if (!open) return fail(409, 'This match has already started, so new players cannot join.');
+if (!sessionOpen) return fail(409, 'This match has ended.');
 if (me != null && vactive !== '1') return fail(403, 'This mobile number cannot join matches.');
 const team = r.team ? sides.find(x => x.team_code === r.team) : null;
 if (r.team && !team) return fail(404, 'This team is not in this match.');
+if (team && !open) return fail(409, 'The teams are set for this match. Tap "I\'m in" for the next one.');
 if (team) {
   if (mySide && mySide.side !== team.side) return fail(409, `This number is already playing for ${mySide.name}.`);
   if (!mySide && team.players.length >= Number(s.squad_max)) return fail(409, `${team.name} is full (${s.squad_max} players). Ask the captain.`);

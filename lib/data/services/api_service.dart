@@ -304,11 +304,12 @@ class ApiService extends GetxService {
         authed: true,
       );
 
-  /// action: JOIN ("I'm in"), LEAVE, SET_CAPTAIN (creator, with side + userId) or CANCEL (creator).
-  Future<Map<String, dynamic>> quickMatchAction(String code, String action, {String? side, int? userId}) => _send(
+  /// action: JOIN ("I'm in"), LEAVE; creator: SET_CAPTAIN / ASSIGN (side + userId), SHUFFLE, NEXT_MATCH (rules may change),
+  /// END_SESSION or CANCEL.
+  Future<Map<String, dynamic>> quickMatchAction(String code, String action, {String? side, int? userId, Map<String, dynamic>? rules}) => _send(
         () => http.post(Uri.parse('$_base/quick/action'),
             headers: _authHeaders,
-            body: jsonEncode({'code': code, 'action': action, if (side != null) 'side': side, if (userId != null) 'user_id': userId})),
+            body: jsonEncode({'code': code, 'action': action, if (side != null) 'side': side, if (userId != null) 'user_id': userId, if (rules != null) 'rules': rules})),
         authed: true,
       );
 
