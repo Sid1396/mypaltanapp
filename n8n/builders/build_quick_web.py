@@ -167,8 +167,8 @@ if (team && !(mySide && mySide.side === team.side)) {
 } else if (team) {
   message = `You're already in ${team.name}.`;
 } else {
-  if (!inList) notify(Number(s.organizer_user_id), `${me == null ? r.name : 'Someone'} is in`, `${s.name}: pick the captains when everyone is in.`);
-  message = inList ? "You're already in." : "You're in! Your captain will share the team link.";
+  if (!inList) notify(Number(s.organizer_user_id), `${me == null ? r.name : 'Someone'} is in`, `${s.name}: pick captains and make the teams when everyone is in.`);
+  message = inList ? "You're already in." : "You're in! The organiser will put you in a team.";
 }
 stmts.push('COMMIT');
 return [{ json: { ok: true, sql: stmts.join('; '), params: p, message, side: team ? team.side : (mySide ? mySide.side : null) } }];""", [880, -100]))

@@ -288,9 +288,7 @@ class QuickMatchPage extends GetView<QuickMatchController> {
         else
           InfoNote(m.mySide != null
               ? "You're in ${m.sideOf(m.mySide!)?.name}. The captains start the match when everyone is here."
-              : m.sides.every((s) => s.captainId != null)
-                  ? "You're in! Ask your captain for the team link to join a team."
-                  : "You're in! ${m.creatorName} will pick the captains."),
+              : "You're in! ${m.creatorName} will make the teams."),
         if (m.isLead && !m.canStart) ...[
           gapH(8),
           Text('Each team needs at least ${m.minPlayers} player${m.minPlayers == 1 ? '' : 's'} to start.',
@@ -328,8 +326,11 @@ class QuickMatchPage extends GetView<QuickMatchController> {
         gapH(12),
       ],
 
-      // "I'm in" list
-      if (!m.started && !m.isCancelled && m.people.isNotEmpty) ...[
+      // "I'm in" list: the creator puts each person in a team (or shuffles); everyone else sees who's where.
+      if (m.isCreator && m.isOpen && m.people.isNotEmpty) ...[
+        gapH(8),
+        _MakeTeams(c: c, m: m),
+      ] else if (!m.started && !m.isCancelled && m.people.isNotEmpty) ...[
         gapH(8),
         Text("WHO'S IN (${m.people.length})", style: tfStyle(12, weight: FontWeight.w800, color: Colors.white.withAlpha(140))),
         gapH(8),
@@ -402,8 +403,6 @@ class _TeamCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mine = m.captainOf == s.side;
-    final canShare = m.isOpen && (mine || m.isCreator) && s.captainId != null;
     return FormCard(
       padding: EdgeInsets.all(SizeConfig.r(14)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -439,23 +438,75 @@ class _TeamCard extends StatelessWidget {
               ),
           ]),
         ],
-        if (canShare) ...[
-          gapH(12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              key: ValueKey('quick-share-team-${s.side}'),
-              onPressed: () => c.shareTeam(s),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.primary.withAlpha(120)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(SizeConfig.r(12))),
-                padding: EdgeInsets.symmetric(vertical: SizeConfig.h(12)),
-              ),
-              icon: Icon(Icons.group_add_rounded, color: AppColors.primary, size: SizeConfig.r(18)),
-              label: Text('Share team link', style: tfStyle(14, weight: FontWeight.w700, color: AppColors.primary)),
-            ),
+      ]),
+    );
+  }
+}
+
+/// Creator: the "I'm in" list with a team button per person, and Shuffle. Captains stay on their team.
+class _MakeTeams extends StatelessWidget {
+  final QuickMatchController c;
+  final QuickMatch m;
+  const _MakeTeams({required this.c, required this.m});
+
+  @override
+  Widget build(BuildContext context) {
+    final captains = {
+      for (final s in m.sides)
+        if (s.captainId != null) s.captainId!: s
+    };
+    Widget pill(QuickPerson p, QuickSide s) {
+      final on = p.side == s.side;
+      return GestureDetector(
+        key: ValueKey('quick-assign-${p.userId}-${s.side}'),
+        onTap: c.busy.value ? null : () => c.assign(p, on ? null : s.side),
+        child: Container(
+          margin: EdgeInsets.only(left: SizeConfig.w(6)),
+          padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(12), vertical: SizeConfig.h(7)),
+          decoration: BoxDecoration(
+            color: on ? AppColors.primary : const Color(0xFF242424),
+            borderRadius: BorderRadius.circular(SizeConfig.r(100)),
           ),
-        ],
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: SizeConfig.w(84)),
+            child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(12, weight: FontWeight.w800)),
+          ),
+        ),
+      );
+    }
+
+    return FormCard(
+      padding: EdgeInsets.all(SizeConfig.r(14)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text("WHO'S IN (${m.people.length})", style: tfStyle(12, weight: FontWeight.w800, color: Colors.white.withAlpha(140)))),
+          GestureDetector(
+            key: const ValueKey('quick-shuffle'),
+            onTap: c.busy.value ? null : c.confirmShuffle,
+            child: Row(children: [
+              Icon(Icons.shuffle_rounded, size: SizeConfig.r(16), color: AppColors.primary),
+              SizedBox(width: SizeConfig.w(4)),
+              Text('Shuffle teams', style: tfStyle(13, weight: FontWeight.w700, color: AppColors.primary)),
+            ]),
+          ),
+        ]),
+        gapH(4),
+        Text('Tap a team to put someone in it. Tap again to take them out.', style: tfStyle(12, color: Colors.white.withAlpha(120))),
+        gapH(8),
+        for (final p in m.people)
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: SizeConfig.h(5)),
+            child: Row(children: [
+              Expanded(
+                child: Text(p.userId == m.myUserId ? '${p.name} (you)' : p.name,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(14, weight: FontWeight.w600)),
+              ),
+              if (captains[p.userId] != null)
+                Text('Captain · ${captains[p.userId]!.name}', style: tfStyle(12, weight: FontWeight.w700, color: AppColors.primary))
+              else
+                for (final s in m.sides) pill(p, s),
+            ]),
+          ),
       ]),
     );
   }

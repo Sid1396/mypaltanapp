@@ -150,10 +150,11 @@ const stmts = [
   team(r.home, 'th'), team(r.away, 'ta'), entry('th', 'eh'), entry('ta', 'ea'),
   `INSERT INTO tournament_matches (tournament_id, division_id, match_no, stage, group_no, round_no, home_entry_id, away_entry_id, pitch, scheduled_at, status) ` +
     `VALUES (@t, @d, 1, 'GROUP', 1, 1, @eh, @ea, 1, ${add(r.at)}, 'SCHEDULED')`,
-  `INSERT INTO quick_match_people (tournament_id, user_id) VALUES (@t, ${add(uid)})`,
 ];
+// Only a creator who plays is in the "I'm in" list (so Shuffle never puts a non-playing creator in a team).
 // Playing too: captain of that side and first in its squad.
 if (r.side) {
+  stmts.push(`INSERT INTO quick_match_people (tournament_id, user_id) VALUES (@t, ${add(uid)})`);
   const tv = r.side === 'HOME' ? '@th' : '@ta', ev = r.side === 'HOME' ? '@eh' : '@ea';
   stmts.push(`INSERT INTO team_members (team_id, user_id, role, position, added_by) VALUES (${tv}, ${add(uid)}, 'CAPTAIN', ${add(u.position || null)}, ${add(uid)})`);
   stmts.push('SET @m = LAST_INSERT_ID()');
@@ -222,9 +223,11 @@ n.append(webhook("v2/quick/action", "POST"))
 n.append(code("Check Request", AUTH + r"""
 const code = str(b.code).toUpperCase(), action = str(b.action).toUpperCase();
 if (!/^[A-Z0-9]{6}$/.test(code)) return bad('Invalid match link.', 404);
-if (!['JOIN', 'LEAVE', 'SET_CAPTAIN', 'CANCEL'].includes(action)) return bad('Invalid request.');
+if (!['JOIN', 'LEAVE', 'SET_CAPTAIN', 'ASSIGN', 'SHUFFLE', 'CANCEL'].includes(action)) return bad('Invalid request.');
 const side = b.side == null ? null : str(b.side).toUpperCase(), target = b.user_id == null ? null : Number(b.user_id);
 if (action === 'SET_CAPTAIN' && (!['HOME', 'AWAY'].includes(side) || !(Number.isInteger(target) && target > 0))) return bad('Pick a captain.');
+// ASSIGN: put a player in a team (side HOME / AWAY) or take them out of both (side null).
+if (action === 'ASSIGN' && ((side !== null && !['HOME', 'AWAY'].includes(side)) || !(Number.isInteger(target) && target > 0))) return bad('Pick a player.');
 return [{ json: { ok: true, phone: auth.phone, code, action, side, target } }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load",
@@ -243,13 +246,27 @@ const p = [], stmts = [];
 const add = v => { p.push(v); return '$' + p.length; };
 const notify = (user, title, body) => stmts.push(`INSERT INTO notifications (user_id, type, title, body, data) VALUES (${add(user)}, 'ENTRY', ${add(title)}, ${add(body)}, JSON_OBJECT('tournament_code', ${add(s.code)}))`);
 let message;
+// Team changes (creator only, before kick-off). Quick-match teams belong to this one match, so leaving a team
+// removes the member row too.
+const captainIds = new Set(sides.map(x => x.captain_id).filter(x => x != null));
+const sideOf = u => sides.find(x => x.players.some(q => Number(q.user_id) === Number(u))) || null;
+const removeFrom = (x, u) => {
+  stmts.push(`DELETE FROM tournament_entry_players WHERE entry_id = ${add(x.entry_id)} AND user_id = ${add(u)}`);
+  stmts.push(`DELETE FROM team_members WHERE team_id = ${add(x.team_id)} AND user_id = ${add(u)}`);
+};
+const addTo = (x, u) => {
+  stmts.push(`INSERT INTO team_members (team_id, user_id, role, added_by) VALUES (${add(x.team_id)}, ${add(u)}, 'PLAYER', ${add(me)}) ON DUPLICATE KEY UPDATE status = 'ACTIVE'`);
+  stmts.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, jersey_name, jersey_number) ` +
+    `SELECT ${add(x.entry_id)}, ${add(s.tid)}, tm.id, u.id, u.jersey_name, u.jersey_number FROM team_members tm JOIN app_users u ON u.id = tm.user_id ` +
+    `WHERE tm.team_id = ${add(x.team_id)} AND tm.user_id = ${add(u)}`);
+};
 if (r.action === 'JOIN') {
   if (!open) return fail(409, 'This match has already started or was cancelled.');
   if (Number(s.viewer_ready) !== 1) return fail(409, 'Finish your profile first.');
   if (people.some(x => Number(x.user_id) === me)) return [{ json: { ok: false, status: 200, body: { success: true, message: "You're already in." } } }];
   stmts.push(`INSERT IGNORE INTO quick_match_people (tournament_id, user_id) VALUES (${add(s.tid)}, ${add(me)})`);
-  if (!creator) notify(Number(s.organizer_user_id), `${s.viewer_name} is in`, `${s.name}: pick the captains when everyone is in.`);
-  message = "You're in! The creator will pick the captains.";
+  if (!creator) notify(Number(s.organizer_user_id), `${s.viewer_name} is in`, `${s.name}: pick captains and make the teams when everyone is in.`);
+  message = "You're in! The creator will make the teams.";
 } else if (r.action === 'LEAVE') {
   if (!open) return fail(409, 'The match has already started.');
   if (creator) return fail(409, "You made this match, so you can't leave it. Cancel it instead.");
@@ -262,8 +279,46 @@ if (r.action === 'JOIN') {
   stmts.push(`UPDATE tournaments SET status = 'CANCELLED' WHERE id = ${add(s.tid)}`);
   stmts.push(`UPDATE tournament_matches SET status = 'CANCELLED' WHERE id = ${add(s.match_id)}`);
   message = 'Match cancelled.';
+} else if (r.action === 'ASSIGN') {
+  if (!creator) return fail(403, 'Only the person who made the match makes the teams.');
+  if (!open) return fail(409, 'The match has started, so teams cannot change.');
+  const t = Number(r.target), person = people.find(x => Number(x.user_id) === t), from = sideOf(t), to = r.side ? sides.find(x => x.side === r.side) : null;
+  const pname = person?.name || (from?.players.find(q => Number(q.user_id) === t) || {}).name;
+  if (!person && !from) return fail(404, 'That person is not on this match any more.');
+  if (captainIds.has(t)) return fail(409, `${pname} is a captain. Pick another captain first.`);
+  if ((from?.side || null) === (to?.side || null)) return [{ json: { ok: false, status: 200, body: { success: true, message: 'No change.' } } }];
+  if (to && to.players.length >= Number(s.squad_max)) return fail(409, `${to.name} is full (${s.squad_max} players).`);
+  if (from) removeFrom(from, t);
+  if (to) addTo(to, t);
+  message = to ? `${pname} is in ${to.name}.` : `${pname} is not in a team now.`;
+} else if (r.action === 'SHUFFLE') {
+  if (!creator) return fail(403, 'Only the person who made the match makes the teams.');
+  if (!open) return fail(409, 'The match has started, so teams cannot change.');
+  // Everyone who is in (and anyone already in a team), except the captains, split at random into two even teams.
+  const ids = [...new Set([...people.map(x => Number(x.user_id)), ...sides.flatMap(x => x.players.map(q => Number(q.user_id)))])]
+    .filter(u => u && !captainIds.has(u));
+  if (!ids.length) return fail(409, 'Nobody to put in teams yet. Share the match link first.');
+  const size = Object.fromEntries(sides.map(x => [x.side, x.players.filter(q => captainIds.has(Number(q.user_id))).length]));
+  for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  const plan = {};
+  for (const u of ids) {
+    const pick = [...sides].sort((a, b) => size[a.side] - size[b.side] || Math.random() - 0.5)[0];
+    if (size[pick.side] >= Number(s.squad_max)) break;
+    plan[u] = pick; size[pick.side]++;
+  }
+  for (const u of ids) {
+    const from = sideOf(u), to = plan[u] || null;
+    if ((from?.side || null) === (to?.side || null)) continue;
+    if (from) removeFrom(from, u);
+  }
+  for (const u of ids) {
+    const from = sideOf(u), to = plan[u] || null;
+    if (to && (from?.side || null) !== to.side) addTo(to, u);
+  }
+  const left = ids.length - Object.keys(plan).length;
+  message = `Teams shuffled: ${sides.map(x => `${x.name} ${size[x.side]}`).join(', ')}.` + (left ? ` ${left} didn't fit (teams are full).` : '');
 } else {
-  // SET_CAPTAIN: the creator picks a captain for one side from the people who are in.
+  // SET_CAPTAIN: the creator picks a captain for one side from the people who are in (app or website).
   if (!creator) return fail(403, 'Only the person who made the match picks the captains.');
   if (!open) return fail(409, 'The match has started, so captains cannot change.');
   const side = sides.find(x => x.side === r.side), other = sides.find(x => x.side !== r.side);
@@ -271,8 +326,9 @@ if (r.action === 'JOIN') {
   if (!side || !tid_) return fail(404, 'That person is not on this match any more.');
   const t = Number(tid_);
   if (t !== me && !people.some(x => Number(x.user_id) === t)) return fail(409, `${tname} hasn't tapped "I'm in" on this match.`);
-  if (Number(tready) !== 1) return fail(409, `${tname} needs to finish their profile first.`);
-  if (other.players.some(x => Number(x.user_id) === t)) return fail(409, `${tname} is playing for ${other.name}.`);
+  if (other.captain_id === t) return fail(409, `${tname} is captain of ${other.name}.`);
+  // A player already in the other team moves to this one.
+  if (other.players.some(x => Number(x.user_id) === t)) removeFrom(other, t);
   if (side.captain_id === t) return [{ json: { ok: false, status: 200, body: { success: true, message: `${tname} is already captain.` } } }];
   const inSquad = side.players.some(x => Number(x.user_id) === t);
   if (!inSquad && side.players.length >= Number(s.squad_max)) return fail(409, `${side.name} is full (${s.squad_max} players).`);
@@ -284,7 +340,7 @@ if (r.action === 'JOIN') {
   stmts.push(`UPDATE tournament_entries SET registered_by = ${add(t)} WHERE id = ${add(side.entry_id)}`);
   if (!inSquad) stmts.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, jersey_name, jersey_number) VALUES (${add(side.entry_id)}, ${add(s.tid)}, @m, ${add(t)}, ${add(tjn || null)}, ${add(tjno === '' || tjno == null ? null : Number(tjno))})`);
   stmts.push(`INSERT IGNORE INTO tournament_scorers (tournament_id, user_id) VALUES (${add(s.tid)}, ${add(t)})`);
-  if (t !== me) notify(t, `You're captain of ${side.name}`, `${s.name}: share your team link in the group so your players can join.`);
+  if (t !== me) notify(t, `You're captain of ${side.name}`, `${s.name}: the scoring PIN is on the match page in the app.`);
   message = `${tname} is captain of ${side.name}.`;
 }
 return [{ json: { ok: true, sql: ['START TRANSACTION', ...stmts, 'COMMIT'].join('; '), params: p, message } }];""", [880, -100]))

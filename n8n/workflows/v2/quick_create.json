@@ -1,7 +1,6 @@
 {
   "id": "QuickCreate026mP",
   "name": "MyPaltan v2 - Quick Match Create",
-  "description": null,
   "active": false,
   "nodes": [
     {
@@ -20,8 +19,8 @@
         0,
         0
       ],
-      "id": "343eb8c1-9f42-4d3d-8a82-25b0c414de92",
-      "webhookId": "876fabc1-4742-42cc-a525-d378e127fa59"
+      "id": "3c0f8e99-d2ec-4a7b-99dd-6a95cab78ddb",
+      "webhookId": "e232172e-3c4f-43db-b053-f242ff64440b"
     },
     {
       "parameters": {
@@ -34,7 +33,7 @@
         220,
         0
       ],
-      "id": "491b379e-78d8-4c3c-82e0-d100286d3bce"
+      "id": "219fd388-d349-46b2-9291-763e4477f36a"
     },
     {
       "parameters": {
@@ -47,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "4416ba45-183b-42f5-a842-c5fc1ccf86d2",
+              "id": "1af1d1c6-4639-4e2a-a78c-38a8cf45d8c8",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -68,7 +67,7 @@
         440,
         0
       ],
-      "id": "51a44929-15f5-4257-9a01-e0962adf1472"
+      "id": "dc6a8647-6148-4229-8bfe-01e6042013d3"
     },
     {
       "parameters": {
@@ -85,7 +84,7 @@
         660,
         -100
       ],
-      "id": "699f4dc5-fba4-4a4e-a737-02a387acd1a8",
+      "id": "cf7b45f3-0af4-48ed-84a5-09aeed7f3f98",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -96,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst u = $in, r = $('Check Request').first().json;\nconst fail = (st, m) => [{ json: { ok: false, status: st, body: { success: false, message: m } } }];\nif (!u.id) return fail(401, 'Please log in again.');\nif (Number(u.profile_complete) !== 1) return fail(409, 'Finish your profile before creating a match.');\nif (Number(u.today) >= 20) return fail(429, 'You can create up to 20 quick matches a day.');\nconst A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';\nconst codeOf = () => Array.from({ length: 6 }, () => A[Math.floor(Math.random() * A.length)]).join('');\nconst short = name => {\n  const words = name.split(' ').map(w => w.replace(/[^A-Za-z0-9]/g, '')).filter(Boolean);\n  const s = (words.length > 1 ? words.map(w => w[0]).join('') : (words[0] || 'TEAM')).toUpperCase().slice(0, 4);\n  return s.length >= 2 ? s : (s + 'TM').slice(0, 3);\n};\nconst code = codeOf(), pin = String(Math.floor(100000 + Math.random() * 900000));\nconst uid = Number(u.id), city = u.city || 'Mumbai', area = r.ground || u.area || 'Quick match';\nconst p = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nconst team = (name, v) => `INSERT INTO teams (code, sport, name, short_name, logo_key, area, city, captain_user_id) VALUES (${add(codeOf())}, ${add(r.sport)}, ${add(name)}, ${add(short(name))}, ${add('team_assets/default/team_logo_mypaltan.png')}, ${add(area)}, ${add(city)}, ${add(uid)}); SET @${v} = LAST_INSERT_ID()`;\nconst entry = (t, v) => `INSERT INTO tournament_entries (tournament_id, division_id, group_no, team_id, registered_by, status) VALUES (@t, @d, 1, @${t}, ${add(uid)}, 'APPROVED'); SET @${v} = LAST_INSERT_ID()`;\nconst stmts = [\n  'START TRANSACTION',\n  `INSERT INTO tournaments (code, organizer_user_id, sport, kind, name, logo_key, category, city, area, start_date, end_date, format, max_teams, squad_min, squad_max, ` +\n    `registration_deadline, visibility, status, published_at, fixtures_published_at, scoring_pin) VALUES (${add(code)}, ${add(uid)}, ${add(r.sport)}, 'QUICK', ` +\n    `${add(`${r.home} v ${r.away}`)}, ${add('team_assets/default/team_logo_mypaltan.png')}, 'OTHER', ${add(city)}, ${add(area)}, DATE(${add(r.at)}), DATE(${add(r.at)}), 'LEAGUE', 2, 1, ` +\n    `${add(r.squadMax)}, ${add(r.at)} + INTERVAL 7 DAY, 'PRIVATE', 'REGISTRATION_OPEN', NOW(), NOW(), ${add(pin)})`,\n  'SET @t = LAST_INSERT_ID()',\n  `INSERT INTO tournament_divisions (tournament_id, name, sort_order, format, max_teams, squad_min, squad_max, match_rules, points) VALUES (@t, 'Match', 1, 'LEAGUE', 2, 1, ` +\n    `${add(r.squadMax)}, ${add(JSON.stringify(r.rules))}, ${add(JSON.stringify({ win: 2, tie: 1, no_result: 1, loss: 0, tiebreakers: [] }))})`,\n  'SET @d = LAST_INSERT_ID()',\n  team(r.home, 'th'), team(r.away, 'ta'), entry('th', 'eh'), entry('ta', 'ea'),\n  `INSERT INTO tournament_matches (tournament_id, division_id, match_no, stage, group_no, round_no, home_entry_id, away_entry_id, pitch, scheduled_at, status) ` +\n    `VALUES (@t, @d, 1, 'GROUP', 1, 1, @eh, @ea, 1, ${add(r.at)}, 'SCHEDULED')`,\n  `INSERT INTO quick_match_people (tournament_id, user_id) VALUES (@t, ${add(uid)})`,\n];\n// Playing too: captain of that side and first in its squad.\nif (r.side) {\n  const tv = r.side === 'HOME' ? '@th' : '@ta', ev = r.side === 'HOME' ? '@eh' : '@ea';\n  stmts.push(`INSERT INTO team_members (team_id, user_id, role, position, added_by) VALUES (${tv}, ${add(uid)}, 'CAPTAIN', ${add(u.position || null)}, ${add(uid)})`);\n  stmts.push('SET @m = LAST_INSERT_ID()');\n  stmts.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, jersey_name, jersey_number) VALUES (${ev}, @t, @m, ${add(uid)}, ${add(u.jersey_name || null)}, ${add(u.jersey_number ?? null)})`);\n}\nstmts.push('COMMIT');\nreturn [{ json: { ok: true, sql: stmts.join('; '), params: p, code } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst u = $in, r = $('Check Request').first().json;\nconst fail = (st, m) => [{ json: { ok: false, status: st, body: { success: false, message: m } } }];\nif (!u.id) return fail(401, 'Please log in again.');\nif (Number(u.profile_complete) !== 1) return fail(409, 'Finish your profile before creating a match.');\nif (Number(u.today) >= 20) return fail(429, 'You can create up to 20 quick matches a day.');\nconst A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';\nconst codeOf = () => Array.from({ length: 6 }, () => A[Math.floor(Math.random() * A.length)]).join('');\nconst short = name => {\n  const words = name.split(' ').map(w => w.replace(/[^A-Za-z0-9]/g, '')).filter(Boolean);\n  const s = (words.length > 1 ? words.map(w => w[0]).join('') : (words[0] || 'TEAM')).toUpperCase().slice(0, 4);\n  return s.length >= 2 ? s : (s + 'TM').slice(0, 3);\n};\nconst code = codeOf(), pin = String(Math.floor(100000 + Math.random() * 900000));\nconst uid = Number(u.id), city = u.city || 'Mumbai', area = r.ground || u.area || 'Quick match';\nconst p = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nconst team = (name, v) => `INSERT INTO teams (code, sport, name, short_name, logo_key, area, city, captain_user_id) VALUES (${add(codeOf())}, ${add(r.sport)}, ${add(name)}, ${add(short(name))}, ${add('team_assets/default/team_logo_mypaltan.png')}, ${add(area)}, ${add(city)}, ${add(uid)}); SET @${v} = LAST_INSERT_ID()`;\nconst entry = (t, v) => `INSERT INTO tournament_entries (tournament_id, division_id, group_no, team_id, registered_by, status) VALUES (@t, @d, 1, @${t}, ${add(uid)}, 'APPROVED'); SET @${v} = LAST_INSERT_ID()`;\nconst stmts = [\n  'START TRANSACTION',\n  `INSERT INTO tournaments (code, organizer_user_id, sport, kind, name, logo_key, category, city, area, start_date, end_date, format, max_teams, squad_min, squad_max, ` +\n    `registration_deadline, visibility, status, published_at, fixtures_published_at, scoring_pin) VALUES (${add(code)}, ${add(uid)}, ${add(r.sport)}, 'QUICK', ` +\n    `${add(`${r.home} v ${r.away}`)}, ${add('team_assets/default/team_logo_mypaltan.png')}, 'OTHER', ${add(city)}, ${add(area)}, DATE(${add(r.at)}), DATE(${add(r.at)}), 'LEAGUE', 2, 1, ` +\n    `${add(r.squadMax)}, ${add(r.at)} + INTERVAL 7 DAY, 'PRIVATE', 'REGISTRATION_OPEN', NOW(), NOW(), ${add(pin)})`,\n  'SET @t = LAST_INSERT_ID()',\n  `INSERT INTO tournament_divisions (tournament_id, name, sort_order, format, max_teams, squad_min, squad_max, match_rules, points) VALUES (@t, 'Match', 1, 'LEAGUE', 2, 1, ` +\n    `${add(r.squadMax)}, ${add(JSON.stringify(r.rules))}, ${add(JSON.stringify({ win: 2, tie: 1, no_result: 1, loss: 0, tiebreakers: [] }))})`,\n  'SET @d = LAST_INSERT_ID()',\n  team(r.home, 'th'), team(r.away, 'ta'), entry('th', 'eh'), entry('ta', 'ea'),\n  `INSERT INTO tournament_matches (tournament_id, division_id, match_no, stage, group_no, round_no, home_entry_id, away_entry_id, pitch, scheduled_at, status) ` +\n    `VALUES (@t, @d, 1, 'GROUP', 1, 1, @eh, @ea, 1, ${add(r.at)}, 'SCHEDULED')`,\n];\n// Only a creator who plays is in the \"I'm in\" list (so Shuffle never puts a non-playing creator in a team).\n// Playing too: captain of that side and first in its squad.\nif (r.side) {\n  stmts.push(`INSERT INTO quick_match_people (tournament_id, user_id) VALUES (@t, ${add(uid)})`);\n  const tv = r.side === 'HOME' ? '@th' : '@ta', ev = r.side === 'HOME' ? '@eh' : '@ea';\n  stmts.push(`INSERT INTO team_members (team_id, user_id, role, position, added_by) VALUES (${tv}, ${add(uid)}, 'CAPTAIN', ${add(u.position || null)}, ${add(uid)})`);\n  stmts.push('SET @m = LAST_INSERT_ID()');\n  stmts.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, jersey_name, jersey_number) VALUES (${ev}, @t, @m, ${add(uid)}, ${add(u.jersey_name || null)}, ${add(u.jersey_number ?? null)})`);\n}\nstmts.push('COMMIT');\nreturn [{ json: { ok: true, sql: stmts.join('; '), params: p, code } }];"
       },
       "name": "Plan",
       "type": "n8n-nodes-base.code",
@@ -105,7 +104,7 @@
         880,
         -100
       ],
-      "id": "cf01b9b2-eb59-425f-8fc5-fda802385b5d"
+      "id": "dcf4e564-6424-44b5-8e15-63cd7898e629"
     },
     {
       "parameters": {
@@ -118,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "9c3fa77e-55e1-4c10-ae04-0b9c4c57fd76",
+              "id": "3d48b3f2-fa22-4ee6-bfdd-ef595018406b",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -139,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "67f1a0b1-c44d-4b38-9948-bbf91e5948a6"
+      "id": "6f6800fd-9734-4301-ad73-34bbe1b10e4a"
     },
     {
       "parameters": {
@@ -156,7 +155,7 @@
         1320,
         -200
       ],
-      "id": "c6ee7fcf-c6c7-4f40-a325-305277c33626",
+      "id": "1e34d805-7de2-4003-a285-e7bb5b92b0d7",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -176,7 +175,7 @@
         1540,
         -200
       ],
-      "id": "e2e5c9e1-703d-4f67-b867-67270b605f55"
+      "id": "3ca29ac9-ac37-4f11-9232-9faaed40c673"
     },
     {
       "parameters": {
@@ -193,7 +192,7 @@
         1760,
         0
       ],
-      "id": "dd82f197-544c-4569-8ce2-6b54dac50c33"
+      "id": "d79a2604-80b2-4b80-8a62-16133f323a6f"
     }
   ],
   "connections": {
@@ -303,7 +302,5 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "nodeGroups": [],
-  "pinData": {},
-  "sourceWorkflowId": null
+  "pinData": {}
 }

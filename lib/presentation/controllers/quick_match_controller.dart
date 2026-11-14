@@ -205,6 +205,16 @@ class QuickMatchController extends GetxController with LoggerMixin {
   }
 
   Future<void> join() => _action('JOIN', title: "I'm in");
+
+  /// Creator: put someone in a team (side HOME / AWAY) or take them out of both (null).
+  Future<void> assign(QuickPerson p, String? side) => _action('ASSIGN', side: side, userId: p.userId, title: 'Teams');
+
+  void confirmShuffle() => _confirm(
+        'Shuffle the teams?',
+        'Everyone who is in (except the captains) is split at random into two even teams.',
+        'Shuffle',
+        () => _action('SHUFFLE', title: 'Teams'),
+      );
   Future<void> leave() => _action('LEAVE', title: 'Quick match');
 
   void confirmCancel() => _confirm('Cancel this match?', 'Everyone with the link will see it as cancelled. This cannot be undone.', 'Cancel match',
@@ -221,14 +231,14 @@ class QuickMatchController extends GetxController with LoggerMixin {
     final options = [
       if (!m.people.any((p) => p.userId == m.myUserId)) QuickPerson(userId: m.myUserId, name: m.creatorName),
       ...m.people,
-    ].where((p) => p.side == null || p.side == side).where((p) => !(other?.players.any((x) => x.userId == p.userId) ?? false)).toList();
+    ].where((p) => p.userId != other?.captainId).toList(); // a player in the other team moves over when picked
     Get.bottomSheet(
       Builder(
           builder: (sheet) => SheetFrame(title: 'Captain of ${team?.name ?? 'the team'}', children: [
                 Text(
                   options.length <= 1
                       ? 'Share the match link first. People who tap "I\'m in" show up here.'
-                      : 'Pick from the people who tapped "I\'m in". The captain shares the team link so players can join.',
+                      : 'Pick from the people who tapped "I\'m in". Captains see the scoring PIN in the app.',
                   style: tfStyle(13.5, color: Colors.white.withAlpha(170), height: 1.4),
                 ),
                 gapH(12),
@@ -294,16 +304,6 @@ class QuickMatchController extends GetxController with LoggerMixin {
       '${_sportEmoji(m.sport)} *${m.name}* on MyPaltan\n${m.rulesText}${_whenWhere.isEmpty ? '' : '\n$_whenWhere'}\n\n'
       'Playing? Tap the link and hit "I\'m in" 👇\n${m.link}',
       m.name,
-    );
-  }
-
-  Future<void> shareTeam(QuickSide s) async {
-    final m = match.value;
-    if (m == null) return;
-    await _share(
-      '${_sportEmoji(m.sport)} Playing for *${s.name}* in ${m.name}?${_whenWhere.isEmpty ? '' : '\n$_whenWhere'}\n\n'
-      'Tap to join the team on MyPaltan 👇\n${s.link}',
-      s.name,
     );
   }
 
