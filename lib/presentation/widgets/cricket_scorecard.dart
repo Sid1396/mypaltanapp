@@ -73,7 +73,8 @@ class LiveScoreHeader extends StatelessWidget {
                   SizedBox(width: SizeConfig.w(6)),
                   Padding(
                     padding: EdgeInsets.only(bottom: SizeConfig.h(4)),
-                    child: Text('(${i['overs']})', style: tfStyle(12.5, color: Colors.white.withAlpha(150))),
+                    child: Text('(${i['overs']})${i['run_rate'] != null && (i['legal_balls'] ?? 0) != 0 ? ' · RR ${i['run_rate']}' : ''}',
+                        style: tfStyle(12.5, color: Colors.white.withAlpha(150))),
                   ),
                 ],
               ),

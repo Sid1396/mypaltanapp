@@ -79,7 +79,8 @@ LOAD_QUICK = (
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', p.user_id, 'name', pu.name)) FROM quick_match_people p JOIN app_users pu ON pu.id = p.user_id "
     "WHERE p.tournament_id = t.id) AS people, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('match_id', x.id, 'match_no', x.match_no, 'status', x.status, 'events', x.event_count, "
-    "'result_text', x.result_text, 'summary', JSON_EXTRACT(x.live, '$.summary'), 'scheduled_at', DATE_FORMAT(x.scheduled_at, '%Y-%m-%d %H:%i'))) "
+    "'result_text', x.result_text, 'summary', JSON_EXTRACT(x.live, '$.summary'), 'scheduled_at', DATE_FORMAT(x.scheduled_at, '%Y-%m-%d %H:%i'), "
+    "'winner', x.winner_entry_id, 'standing', JSON_EXTRACT(x.live, '$.standing'), 'potm', JSON_EXTRACT(x.live, '$.potm'))) "
     "FROM tournament_matches x WHERE x.tournament_id = t.id) AS matches "
     "FROM tournaments t JOIN app_users o ON o.id = t.organizer_user_id JOIN app_users viewer ON viewer.phone = $1 AND viewer.is_active = 1 "
     "JOIN tournament_matches m ON m.id = (SELECT MAX(z.id) FROM tournament_matches z WHERE z.tournament_id = t.id) "
@@ -209,6 +210,25 @@ n.append(code("Build Response", r"""
 const s = $json;
 if (!s.tid) return [{ json: { status: 404, body: { success: false, message: 'Match not found.' } } }];
 """ + SHAPE + r"""
+
+// Session table: played / won / lost / tied per team, and net run rate for cricket (a team bowled out counts its
+// full overs, as in tournaments).
+const tableFor = (sides, matches, sport) => sides.map(t => {
+  const id = Number(t.entry_id);
+  let played = 0, won = 0, lost = 0, tied = 0, rf = 0, bf = 0, ra = 0, ba = 0;
+  for (const x of matches) {
+    if (x.status !== 'COMPLETED' || !(Number(x.events) > 0)) continue;
+    played++;
+    const w = x.winner == null ? null : Number(x.winner);
+    if (w === id) won++; else if (w == null) tied++; else lost++;
+    for (const r of (parse(x.standing) || [])) {
+      if (Number(r.batting) === id) { rf += Number(r.runs) || 0; bf += Number(r.balls) || 0; }
+      else { ra += Number(r.runs) || 0; ba += Number(r.balls) || 0; }
+    }
+  }
+  const nrr = sport === 'CRICKET' && bf > 0 && ba > 0 ? Math.round((rf / (bf / 6) - ra / (ba / 6)) * 1000) / 1000 : null;
+  return { side: t.side, name: t.name, played, won, lost, tied, nrr };
+});
 const lead = creator || !!captainOf;
 const summary = parse(s.summary);
 const match = {
@@ -218,7 +238,9 @@ const match = {
   match_id: Number(s.match_id), match_no: Number(s.match_no), match_status: s.match_status, started: Number(s.event_count) > 0,
   session_open: sessionOpen,
   matches: matches.map(x => ({ match_id: Number(x.match_id), match_no: x.match_no, status: x.status, started: x.events > 0,
-    result_text: fillNames(x.result_text), summary: parse(x.summary) || null, scheduled_at: x.scheduled_at })),
+    result_text: fillNames(x.result_text), summary: parse(x.summary) || null, scheduled_at: x.scheduled_at,
+    potm: (p => p && p.name ? { name: p.name, reason: p.reason || null, side: (sides.find(y => Number(y.entry_id) === Number(p.team)) || {}).side || null } : null)(parse(x.potm)) })),
+  table: tableFor(sides, matches, s.sport),
   result_text: fillNames(s.result_text), winner_entry_id: s.winner_entry_id == null ? null : Number(s.winner_entry_id), summary: summary || null,
   link: `https://mypaltan.com/tournament/${s.code}`,
   sides: sides.map(x => ({ side: x.side, entry_id: Number(x.entry_id), team_code: x.team_code, name: x.name, short: x.short,

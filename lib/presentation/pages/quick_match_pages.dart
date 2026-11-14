@@ -363,6 +363,10 @@ class QuickMatchPage extends GetView<QuickMatchController> {
         gapH(8),
         Text('MATCHES', style: tfStyle(12, weight: FontWeight.w800, color: Colors.white.withAlpha(140))),
         gapH(8),
+        if (m.table.any((t) => t.played > 0)) ...[
+          _SessionTable(m: m),
+          gapH(8),
+        ],
         for (final g in m.games.reversed)
           if (g.started)
             Padding(
@@ -376,12 +380,19 @@ class QuickMatchPage extends GetView<QuickMatchController> {
                     Text('Match ${g.matchNo}', style: tfStyle(13, weight: FontWeight.w800, color: AppColors.primary)),
                     SizedBox(width: SizeConfig.w(10)),
                     Expanded(
-                      child: Text(
-                        g.status == 'COMPLETED'
-                            ? (g.resultText ?? 'Finished')
-                            : 'LIVE · ${[for (final s in m.sides) '${s.short} ${g.summary['${s.entryId}'] ?? ''}'].join('  ')}',
-                        style: tfStyle(13, weight: FontWeight.w600, color: g.status == 'COMPLETED' ? Colors.white : AppColors.negative),
-                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(
+                          g.status == 'COMPLETED'
+                              ? (g.resultText ?? 'Finished')
+                              : 'LIVE · ${[for (final s in m.sides) '${s.short} ${g.summary['${s.entryId}'] ?? ''}'].join('  ')}',
+                          style: tfStyle(13, weight: FontWeight.w600, color: g.status == 'COMPLETED' ? Colors.white : AppColors.negative),
+                        ),
+                        if (g.potmName != null) ...[
+                          gapH(3),
+                          Text('★ ${g.potmName}${g.potmReason == null ? '' : ' · ${g.potmReason}'}',
+                              style: tfStyle(12, color: AppColors.primary.withAlpha(230))),
+                        ],
+                      ]),
                     ),
                     Icon(Icons.chevron_right_rounded, color: Colors.white.withAlpha(120)),
                   ]),
@@ -512,6 +523,48 @@ class _TeamCard extends StatelessWidget {
               ),
           ]),
         ],
+      ]),
+    );
+  }
+}
+
+/// Played / won / lost per team across the session, with net run rate for cricket.
+class _SessionTable extends StatelessWidget {
+  final QuickMatch m;
+  const _SessionTable({required this.m});
+
+  @override
+  Widget build(BuildContext context) {
+    final cricket = m.sport == 'CRICKET';
+    Widget cell(String t, {bool head = false, double w = 34}) => SizedBox(
+          width: SizeConfig.w(w),
+          child: Text(t,
+              textAlign: TextAlign.center,
+              style: tfStyle(head ? 11.5 : 13, weight: head ? FontWeight.w700 : FontWeight.w800, color: head ? Colors.white.withAlpha(130) : Colors.white)),
+        );
+    return FormCard(
+      padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(14), vertical: SizeConfig.h(10)),
+      child: Column(children: [
+        Row(children: [
+          const Expanded(child: SizedBox()),
+          cell('P', head: true),
+          cell('W', head: true),
+          cell('L', head: true),
+          if (m.table.any((t) => t.tied > 0)) cell('T', head: true),
+          if (cricket) cell('NRR', head: true, w: 64),
+        ]),
+        for (final t in m.table)
+          Padding(
+            padding: EdgeInsets.only(top: SizeConfig.h(6)),
+            child: Row(children: [
+              Expanded(child: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(14, weight: FontWeight.w700))),
+              cell('${t.played}'),
+              cell('${t.won}'),
+              cell('${t.lost}'),
+              if (m.table.any((x) => x.tied > 0)) cell('${t.tied}'),
+              if (cricket) cell(t.nrrText, w: 64),
+            ]),
+          ),
       ]),
     );
   }

@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "f9925316-e6b3-4e0e-8d23-24d7817d74e5",
-      "webhookId": "3a497bc9-108a-4964-ac34-1f1712330447"
+      "id": "b86cab39-1871-4902-b07d-a2f0fe712049",
+      "webhookId": "0585c78a-1265-443f-9ce1-b5cc4e6bb5c9"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "c3c215e4-daa1-4893-b1e2-29a00536441d"
+      "id": "981b2989-4981-45d1-9846-9b6d95516258"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "69dfaf58-e497-4c92-bc7c-0cfa915263c3",
+              "id": "c97bcb13-3017-4d32-976d-9d70ae94697b",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,12 +67,12 @@
         440,
         0
       ],
-      "id": "43d9d9e3-67e0-4b8d-b26a-2bb57245bff1"
+      "id": "c44ff04e-6edd-4404-9c63-53fd0cecadb9"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.id AS tid, t.code, t.sport, t.name, t.status, t.area, t.scoring_pin, t.organizer_user_id, o.name AS creator_name, viewer.id AS viewer_id, viewer.name AS viewer_name, viewer.profile_complete AS viewer_ready, d.match_rules, d.squad_max, m.id AS match_id, m.match_no, m.division_id, m.status AS match_status, DATE_FORMAT(m.scheduled_at, '%Y-%m-%d %H:%i') AS scheduled_at, m.result_text, m.winner_entry_id, m.event_count, m.home_entry_id, m.away_entry_id, JSON_EXTRACT(m.live, '$.summary') AS summary, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'team_id', tm.id, 'team_code', tm.code, 'name', tm.name, 'short', tm.short_name, 'captain_id', (SELECT x.user_id FROM team_members x WHERE x.team_id = tm.id AND x.role = 'CAPTAIN' AND x.status = 'ACTIVE' LIMIT 1), 'players', (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', ep.user_id, 'name', COALESCE(u.name, x.guest_name))) FROM tournament_entry_players ep JOIN team_members x ON x.id = ep.team_member_id LEFT JOIN app_users u ON u.id = x.user_id WHERE ep.entry_id = e.id))) FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id WHERE e.tournament_id = t.id) AS sides, (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', p.user_id, 'name', pu.name)) FROM quick_match_people p JOIN app_users pu ON pu.id = p.user_id WHERE p.tournament_id = t.id) AS people, (SELECT JSON_ARRAYAGG(JSON_OBJECT('match_id', x.id, 'match_no', x.match_no, 'status', x.status, 'events', x.event_count, 'result_text', x.result_text, 'summary', JSON_EXTRACT(x.live, '$.summary'), 'scheduled_at', DATE_FORMAT(x.scheduled_at, '%Y-%m-%d %H:%i'))) FROM tournament_matches x WHERE x.tournament_id = t.id) AS matches FROM tournaments t JOIN app_users o ON o.id = t.organizer_user_id JOIN app_users viewer ON viewer.phone = $1 AND viewer.is_active = 1 JOIN tournament_matches m ON m.id = (SELECT MAX(z.id) FROM tournament_matches z WHERE z.tournament_id = t.id) JOIN tournament_divisions d ON d.id = m.division_id WHERE t.code = $2 AND t.kind = 'QUICK'",
+        "query": "SELECT t.id AS tid, t.code, t.sport, t.name, t.status, t.area, t.scoring_pin, t.organizer_user_id, o.name AS creator_name, viewer.id AS viewer_id, viewer.name AS viewer_name, viewer.profile_complete AS viewer_ready, d.match_rules, d.squad_max, m.id AS match_id, m.match_no, m.division_id, m.status AS match_status, DATE_FORMAT(m.scheduled_at, '%Y-%m-%d %H:%i') AS scheduled_at, m.result_text, m.winner_entry_id, m.event_count, m.home_entry_id, m.away_entry_id, JSON_EXTRACT(m.live, '$.summary') AS summary, (SELECT JSON_ARRAYAGG(JSON_OBJECT('entry_id', e.id, 'team_id', tm.id, 'team_code', tm.code, 'name', tm.name, 'short', tm.short_name, 'captain_id', (SELECT x.user_id FROM team_members x WHERE x.team_id = tm.id AND x.role = 'CAPTAIN' AND x.status = 'ACTIVE' LIMIT 1), 'players', (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', ep.user_id, 'name', COALESCE(u.name, x.guest_name))) FROM tournament_entry_players ep JOIN team_members x ON x.id = ep.team_member_id LEFT JOIN app_users u ON u.id = x.user_id WHERE ep.entry_id = e.id))) FROM tournament_entries e JOIN teams tm ON tm.id = e.team_id WHERE e.tournament_id = t.id) AS sides, (SELECT JSON_ARRAYAGG(JSON_OBJECT('user_id', p.user_id, 'name', pu.name)) FROM quick_match_people p JOIN app_users pu ON pu.id = p.user_id WHERE p.tournament_id = t.id) AS people, (SELECT JSON_ARRAYAGG(JSON_OBJECT('match_id', x.id, 'match_no', x.match_no, 'status', x.status, 'events', x.event_count, 'result_text', x.result_text, 'summary', JSON_EXTRACT(x.live, '$.summary'), 'scheduled_at', DATE_FORMAT(x.scheduled_at, '%Y-%m-%d %H:%i'), 'winner', x.winner_entry_id, 'standing', JSON_EXTRACT(x.live, '$.standing'), 'potm', JSON_EXTRACT(x.live, '$.potm'))) FROM tournament_matches x WHERE x.tournament_id = t.id) AS matches FROM tournaments t JOIN app_users o ON o.id = t.organizer_user_id JOIN app_users viewer ON viewer.phone = $1 AND viewer.is_active = 1 JOIN tournament_matches m ON m.id = (SELECT MAX(z.id) FROM tournament_matches z WHERE z.tournament_id = t.id) JOIN tournament_divisions d ON d.id = m.division_id WHERE t.code = $2 AND t.kind = 'QUICK'",
         "options": {
           "queryReplacement": "={{ [$json.phone, $json.code] }}"
         }
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "831569d9-280c-426b-a650-19c4528c00aa",
+      "id": "1e95ea8e-4cbb-4aef-9338-33286ba5c5b2",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst s = $in;\nif (!s.tid) return [{ json: { status: 404, body: { success: false, message: 'Match not found.' } } }];\n\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nconst byName = (a, b) => String(a.name).localeCompare(String(b.name));\nconst sides = (parse(s.sides) || []).map(x => ({ ...x, side: Number(x.entry_id) === Number(s.home_entry_id) ? 'HOME' : 'AWAY',\n  captain_id: x.captain_id == null ? null : Number(x.captain_id), players: (parse(x.players) || []).sort(byName) }))\n  .sort((a, b) => (a.side === 'HOME' ? 0 : 1) - (b.side === 'HOME' ? 0 : 1));\nconst people = (parse(s.people) || []).sort(byName);\nconst me = Number(s.viewer_id), creator = Number(s.organizer_user_id) === me;\nconst mySide = sides.find(x => x.players.some(p => Number(p.user_id) === me)) || null;\nconst captainOf = sides.find(x => x.captain_id === me) || null;\n// A session can have several matches; actions work on the latest one. Teams change only before it starts.\nconst matches = (parse(s.matches) || []).map(x => ({ ...x, match_no: Number(x.match_no), events: Number(x.events) })).sort((a, b) => a.match_no - b.match_no);\nconst sessionOpen = !['CANCELLED', 'COMPLETED'].includes(s.status);\nconst open = sessionOpen && s.match_status === 'SCHEDULED' && Number(s.event_count) === 0;\nconst teamName = id => (sides.find(x => Number(x.entry_id) === Number(id)) || {}).name || 'Team';\nconst fillNames = t => t ? String(t).replace(/\\{(\\d+)\\}/g, (_, id) => teamName(id)) : null;\n\nconst lead = creator || !!captainOf;\nconst summary = parse(s.summary);\nconst match = {\n  code: s.code, sport: s.sport, name: s.name, status: s.status, ground: s.area, scheduled_at: s.scheduled_at,\n  rules: parse(s.match_rules) || {}, squad_max: Number(s.squad_max),\n  creator: { user_id: Number(s.organizer_user_id), name: s.creator_name },\n  match_id: Number(s.match_id), match_no: Number(s.match_no), match_status: s.match_status, started: Number(s.event_count) > 0,\n  session_open: sessionOpen,\n  matches: matches.map(x => ({ match_id: Number(x.match_id), match_no: x.match_no, status: x.status, started: x.events > 0,\n    result_text: fillNames(x.result_text), summary: parse(x.summary) || null, scheduled_at: x.scheduled_at })),\n  result_text: fillNames(s.result_text), winner_entry_id: s.winner_entry_id == null ? null : Number(s.winner_entry_id), summary: summary || null,\n  link: `https://mypaltan.com/tournament/${s.code}`,\n  sides: sides.map(x => ({ side: x.side, entry_id: Number(x.entry_id), team_code: x.team_code, name: x.name, short: x.short,\n    captain: x.captain_id == null ? null : { user_id: x.captain_id, name: (x.players.find(p => Number(p.user_id) === x.captain_id) || {}).name || null },\n    players: x.players.map(p => ({ user_id: p.user_id == null ? null : Number(p.user_id), name: p.name })),\n    link: `https://mypaltan.com/team/${x.team_code}?t=${s.code}` })),\n  people: people.map(p => ({ user_id: Number(p.user_id), name: p.name,\n    side: (sides.find(x => x.players.some(q => Number(q.user_id) === Number(p.user_id))) || {}).side || null })),\n  me: { user_id: me, is_creator: creator, side: mySide ? mySide.side : null, captain_of: captainOf ? captainOf.side : null,\n    in_list: people.some(p => Number(p.user_id) === me) },\n  // Only the creator and the captains see the PIN; they pass it to whoever scores.\n  ...(lead ? { scoring_pin: s.scoring_pin } : {}),\n};\nreturn [{ json: { status: 200, body: { success: true, match } } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in;\nif (!s.tid) return [{ json: { status: 404, body: { success: false, message: 'Match not found.' } } }];\n\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nconst byName = (a, b) => String(a.name).localeCompare(String(b.name));\nconst sides = (parse(s.sides) || []).map(x => ({ ...x, side: Number(x.entry_id) === Number(s.home_entry_id) ? 'HOME' : 'AWAY',\n  captain_id: x.captain_id == null ? null : Number(x.captain_id), players: (parse(x.players) || []).sort(byName) }))\n  .sort((a, b) => (a.side === 'HOME' ? 0 : 1) - (b.side === 'HOME' ? 0 : 1));\nconst people = (parse(s.people) || []).sort(byName);\nconst me = Number(s.viewer_id), creator = Number(s.organizer_user_id) === me;\nconst mySide = sides.find(x => x.players.some(p => Number(p.user_id) === me)) || null;\nconst captainOf = sides.find(x => x.captain_id === me) || null;\n// A session can have several matches; actions work on the latest one. Teams change only before it starts.\nconst matches = (parse(s.matches) || []).map(x => ({ ...x, match_no: Number(x.match_no), events: Number(x.events) })).sort((a, b) => a.match_no - b.match_no);\nconst sessionOpen = !['CANCELLED', 'COMPLETED'].includes(s.status);\nconst open = sessionOpen && s.match_status === 'SCHEDULED' && Number(s.event_count) === 0;\nconst teamName = id => (sides.find(x => Number(x.entry_id) === Number(id)) || {}).name || 'Team';\nconst fillNames = t => t ? String(t).replace(/\\{(\\d+)\\}/g, (_, id) => teamName(id)) : null;\n\n\n// Session table: played / won / lost / tied per team, and net run rate for cricket (a team bowled out counts its\n// full overs, as in tournaments).\nconst tableFor = (sides, matches, sport) => sides.map(t => {\n  const id = Number(t.entry_id);\n  let played = 0, won = 0, lost = 0, tied = 0, rf = 0, bf = 0, ra = 0, ba = 0;\n  for (const x of matches) {\n    if (x.status !== 'COMPLETED' || !(Number(x.events) > 0)) continue;\n    played++;\n    const w = x.winner == null ? null : Number(x.winner);\n    if (w === id) won++; else if (w == null) tied++; else lost++;\n    for (const r of (parse(x.standing) || [])) {\n      if (Number(r.batting) === id) { rf += Number(r.runs) || 0; bf += Number(r.balls) || 0; }\n      else { ra += Number(r.runs) || 0; ba += Number(r.balls) || 0; }\n    }\n  }\n  const nrr = sport === 'CRICKET' && bf > 0 && ba > 0 ? Math.round((rf / (bf / 6) - ra / (ba / 6)) * 1000) / 1000 : null;\n  return { side: t.side, name: t.name, played, won, lost, tied, nrr };\n});\nconst lead = creator || !!captainOf;\nconst summary = parse(s.summary);\nconst match = {\n  code: s.code, sport: s.sport, name: s.name, status: s.status, ground: s.area, scheduled_at: s.scheduled_at,\n  rules: parse(s.match_rules) || {}, squad_max: Number(s.squad_max),\n  creator: { user_id: Number(s.organizer_user_id), name: s.creator_name },\n  match_id: Number(s.match_id), match_no: Number(s.match_no), match_status: s.match_status, started: Number(s.event_count) > 0,\n  session_open: sessionOpen,\n  matches: matches.map(x => ({ match_id: Number(x.match_id), match_no: x.match_no, status: x.status, started: x.events > 0,\n    result_text: fillNames(x.result_text), summary: parse(x.summary) || null, scheduled_at: x.scheduled_at,\n    potm: (p => p && p.name ? { name: p.name, reason: p.reason || null, side: (sides.find(y => Number(y.entry_id) === Number(p.team)) || {}).side || null } : null)(parse(x.potm)) })),\n  table: tableFor(sides, matches, s.sport),\n  result_text: fillNames(s.result_text), winner_entry_id: s.winner_entry_id == null ? null : Number(s.winner_entry_id), summary: summary || null,\n  link: `https://mypaltan.com/tournament/${s.code}`,\n  sides: sides.map(x => ({ side: x.side, entry_id: Number(x.entry_id), team_code: x.team_code, name: x.name, short: x.short,\n    captain: x.captain_id == null ? null : { user_id: x.captain_id, name: (x.players.find(p => Number(p.user_id) === x.captain_id) || {}).name || null },\n    players: x.players.map(p => ({ user_id: p.user_id == null ? null : Number(p.user_id), name: p.name })),\n    link: `https://mypaltan.com/team/${x.team_code}?t=${s.code}` })),\n  people: people.map(p => ({ user_id: Number(p.user_id), name: p.name,\n    side: (sides.find(x => x.players.some(q => Number(q.user_id) === Number(p.user_id))) || {}).side || null })),\n  me: { user_id: me, is_creator: creator, side: mySide ? mySide.side : null, captain_of: captainOf ? captainOf.side : null,\n    in_list: people.some(p => Number(p.user_id) === me) },\n  // Only the creator and the captains see the PIN; they pass it to whoever scores.\n  ...(lead ? { scoring_pin: s.scoring_pin } : {}),\n};\nreturn [{ json: { status: 200, body: { success: true, match } } }];"
       },
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "101d16cd-f5d7-42b2-bbcb-8ab3cf7c31b4"
+      "id": "047b9fe2-e2cb-4cf8-a1f2-39aaee760f25"
     },
     {
       "parameters": {
@@ -121,7 +121,7 @@
         1100,
         0
       ],
-      "id": "8abd1c6c-d194-43e1-98bb-73d5312d6846"
+      "id": "e46e5239-641b-4675-a84e-fca65eb151af"
     }
   ],
   "connections": {

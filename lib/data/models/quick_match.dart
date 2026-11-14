@@ -70,7 +70,18 @@ class QuickGame {
   final bool started;
   final String? resultText;
   final Map<String, String> summary;
-  const QuickGame({required this.matchId, required this.matchNo, required this.status, required this.started, this.resultText, this.summary = const {}});
+  final String? potmName; // player of the match
+  final String? potmReason;
+  const QuickGame({
+    required this.matchId,
+    required this.matchNo,
+    required this.status,
+    required this.started,
+    this.resultText,
+    this.summary = const {},
+    this.potmName,
+    this.potmReason,
+  });
 
   factory QuickGame.fromJson(Map<String, dynamic> j) {
     final sum = j['summary'] is Map ? Map<String, dynamic>.from(j['summary'] as Map) : const <String, dynamic>{};
@@ -81,8 +92,32 @@ class QuickGame {
       started: j['started'] == true,
       resultText: _str(j['result_text']),
       summary: sum.map((k, v) => MapEntry(k, '$v')),
+      potmName: j['potm'] is Map ? _str((j['potm'] as Map)['name']) : null,
+      potmReason: j['potm'] is Map ? _str((j['potm'] as Map)['reason']) : null,
     );
   }
+}
+
+/// A team's record across the session's matches (net run rate for cricket).
+class QuickStanding {
+  final String side;
+  final String name;
+  final int played, won, lost, tied;
+  final double? nrr;
+  const QuickStanding({required this.side, required this.name, this.played = 0, this.won = 0, this.lost = 0, this.tied = 0, this.nrr});
+
+  factory QuickStanding.fromJson(Map<String, dynamic> j) => QuickStanding(
+        side: j['side']?.toString() ?? 'HOME',
+        name: j['name']?.toString() ?? 'Team',
+        played: _int(j['played']),
+        won: _int(j['won']),
+        lost: _int(j['lost']),
+        tied: _int(j['tied']),
+        nrr: j['nrr'] is num ? (j['nrr'] as num).toDouble() : null,
+      );
+
+  /// "+1.250" / "-0.500".
+  String get nrrText => nrr == null ? '' : '${nrr! >= 0 ? '+' : ''}${nrr!.toStringAsFixed(3)}';
 }
 
 /// A quick match: a friendly game made by one person and shared as a link (stored as a private 1-match tournament).
@@ -102,6 +137,7 @@ class QuickMatch {
   final String matchStatus; // SCHEDULED, LIVE, COMPLETED, CANCELLED
   final bool sessionOpen; // false once the creator ends the session (or cancels)
   final List<QuickGame> games;
+  final List<QuickStanding> table;
   final bool started;
   final String? resultText;
   final int? winnerEntryId;
@@ -132,6 +168,7 @@ class QuickMatch {
     required this.matchStatus,
     this.sessionOpen = true,
     this.games = const [],
+    this.table = const [],
     required this.started,
     this.resultText,
     this.winnerEntryId,
@@ -230,6 +267,7 @@ class QuickMatch {
       matchStatus: j['match_status']?.toString() ?? 'SCHEDULED',
       sessionOpen: j['session_open'] != false,
       games: _maps(j['matches']).map(QuickGame.fromJson).toList(),
+      table: _maps(j['table']).map(QuickStanding.fromJson).toList(),
       started: j['started'] == true,
       resultText: _str(j['result_text']),
       winnerEntryId: _intOrNull(j['winner_entry_id']),

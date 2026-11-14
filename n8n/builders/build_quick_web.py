@@ -57,7 +57,8 @@ LOAD = (
     "WHERE p.tournament_id = t.id) AS people, t.organizer_user_id, "
     "(SELECT CONCAT_WS('|', v.id, v.is_active) FROM app_users v WHERE v.phone = $2 AND $2 <> '') AS viewer, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('match_no', x.match_no, 'status', x.status, 'events', x.event_count, 'result_text', x.result_text, "
-    "'summary', JSON_EXTRACT(x.live, '$.summary'))) FROM tournament_matches x WHERE x.tournament_id = t.id) AS matches "
+    "'summary', JSON_EXTRACT(x.live, '$.summary'), 'winner', x.winner_entry_id, 'standing', JSON_EXTRACT(x.live, '$.standing'), "
+    "'potm', JSON_EXTRACT(x.live, '$.potm'))) FROM tournament_matches x WHERE x.tournament_id = t.id) AS matches "
     "FROM tournaments t JOIN tournament_matches m ON m.id = (SELECT MAX(z.id) FROM tournament_matches z WHERE z.tournament_id = t.id) "
     "JOIN tournament_divisions d ON d.id = m.division_id "
     "WHERE t.code = $1 AND t.kind = 'QUICK'"
@@ -101,6 +102,25 @@ n.append(code("Build Response", r"""
 const s = $json, r = $('Check Request').first().json;
 if (!s.tid) return [{ json: { status: 404, body: { success: false, message: 'This match link is not valid.' } } }];
 """ + SHAPE + r"""
+
+// Session table: played / won / lost / tied per team, and net run rate for cricket (a team bowled out counts its
+// full overs, as in tournaments).
+const tableFor = (sides, matches, sport) => sides.map(t => {
+  const id = Number(t.entry_id);
+  let played = 0, won = 0, lost = 0, tied = 0, rf = 0, bf = 0, ra = 0, ba = 0;
+  for (const x of matches) {
+    if (x.status !== 'COMPLETED' || !(Number(x.events) > 0)) continue;
+    played++;
+    const w = x.winner == null ? null : Number(x.winner);
+    if (w === id) won++; else if (w == null) tied++; else lost++;
+    for (const r of (parse(x.standing) || [])) {
+      if (Number(r.batting) === id) { rf += Number(r.runs) || 0; bf += Number(r.balls) || 0; }
+      else { ra += Number(r.runs) || 0; ba += Number(r.balls) || 0; }
+    }
+  }
+  const nrr = sport === 'CRICKET' && bf > 0 && ba > 0 ? Math.round((rf / (bf / 6) - ra / (ba / 6)) * 1000) / 1000 : null;
+  return { side: t.side, name: t.name, played, won, lost, tied, nrr };
+});
 const team = r.team ? sides.find(x => x.team_code === r.team) : null;
 if (r.team && !team) return [{ json: { status: 404, body: { success: false, message: 'This team is not in this match.' } } }];
 const summary = parse(s.summary) || {};
@@ -113,7 +133,9 @@ const match = {
   matches: matches.map(x => { const sum = parse(x.summary) || {};
     return { match_no: x.match_no, status: x.status, started: x.events > 0,
       result_text: x.result_text ? String(x.result_text).replace(/\{(\d+)\}/g, (_, id) => names[id] || 'Team') : null,
-      scores: sides.map(y => sum[String(y.entry_id)] ?? null) }; }),
+      scores: sides.map(y => sum[String(y.entry_id)] ?? null),
+      potm: (p => p && p.name ? { name: short(p.name), reason: p.reason || null } : null)(parse(x.potm)) }; }),
+  table: tableFor(sides, matches, s.sport),
   rules: { overs: rules.overs ?? null, half_minutes: rules.half_minutes ?? null, last_batter: rules.last_batter === true, free_hit: rules.free_hit === true, box_out: rules.box_out === true,
     event: rules.event ?? null, games: rules.games ?? null, points_per_game: rules.points_per_game ?? null },
   result_text: s.result_text ? String(s.result_text).replace(/\{(\d+)\}/g, (_, id) => names[id] || 'Team') : null,
