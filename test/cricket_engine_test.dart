@@ -241,14 +241,14 @@ void main() {
     expect(p2['points'], 20); // B1 still has the wicket: 20 points
   });
 
-  test('box out: only when the match has it on; not the bowler\'s wicket', () {
+  test('box out: only when the match has it on; the bowler\'s wicket, like bowled', () {
     final boxOut = ball(0, wicket: {'how': 'BOX_OUT', 'out': 11});
     expect(() => play([start(11, 12, 21), boxOut]), throwsA(isA<ScoringError>()));
     const box = CricketRules(overs: 2, playersPerSide: 6, oversPerBowler: 1, boxOut: true, freeHit: false);
     final s = play([start(11, 12, 21), ball(2), boxOut], r: box);
     expect(s.current!.wickets, 1);
-    expect(s.current!.batters[11]!.howOut, 'box out');
-    expect(s.current!.bowlers[21]!.wickets, 0);
+    expect(s.current!.batters[11]!.howOut, 'box out b B1');
+    expect(s.current!.bowlers[21]!.wickets, 1);
     expect(s.pending, 'NEW_BATTER');
     // Not on a no-ball (only a run out can happen there).
     expect(() => play([start(11, 12, 21), ball(0, extra: 'NO_BALL', wicket: {'how': 'BOX_OUT', 'out': 11})], r: box), throwsA(isA<ScoringError>()));

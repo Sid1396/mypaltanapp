@@ -523,7 +523,7 @@ class CricketEngine {
     _checkEnd(s, c);
   }
 
-  static const _bowlerWickets = {'BOWLED', 'CAUGHT', 'LBW', 'STUMPED', 'HIT_WICKET'};
+  static const _bowlerWickets = {'BOWLED', 'CAUGHT', 'LBW', 'STUMPED', 'HIT_WICKET', 'BOX_OUT'}; // box out counts like bowled
 
   static void _ball(CricketState s, Map<String, dynamic> d) {
     final c = _live(s);
@@ -626,7 +626,7 @@ class CricketEngine {
         'LBW' => 'lbw b ${bowler.name}',
         'STUMPED' => 'st ${fielder ?? 'keeper'} b ${bowler.name}',
         'HIT_WICKET' => 'hit wicket b ${bowler.name}',
-        'BOX_OUT' => 'box out',
+        'BOX_OUT' => 'box out b ${bowler.name}',
         _ => 'run out${fielder == null ? '' : ' ($fielder)'}',
       };
       if (_bowlerWickets.contains(how)) bowler.wickets++;
