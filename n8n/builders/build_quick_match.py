@@ -86,7 +86,7 @@ if (sport === 'CRICKET') {
   const overs = int('overs', 6, 1, 50);
   if (overs == null) return bad('Overs must be between 1 and 50.');
   rules = { players_per_side: 11, overs, overs_per_bowler: Math.max(1, Math.ceil(overs / 5)), powerplay_overs: 0,
-    wide_runs: 1, no_ball_runs: 1, free_hit: true, last_batter: r.last_batter === true };
+    wide_runs: 1, no_ball_runs: 1, free_hit: false, last_batter: r.last_batter === true }; // friendlies: no free hit
   squadMax = 11;
 } else if (sport === 'FOOTBALL') {
   const half = int('half_minutes', 10, 1, 45);
