@@ -86,7 +86,7 @@ if (sport === 'CRICKET') {
   if (players == null) return bad('Players per side must be between 2 and 11.');
   rules = { players_per_side: players, overs, overs_per_bowler: Math.max(1, Math.ceil(overs / 5)), powerplay_overs: 0,
     wide_runs: 1, no_ball_runs: 1, free_hit: true, last_batter: r.last_batter === true };
-  squadMax = Math.min(players + 5, 20);
+  squadMax = players; // no substitutes in cricket
 } else if (sport === 'FOOTBALL') {
   const players = int('players_per_side', 7, 2, 11), half = int('half_minutes', 10, 1, 45);
   if (players == null) return bad('Players per side must be between 2 and 11.');
