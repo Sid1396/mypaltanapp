@@ -80,7 +80,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.id, t.code, t.sport, t.name, t.description, t.logo_key, t.banner_key, t.category, t.city, t.area, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.end_date, '%Y-%m-%d') AS end_date, t.match_days, t.match_timing, t.format, t.group_count, t.qualify_per_group, t.max_teams, t.squad_min, t.squad_max, t.entry_fee, t.prize_type, t.prize_details, t.food_provided, t.meals, t.jersey_provided, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS registration_deadline, t.visibility, t.status, o.name AS organizer_name, o.is_verified AS organizer_verified, r.match_rules, (SELECT JSON_ARRAYAGG(g.name) FROM tournament_grounds g WHERE g.tournament_id = t.id) AS grounds, (SELECT JSON_ARRAYAGG(JSON_OBJECT('doc_type', d.doc_type, 'title', d.title, 'file_key', d.file_key, 'mime_type', d.mime_type, 'sort_order', d.sort_order)) FROM tournament_documents d WHERE d.tournament_id = t.id) AS documents, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', s.id, 'name', s.name, 'label', s.label, 'is_title', s.is_title, 'logo_key', s.logo_key, 'banner_key', s.banner_key, 'link_url', s.link_url, 'tagline', s.tagline, 'sort_order', s.sort_order)) FROM tournament_sponsors s WHERE s.tournament_id = t.id) AS sponsors, (SELECT JSON_ARRAYAGG(JSON_OBJECT('name', v.name, 'sort_order', v.sort_order, 'min_age', v.min_age, 'max_age', v.max_age, 'format', v.format, 'max_teams', v.max_teams, 'entry_fee', v.entry_fee, 'prize_type', v.prize_type, 'prize_details', v.prize_details, 'match_rules', v.match_rules, 'approved_teams', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = v.id AND e.status = 'APPROVED'))) FROM tournament_divisions v WHERE v.tournament_id = t.id) AS divisions, (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'APPROVED') AS approved_teams FROM tournaments t JOIN app_users o ON o.id = t.organizer_user_id LEFT JOIN tournament_rules r ON r.tournament_id = t.id WHERE t.code = $1 AND t.status <> 'DRAFT'",
+        "query": "SELECT t.id, t.code, t.kind, t.sport, t.name, t.description, t.logo_key, t.banner_key, t.category, t.city, t.area, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.end_date, '%Y-%m-%d') AS end_date, t.match_days, t.match_timing, t.format, t.group_count, t.qualify_per_group, t.max_teams, t.squad_min, t.squad_max, t.entry_fee, t.prize_type, t.prize_details, t.food_provided, t.meals, t.jersey_provided, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS registration_deadline, t.visibility, t.status, o.name AS organizer_name, o.is_verified AS organizer_verified, r.match_rules, (SELECT JSON_ARRAYAGG(g.name) FROM tournament_grounds g WHERE g.tournament_id = t.id) AS grounds, (SELECT JSON_ARRAYAGG(JSON_OBJECT('doc_type', d.doc_type, 'title', d.title, 'file_key', d.file_key, 'mime_type', d.mime_type, 'sort_order', d.sort_order)) FROM tournament_documents d WHERE d.tournament_id = t.id) AS documents, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', s.id, 'name', s.name, 'label', s.label, 'is_title', s.is_title, 'logo_key', s.logo_key, 'banner_key', s.banner_key, 'link_url', s.link_url, 'tagline', s.tagline, 'sort_order', s.sort_order)) FROM tournament_sponsors s WHERE s.tournament_id = t.id) AS sponsors, (SELECT JSON_ARRAYAGG(JSON_OBJECT('name', v.name, 'sort_order', v.sort_order, 'min_age', v.min_age, 'max_age', v.max_age, 'format', v.format, 'max_teams', v.max_teams, 'entry_fee', v.entry_fee, 'prize_type', v.prize_type, 'prize_details', v.prize_details, 'match_rules', v.match_rules, 'approved_teams', (SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = v.id AND e.status = 'APPROVED'))) FROM tournament_divisions v WHERE v.tournament_id = t.id) AS divisions, (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id AND e.status = 'APPROVED') AS approved_teams FROM tournaments t JOIN app_users o ON o.id = t.organizer_user_id LEFT JOIN tournament_rules r ON r.tournament_id = t.id WHERE t.code = $1 AND t.status <> 'DRAFT'",
         "options": {
           "queryReplacement": "={{ [$json.code] }}"
         }
@@ -113,7 +113,7 @@
           "conditions": [
             {
               "id": "351ab473-1cb4-439d-928c-bd8f6fc5bc09",
-              "leftValue": "={{ !!$json.id }}",
+              "leftValue": "={{ !!$json.id && $json.kind !== 'QUICK' }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -207,7 +207,7 @@
         100
       ],
       "parameters": {
-        "jsCode": "return [{ json: { status: 404, body: { success: false, message: 'Tournament not found.' } } }];"
+        "jsCode": "const t = $('Load Tournament').first().json;\nif (t.id && t.kind === 'QUICK') return [{ json: { status: 200, body: { success: true, kind: 'QUICK', code: t.code } } }];\nreturn [{ json: { status: 404, body: { success: false, message: 'Tournament not found.' } } }];"
       }
     },
     {
