@@ -1,6 +1,7 @@
 {
   "id": "QuickAction026mP",
   "name": "MyPaltan v2 - Quick Match Action",
+  "description": null,
   "active": false,
   "nodes": [
     {
@@ -302,5 +303,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {}
+  "nodeGroups": [],
+  "pinData": {},
+  "sourceWorkflowId": null
 }

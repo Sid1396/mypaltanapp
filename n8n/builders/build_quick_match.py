@@ -350,7 +350,7 @@ def load(name):
 
 
 def rep(s, a, b):
-    if a not in s and b in s:
+    if b in s:
         return s  # already patched (the copies in ../workflows/v2 are kept patched)
     assert s.count(a) == 1, (a[:90], s.count(a))
     return s.replace(a, b)

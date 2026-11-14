@@ -199,7 +199,7 @@ return [{ json: { ok: true, slug, team, phone } }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load",
     "SELECT l.fee_per_player, t.id AS tid, t.code, t.name, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, "
-    "DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, (t.registration_deadline < NOW()) AS closed, (t.start_date <= CURDATE()) AS started, "
+    "DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, (t.registration_deadline < CONVERT_TZ(NOW(), '+00:00', '+05:30')) AS closed, (t.start_date <= CURDATE()) AS started, "
     "t.area, t.city, (SELECT JSON_ARRAYAGG(g.name) FROM tournament_grounds g WHERE g.tournament_id = t.id) AS grounds, "
     "p.upi_id, p.upi_name, p.qr_key, p.note AS pay_note, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', d.id, 'name', d.name, 'min_age', d.min_age, 'max_age', d.max_age, 'squad_min', d.squad_min, 'squad_max', d.squad_max, "
@@ -294,7 +294,7 @@ return [{ json: { ok: true, slug, coach, phone, team, short, area, division, fil
   new_pin_hash: newPin ? pinHash(phone, newPin) : null, code: rand(6, 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') } , binary: bin }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load",
-    "SELECT l.fee_per_player, t.id AS tid, t.code, t.name AS tname, t.status, (t.registration_deadline < NOW()) AS closed, t.organizer_user_id, "
+    "SELECT l.fee_per_player, t.id AS tid, t.code, t.name AS tname, t.status, (t.registration_deadline < CONVERT_TZ(NOW(), '+00:00', '+05:30')) AS closed, t.organizer_user_id, "
     "d.id AS did, d.name AS dname, d.squad_min, d.squad_max, d.max_teams, "
     "(SELECT COUNT(*) FROM tournament_entries e WHERE e.division_id = d.id AND e.status = 'APPROVED') AS approved, "
     "u.id AS uid, (SELECT COUNT(*) FROM tournament_entries e JOIN teams x ON x.id = e.team_id WHERE e.tournament_id = t.id "
