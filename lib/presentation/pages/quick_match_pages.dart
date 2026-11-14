@@ -408,7 +408,7 @@ class _TeamCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: Text(s.name, style: tfStyle(16, weight: FontWeight.w800))),
-          Text('${s.players.length}/${m.squadMax}', style: tfStyle(13, weight: FontWeight.w800, color: AppColors.primary)),
+          Text(m.countText(s), style: tfStyle(13, weight: FontWeight.w800, color: AppColors.primary)),
         ]),
         gapH(4),
         Row(children: [

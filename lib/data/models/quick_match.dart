@@ -125,6 +125,16 @@ class QuickMatch {
   bool get isOpen => matchStatus == 'SCHEDULED' && !started && !isCancelled;
   bool get isLead => isCreator || captainOf != null;
 
+  /// Players on the field per team (the number picked when making the match); more can join as substitutes.
+  int get perSide =>
+      sport == 'CRICKET' || sport == 'FOOTBALL' ? _int(rules['players_per_side'], sport == 'CRICKET' ? 11 : 7) : (rules['event'] == 'SINGLES' ? 1 : 2);
+
+  /// "6/8", or "8/8 + 2 subs" once a team has more than [perSide].
+  String countText(QuickSide s) {
+    final n = s.players.length, extra = n - perSide;
+    return extra > 0 ? '$perSide/$perSide + $extra sub${extra == 1 ? '' : 's'}' : '$n/$perSide';
+  }
+
   /// Players each team needs before the match can start (the server's rule for squads / Playing XI).
   int get minPlayers => sport == 'CRICKET' || sport == 'FOOTBALL' ? 2 : 1;
   bool get canStart => sides.length == 2 && sides.every((s) => s.players.length >= minPlayers);
