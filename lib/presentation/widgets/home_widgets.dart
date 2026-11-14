@@ -470,6 +470,11 @@ void showCreateSheet() {
             SizedBox(height: SizeConfig.h(16)),
             Text('Create', style: _gilroy(20, weight: FontWeight.w800)),
             SizedBox(height: SizeConfig.h(14)),
+            option(Icons.bolt_rounded, 'Quick match', 'Play with friends: share a link, score it live', key: const ValueKey('create-quick-match'), () {
+              Get.back();
+              Get.toNamed(AppRoutes.createQuickMatch);
+            }),
+            SizedBox(height: SizeConfig.h(10)),
             option(Icons.emoji_events_rounded, 'Create a tournament', 'League, knockout or groups', key: const ValueKey('create-tournament'), () {
               Get.back();
               Get.toNamed(AppRoutes.createTournament);
@@ -585,5 +590,5 @@ void startScoring() {
     return;
   }
   if (Get.isRegistered<MainNavController>()) Get.find<MainNavController>().go(MainNavController.tournaments);
-  AppSnackbar.info('Score a match', 'Open your tournament, go to Fixtures and pick the match. The organiser gives scorers the scoring PIN.');
+  AppSnackbar.info('Score a match', 'Open your tournament, go to Fixtures and pick the match. Playing with friends? Start a Quick match from the + button.');
 }

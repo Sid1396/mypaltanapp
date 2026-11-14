@@ -251,6 +251,18 @@ class ScoringController extends GetxController with LoggerMixin {
     }
   }
 
+  /// Leaves the scoring screen so someone else can score (e.g. the other team at the innings break).
+  /// Leaving frees the match for them once everything from this phone is saved.
+  void handOver() {
+    if (pending.isNotEmpty) {
+      AppSnackbar.warning('Hand over', 'Wait a moment: ${pending.length} actions are still being saved.');
+      _send();
+      return;
+    }
+    Get.back();
+    AppSnackbar.success('Handed over', 'The next scorer opens the match and taps Score. They need the scoring PIN.');
+  }
+
   /// Scoring from this phone when another phone held the match.
   Future<void> takeOver() async {
     lockedBy.value = null;

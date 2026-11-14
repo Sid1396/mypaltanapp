@@ -235,48 +235,81 @@ class _QuickActions extends StatelessWidget {
     ];
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
-      child: GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        // Without this, the grid inherits the safe-area/bottom-bar padding and leaves a gap below it.
-        padding: EdgeInsets.zero,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: SizeConfig.h(10),
-        crossAxisSpacing: SizeConfig.w(10),
-        childAspectRatio: 2.3,
-        children: actions.map((a) {
-          final (icon, label, onTap) = a;
-          return GestureDetector(
-            onTap: onTap,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(12)),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.circular(SizeConfig.r(16)),
-                border: Border.all(color: Colors.white.withAlpha(12)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: SizeConfig.r(36),
-                    height: SizeConfig.r(36),
-                    decoration: BoxDecoration(color: AppColors.primary.withAlpha(30), borderRadius: BorderRadius.circular(SizeConfig.r(10))),
-                    child: Icon(icon, color: AppColors.primary, size: SizeConfig.r(19)),
-                  ),
-                  SizedBox(width: SizeConfig.w(10)),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 2,
-                      style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(13), color: Colors.white, height: 1.2),
-                    ),
-                  ),
-                ],
-              ),
+      child: Column(children: [
+        // Quick match: the fastest way to play and score with friends.
+        GestureDetector(
+          key: const ValueKey('home-quick-match'),
+          onTap: () => Get.toNamed(AppRoutes.createQuickMatch),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(14), vertical: SizeConfig.h(14)),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(30),
+              borderRadius: BorderRadius.circular(SizeConfig.r(16)),
+              border: Border.all(color: AppColors.primary.withAlpha(90)),
             ),
-          );
-        }).toList(),
-      ),
+            child: Row(children: [
+              Container(
+                width: SizeConfig.r(36),
+                height: SizeConfig.r(36),
+                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(SizeConfig.r(10))),
+                child: Icon(Icons.bolt_rounded, color: Colors.white, size: SizeConfig.r(20)),
+              ),
+              SizedBox(width: SizeConfig.w(12)),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Quick match', style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w800, fontSize: SizeConfig.sp(15), color: Colors.white)),
+                  Text('Play with friends: share a link, score it live',
+                      style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(12), color: Colors.white.withAlpha(160))),
+                ]),
+              ),
+              Icon(Icons.chevron_right_rounded, color: Colors.white.withAlpha(140)),
+            ]),
+          ),
+        ),
+        SizedBox(height: SizeConfig.h(10)),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          // Without this, the grid inherits the safe-area/bottom-bar padding and leaves a gap below it.
+          padding: EdgeInsets.zero,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: SizeConfig.h(10),
+          crossAxisSpacing: SizeConfig.w(10),
+          childAspectRatio: 2.3,
+          children: actions.map((a) {
+            final (icon, label, onTap) = a;
+            return GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(12)),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(SizeConfig.r(16)),
+                  border: Border.all(color: Colors.white.withAlpha(12)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: SizeConfig.r(36),
+                      height: SizeConfig.r(36),
+                      decoration: BoxDecoration(color: AppColors.primary.withAlpha(30), borderRadius: BorderRadius.circular(SizeConfig.r(10))),
+                      child: Icon(icon, color: AppColors.primary, size: SizeConfig.r(19)),
+                    ),
+                    SizedBox(width: SizeConfig.w(10)),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 2,
+                        style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(13), color: Colors.white, height: 1.2),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ]),
     );
   }
 }

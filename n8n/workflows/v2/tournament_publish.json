@@ -78,7 +78,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.id, t.status, t.entry_fee, (t.organizer_user_id = u.id) AS is_owner, u.is_verified, (SELECT COUNT(*) FROM tournament_payment_details p WHERE p.tournament_id = t.id) AS has_upi FROM app_users u JOIN tournaments t ON t.code = $2 WHERE u.phone = $1",
+        "query": "SELECT t.id, t.status, t.entry_fee, (t.organizer_user_id = u.id) AS is_owner, u.is_verified, (SELECT COUNT(*) FROM tournament_payment_details p WHERE p.tournament_id = t.id) AS has_upi FROM app_users u JOIN tournaments t ON t.code = $2 AND t.kind = 'TOURNAMENT' WHERE u.phone = $1",
         "options": {
           "queryReplacement": "={{ [$json.phone, $json.code] }}"
         }

@@ -214,6 +214,7 @@ class Tournament {
   final bool organizerVerified;
   final int organizerCompleted;
   final bool isOwner;
+  final String kind; // TOURNAMENT or QUICK (a quick match, opened on its own page)
   final String? logoKey;
   final String? bannerKey;
   final TournamentPayment? payment;
@@ -262,6 +263,7 @@ class Tournament {
     required this.organizerVerified,
     required this.organizerCompleted,
     required this.isOwner,
+    this.kind = 'TOURNAMENT',
     this.logoKey,
     this.bannerKey,
     this.payment,
@@ -269,6 +271,7 @@ class Tournament {
   });
 
   bool get isDraft => status == 'DRAFT';
+  bool get isQuick => kind == 'QUICK';
   /// Registration is open only until the deadline, even if the organiser hasn't closed it yet (same as the website).
   bool get registrationOpen => status == 'REGISTRATION_OPEN' && (registrationDeadline == null || DateTime.now().isBefore(registrationDeadline!));
   String get statusLabel => TournamentOptions.statusLabels[status == 'REGISTRATION_OPEN' && !registrationOpen ? 'REGISTRATION_CLOSED' : status] ?? status;
@@ -327,6 +330,7 @@ class Tournament {
       organizerVerified: _bool(org['verified']),
       organizerCompleted: _int(org['completed_tournaments']),
       isOwner: _bool(j['is_owner']),
+      kind: j['kind']?.toString() ?? 'TOURNAMENT',
       logoKey: _str(j['logo_key']),
       bannerKey: _str(j['banner_key']),
       payment: j['payment'] is Map ? TournamentPayment.fromJson(Map<String, dynamic>.from(j['payment'] as Map)) : null,

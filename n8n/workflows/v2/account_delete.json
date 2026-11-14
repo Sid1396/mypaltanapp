@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "89788fdf-a3c9-41d2-84ac-15b1ea29eeef",
-      "webhookId": "2f35f7ec-5e7b-445c-a17c-94fe537a9394"
+      "id": "073eacd4-8493-4759-ae76-c5f8dca39e59",
+      "webhookId": "2236d587-2f61-48aa-bc93-e4a71d5e1427"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "786804b3-e9db-46e7-8c75-17e01f720965"
+      "id": "20f3c6e2-7d2d-47da-b1ff-8221fbd7a859"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "8cb4a228-eebf-493e-9105-6a1da755146b",
+              "id": "74cb016f-7044-4e65-9f9e-a4fc51d64284",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,7 +67,7 @@
         440,
         0
       ],
-      "id": "ad060bb8-b4a1-47c7-bfe7-9e2aa08c5f4e"
+      "id": "793dddca-7d32-4177-892a-e98ff7f335e0"
     },
     {
       "parameters": {
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "8f14eee2-c91d-4123-a18f-bbf9572ef3d0",
+      "id": "57ad39df-1d3f-4766-9e73-fef1987fefa9",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst u = $in;\nif (!u.id) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This account no longer exists.' } } }];\nlet ids = [];\ntry { ids = (typeof u.id_files === 'string' ? JSON.parse(u.id_files) : u.id_files) || []; } catch (e) {}\n// Only this person's own files: profile photo and ID-check photos.\nconst files = [u.photo_key, ...ids.flat()].filter(k => typeof k === 'string' && k && !k.includes('..'));\nconst id = Number(u.id);\n// All in one transaction: either everything personal is gone or nothing changes.\nconst sql = [\n  'START TRANSACTION',\n  'DELETE FROM app_user_sports WHERE user_id = $1',\n  'DELETE FROM coach_web_pins WHERE user_id = $2',\n  'DELETE FROM identity_verifications WHERE user_id = $3',\n  'DELETE FROM notifications WHERE user_id = $4',\n  'DELETE FROM tournament_scorers WHERE user_id = $5',\n  // Out of squads for tournaments that haven't started; finished matches keep their history.\n  'DELETE ep FROM tournament_entry_players ep JOIN tournaments t ON t.id = ep.tournament_id WHERE ep.user_id = $6 AND t.start_date > CURDATE()',\n  \"UPDATE team_members SET status = 'REMOVED' WHERE user_id = $7\",\n  'DELETE FROM otp_sessions WHERE phone = $8',\n  // The row stays for teams / tournaments / entries that point at it; the phone becomes a placeholder that can't log in.\n  \"UPDATE app_users SET phone = CONCAT('0', LPAD(id, 9, '0')), name = 'Deleted user', birthdate = NULL, gender = NULL, jersey_name = NULL, \" +\n    'jersey_number = NULL, jersey_size = NULL, food_pref = NULL, photo_key = NULL, pincode = NULL, area = NULL, city = NULL, state = NULL, ' +\n    'profile_complete = 0, is_verified = 0, is_active = 0 WHERE id = $9',\n  'COMMIT',\n].join('; ');\nreturn [{ json: { ok: true, sql, params: [id, id, id, id, id, id, id, u.phone, id], files } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst u = $in;\nif (!u.id) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This account no longer exists.' } } }];\nlet ids = [];\ntry { ids = (typeof u.id_files === 'string' ? JSON.parse(u.id_files) : u.id_files) || []; } catch (e) {}\n// Only this person's own files: profile photo and ID-check photos.\nconst files = [u.photo_key, ...ids.flat()].filter(k => typeof k === 'string' && k && !k.includes('..'));\nconst id = Number(u.id);\n// All in one transaction: either everything personal is gone or nothing changes.\nconst sql = [\n  'START TRANSACTION',\n  'DELETE FROM app_user_sports WHERE user_id = $1',\n  'DELETE FROM coach_web_pins WHERE user_id = $2',\n  'DELETE FROM identity_verifications WHERE user_id = $3',\n  'DELETE FROM notifications WHERE user_id = $4',\n  'DELETE FROM tournament_scorers WHERE user_id = $5',\n  'DELETE FROM quick_match_people WHERE user_id = $6',\n  // Out of squads for tournaments that haven't started; finished matches keep their history.\n  'DELETE ep FROM tournament_entry_players ep JOIN tournaments t ON t.id = ep.tournament_id WHERE ep.user_id = $7 AND t.start_date > CURDATE()',\n  \"UPDATE team_members SET status = 'REMOVED' WHERE user_id = $8\",\n  'DELETE FROM otp_sessions WHERE phone = $9',\n  // The row stays for teams / tournaments / entries that point at it; the phone becomes a placeholder that can't log in.\n  \"UPDATE app_users SET phone = CONCAT('0', LPAD(id, 9, '0')), name = 'Deleted user', birthdate = NULL, gender = NULL, jersey_name = NULL, \" +\n    'jersey_number = NULL, jersey_size = NULL, food_pref = NULL, photo_key = NULL, pincode = NULL, area = NULL, city = NULL, state = NULL, ' +\n    'profile_complete = 0, is_verified = 0, is_active = 0 WHERE id = $10',\n  'COMMIT',\n].join('; ');\nreturn [{ json: { ok: true, sql, params: [id, id, id, id, id, id, id, id, u.phone, id], files } }];"
       },
       "name": "Plan",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "b76c71ff-58f9-4797-8bb3-054004b007f1"
+      "id": "abe9f2b4-3bd5-4e9c-83f8-14bf7ff908a0"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "83d8b448-9aa1-4c0b-abe7-f249a641db0a",
+              "id": "c6f64a6f-bf7e-47e6-a16e-cfe5d762f0cb",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "c43df6a3-bf71-4ed0-8592-6df4edf4df8d"
+      "id": "413477eb-5ce9-45c9-8c42-fdb86d30bd94"
     },
     {
       "parameters": {
@@ -155,7 +155,7 @@
         1320,
         -200
       ],
-      "id": "10e679e2-d0ce-4017-9ebd-64b88da433d7",
+      "id": "16737eed-65fa-44dd-992b-6e66a7187942",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -175,7 +175,7 @@
         1540,
         -200
       ],
-      "id": "adc96321-4153-43ea-b182-f38967f1b419"
+      "id": "b9d2faca-8809-49be-b48a-e7038b1a044e"
     },
     {
       "parameters": {
@@ -188,7 +188,7 @@
         1760,
         -200
       ],
-      "id": "84881a6e-aa52-49ad-9fb5-3d773e6180f4"
+      "id": "c540bb91-3359-40ed-8b3d-caafefe5970d"
     },
     {
       "parameters": {
@@ -205,7 +205,7 @@
         1980,
         0
       ],
-      "id": "1237bf0b-7c09-43d2-9714-bd62b1dae0e7"
+      "id": "075598e8-e830-467d-9250-14b1636a5091"
     }
   ],
   "connections": {

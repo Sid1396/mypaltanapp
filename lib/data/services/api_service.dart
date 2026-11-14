@@ -291,6 +291,32 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  // ─── Quick match ──────────────────────────────────────────────
+
+  /// {sport, home_name, away_name, rules, ground?, scheduled_at?, my_side?} → {code, link}.
+  Future<Map<String, dynamic>> createQuickMatch(Map<String, dynamic> body) => _send(
+        () => http.post(Uri.parse('$_base/quick/create'), headers: _authHeaders, body: jsonEncode(body)),
+        authed: true,
+      );
+
+  Future<Map<String, dynamic>> getQuickMatch(String code) => _send(
+        () => http.get(Uri.parse('$_base/quick?code=${Uri.encodeQueryComponent(code)}'), headers: _authHeaders),
+        authed: true,
+      );
+
+  /// action: JOIN ("I'm in"), LEAVE, SET_CAPTAIN (creator, with side + userId) or CANCEL (creator).
+  Future<Map<String, dynamic>> quickMatchAction(String code, String action, {String? side, int? userId}) => _send(
+        () => http.post(Uri.parse('$_base/quick/action'),
+            headers: _authHeaders,
+            body: jsonEncode({'code': code, 'action': action, if (side != null) 'side': side, if (userId != null) 'user_id': userId})),
+        authed: true,
+      );
+
+  Future<Map<String, dynamic>> getMyQuickMatches() => _send(
+        () => http.get(Uri.parse('$_base/quick/mine'), headers: _authHeaders),
+        authed: true,
+      );
+
   // ─── Identity verification ────────────────────────────────────
 
   Future<Map<String, dynamic>> getVerificationStatus() => _send(

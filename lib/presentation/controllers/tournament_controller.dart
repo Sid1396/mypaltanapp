@@ -82,7 +82,12 @@ class TournamentController extends GetxController with LoggerMixin {
     try {
       final res = await _api.getTournament(code);
       if (res['success'] == true && res['tournament'] is Map) {
-        tournament.value = Tournament.fromJson(Map<String, dynamic>.from(res['tournament'] as Map));
+        final t = Tournament.fromJson(Map<String, dynamic>.from(res['tournament'] as Map));
+        if (t.isQuick) {
+          Get.offNamed(AppRoutes.quickMatch, arguments: {'code': code});
+          return;
+        }
+        tournament.value = t;
         if (!tournament.value!.isDraft) {
           loadEntries();
           loadFixtures();

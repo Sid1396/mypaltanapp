@@ -44,17 +44,18 @@ const sql = [
   'DELETE FROM identity_verifications WHERE user_id = $3',
   'DELETE FROM notifications WHERE user_id = $4',
   'DELETE FROM tournament_scorers WHERE user_id = $5',
+  'DELETE FROM quick_match_people WHERE user_id = $6',
   // Out of squads for tournaments that haven't started; finished matches keep their history.
-  'DELETE ep FROM tournament_entry_players ep JOIN tournaments t ON t.id = ep.tournament_id WHERE ep.user_id = $6 AND t.start_date > CURDATE()',
-  "UPDATE team_members SET status = 'REMOVED' WHERE user_id = $7",
-  'DELETE FROM otp_sessions WHERE phone = $8',
+  'DELETE ep FROM tournament_entry_players ep JOIN tournaments t ON t.id = ep.tournament_id WHERE ep.user_id = $7 AND t.start_date > CURDATE()',
+  "UPDATE team_members SET status = 'REMOVED' WHERE user_id = $8",
+  'DELETE FROM otp_sessions WHERE phone = $9',
   // The row stays for teams / tournaments / entries that point at it; the phone becomes a placeholder that can't log in.
   "UPDATE app_users SET phone = CONCAT('0', LPAD(id, 9, '0')), name = 'Deleted user', birthdate = NULL, gender = NULL, jersey_name = NULL, " +
     'jersey_number = NULL, jersey_size = NULL, food_pref = NULL, photo_key = NULL, pincode = NULL, area = NULL, city = NULL, state = NULL, ' +
-    'profile_complete = 0, is_verified = 0, is_active = 0 WHERE id = $9',
+    'profile_complete = 0, is_verified = 0, is_active = 0 WHERE id = $10',
   'COMMIT',
 ].join('; ');
-return [{ json: { ok: true, sql, params: [id, id, id, id, id, id, id, u.phone, id], files } }];""", [880, -100]))
+return [{ json: { ok: true, sql, params: [id, id, id, id, id, id, id, id, u.phone, id], files } }];""", [880, -100]))
 n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
 n.append(mysql("Delete Data", "={{ $json.sql }}", "={{ $json.params }}", [1320, -200], continue_on_error=True))
 n.append(code("Delete Files", r"""

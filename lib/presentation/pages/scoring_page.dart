@@ -213,6 +213,25 @@ class _StartInnings extends GetView<ScoringController> {
             },
           ),
         ),
+        if (s.innings.isNotEmpty) ...[
+          gapH(14),
+          Text('Someone from ${controller.teamName(batting)} can score their innings.',
+              style: tfStyle(13, color: Colors.white.withAlpha(170), height: 1.4)),
+          gapH(6),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              key: const ValueKey('hand-over-scoring'),
+              onPressed: controller.handOver,
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: AppColors.primary.withAlpha(120)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(SizeConfig.r(14))),
+                padding: EdgeInsets.symmetric(vertical: SizeConfig.h(13)),
+              ),
+              child: Text('Hand over scoring', style: tfStyle(14.5, weight: FontWeight.w700, color: AppColors.primary)),
+            ),
+          ),
+        ],
       ]),
     );
   }

@@ -4,6 +4,8 @@ import '../../config/app_colors.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/my_tournaments_controller.dart';
+import '../controllers/quick_match_controller.dart';
+import 'quick_match_pages.dart' show QuickMatchRow;
 import '../../config/app_routes.dart';
 import '../../utils/helpers/snackbar_helper.dart';
 import '../widgets/form_widgets.dart';
@@ -22,6 +24,40 @@ class _TournamentsPageState extends State<TournamentsPage> {
   int _tab = 0;
 
   final _mine = Get.put(MyTournamentsController());
+  final _quick = Get.put(MyQuickMatchesController());
+
+  List<Widget> _quickMatches() {
+    final q = _quick;
+    if (q.isLoading.value && q.items.isEmpty) {
+      return [
+        Padding(
+          padding: EdgeInsets.only(top: SizeConfig.h(60)),
+          child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        ),
+      ];
+    }
+    if (q.items.isEmpty) {
+      return [
+        EmptyCard(
+          icon: Icons.bolt_rounded,
+          title: 'No quick matches yet',
+          message: 'Playing with friends? Make a quick match, share the link in your group and score it live.',
+          actions: [SmallButton(label: 'Quick match', onTap: q.create)],
+        ),
+      ];
+    }
+    return [
+      for (final m in q.items)
+        Padding(
+          padding: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(10)),
+          child: QuickMatchRow(q: m, onTap: () => q.open(m.code)),
+        ),
+      Padding(
+        padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
+        child: SmallButton(label: 'New quick match', filled: false, onTap: q.create),
+      ),
+    ];
+  }
 
   List<Widget> _myTournaments() {
     final m = _mine;
@@ -69,7 +105,7 @@ class _TournamentsPageState extends State<TournamentsPage> {
         bottom: false,
         child: RefreshIndicator(
           color: AppColors.primary,
-          onRefresh: () => _tab == 0 ? c.load() : _mine.load(),
+          onRefresh: () => switch (_tab) { 0 => c.load(), 1 => _mine.load(), _ => _quick.load() },
           child: Obx(() => ListView(
                 key: const ValueKey('tournaments-list'),
                 padding: EdgeInsets.only(bottom: SizeConfig.h(120)),
@@ -109,11 +145,12 @@ class _TournamentsPageState extends State<TournamentsPage> {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
                     child: _Segmented(
-                      labels: const ['Upcoming', 'My tournaments'],
+                      labels: const ['Upcoming', 'My tournaments', 'Quick matches'],
                       index: _tab,
                       onChanged: (i) {
                         setState(() => _tab = i);
                         if (i == 1) _mine.ensureLoaded();
+                        if (i == 2) _quick.ensureLoaded();
                       },
                     ),
                   ),
@@ -125,15 +162,18 @@ class _TournamentsPageState extends State<TournamentsPage> {
                         child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
                       )
                     else if (c.tournaments.isEmpty)
-                      const EmptyCard(icon: Icons.emoji_events_rounded, title: 'No tournaments yet', message: 'New tournaments in your city will be listed here.')
+                      const EmptyCard(
+                          icon: Icons.emoji_events_rounded, title: 'No tournaments yet', message: 'New tournaments in your city will be listed here.')
                     else
                       for (final t in c.tournaments)
                         Padding(
                           padding: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(14)),
                           child: TournamentCard(t: t),
                         ),
-                  ] else
-                    ..._myTournaments(),
+                  ] else if (_tab == 1)
+                    ..._myTournaments()
+                  else
+                    ..._quickMatches(),
                 ],
               )),
         ),
@@ -166,7 +206,8 @@ class _Segmented extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   labels[i],
-                  style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(13), color: sel ? Colors.white : Colors.white.withAlpha(140)),
+                  style: TextStyle(
+                      fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(13), color: sel ? Colors.white : Colors.white.withAlpha(140)),
                 ),
               ),
             ),
@@ -176,7 +217,6 @@ class _Segmented extends StatelessWidget {
     );
   }
 }
-
 
 /// Opens a tournament from a 6-character code someone shared (e.g. read out at the ground).
 void showJoinWithCode() {
