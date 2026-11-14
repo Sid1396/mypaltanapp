@@ -28,8 +28,7 @@ class CreateQuickMatchController extends GetxController {
 
   // Rules
   final overs = 6.obs;
-  final cricketPlayers = 11.obs;
-  final footballPlayers = 7.obs;
+  final lastManStands = false.obs;
   final halfMinutes = 10.obs;
   final racketEvent = 'DOUBLES'.obs;
   final pointsPerGame = 21.obs;
@@ -58,8 +57,8 @@ class CreateQuickMatchController extends GetxController {
   }
 
   Map<String, dynamic> get _rules => switch (sport.value) {
-        'CRICKET' => {'overs': overs.value, 'players_per_side': cricketPlayers.value},
-        'FOOTBALL' => {'players_per_side': footballPlayers.value, 'half_minutes': halfMinutes.value},
+        'CRICKET' => {'overs': overs.value, 'last_batter': lastManStands.value},
+        'FOOTBALL' => {'half_minutes': halfMinutes.value},
         _ => {'event': racketEvent.value, 'points_per_game': pointsPerGame.value, 'games': games.value},
       };
 

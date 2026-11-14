@@ -135,12 +135,16 @@ class CreateQuickMatchPage extends GetView<CreateQuickMatchController> {
       case 'CRICKET':
         return [
           NumberStepper(label: 'Overs per innings', value: c.overs.value, min: 1, max: 50, onChanged: (v) => c.overs.value = v),
-          NumberStepper(label: 'Players per side', value: c.cricketPlayers.value, min: 2, max: 11, onChanged: (v) => c.cricketPlayers.value = v),
+          SwitchRow(
+            label: 'Last man stands',
+            hint: 'The last batter can bat on alone',
+            value: c.lastManStands.value,
+            onChanged: (v) => c.lastManStands.value = v,
+          ),
         ];
       case 'FOOTBALL':
         return [
           NumberStepper(label: 'Each half', hint: 'Minutes', value: c.halfMinutes.value, min: 1, max: 45, onChanged: (v) => c.halfMinutes.value = v),
-          NumberStepper(label: 'Players per side', value: c.footballPlayers.value, min: 2, max: 11, onChanged: (v) => c.footballPlayers.value = v),
         ];
       default:
         return [

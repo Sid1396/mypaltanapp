@@ -19,12 +19,12 @@
         0,
         0
       ],
-      "id": "920306f9-b86d-485a-88ca-862fbc784710",
-      "webhookId": "42865bce-717b-446a-8325-6448283fa195"
+      "id": "0122e035-3d2a-4c3c-b539-126faee5cbd1",
+      "webhookId": "289e4cfc-f021-491f-9bd3-85da46d266ed"
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction hmacSha256(key,msg){\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let kB=toB(key);if(kB.length>64)kB=sha256bytes(kB);\n  const kP=new Array(64).fill(0);kB.forEach((v,i)=>kP[i]=v);\n  const ipad=kP.map(v=>v^0x36);const opad=kP.map(v=>v^0x5c);\n  const mB=toB(msg);\n  return sha256bytes([...opad,...sha256bytes([...ipad,...mB])]);\n}\nfunction b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, ''); }\nfunction signToken(phone) {\n  const now = Math.floor(Date.now() / 1000);\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const body = b64url(Buffer.from(JSON.stringify({ phone, iat: now, exp: now + 30 * 24 * 60 * 60 })));\n  return `${header}.${body}.${b64url(hmacSha256($env.JWT_SECRET, `${header}.${body}`))}`;\n}\nfunction verifyToken(headers) {\n  const auth = String((headers || {}).authorization || '').trim();\n  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\n  if (!token) return { ok: false, error: 'Please log in again.' };\n  const parts = token.split('.');\n  if (parts.length !== 3) return { ok: false, error: 'Please log in again.' };\n  const [h, p, s] = parts;\n  if (b64url(hmacSha256($env.JWT_SECRET, `${h}.${p}`)) !== s) return { ok: false, error: 'Please log in again.' };\n  let claims;\n  try { claims = JSON.parse(Buffer.from(p, 'base64').toString('utf8')); } catch { return { ok: false, error: 'Please log in again.' }; }\n  if (!claims.exp || claims.exp < Math.floor(Date.now() / 1000)) return { ok: false, error: 'Your session expired. Please log in again.' };\n  if (!/^[6-9]\\d{9}$/.test(String(claims.phone || ''))) return { ok: false, error: 'Please log in again.' };\n  return { ok: true, phone: String(claims.phone) };\n}\n\n\nconst auth = verifyToken($in.headers);\nif (!auth.ok) return [{ json: { ok: false, status: 401, body: { success: false, message: auth.error } } }];\nconst b = $in.body || {};\nconst bad = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nconst str = v => String(v ?? '').trim().replace(/\\s+/g, ' ');\n\nconst sport = str(b.sport).toUpperCase();\nif (!['CRICKET', 'FOOTBALL', 'BADMINTON', 'PICKLEBALL'].includes(sport)) return bad('Pick a sport.');\nconst home = str(b.home_name) || 'Team A', away = str(b.away_name) || 'Team B';\nfor (const t of [home, away]) if (t.length < 2 || t.length > 30) return bad('Team names must be 2-30 characters.');\nif (home.toLowerCase() === away.toLowerCase()) return bad('Give the two teams different names.');\nconst ground = str(b.ground).slice(0, 100);\nconst r = b.rules && typeof b.rules === 'object' ? b.rules : {};\nconst int = (k, d, lo, hi) => { const v = Number(r[k] ?? d); return Number.isInteger(v) && v >= lo && v <= hi ? v : null; };\nlet rules, squadMax;\nif (sport === 'CRICKET') {\n  const overs = int('overs', 6, 1, 50), players = int('players_per_side', 11, 2, 11);\n  if (overs == null) return bad('Overs must be between 1 and 50.');\n  if (players == null) return bad('Players per side must be between 2 and 11.');\n  rules = { players_per_side: players, overs, overs_per_bowler: Math.max(1, Math.ceil(overs / 5)), powerplay_overs: 0,\n    wide_runs: 1, no_ball_runs: 1, free_hit: true, last_batter: r.last_batter === true };\n  squadMax = players; // no substitutes in cricket\n} else if (sport === 'FOOTBALL') {\n  const players = int('players_per_side', 7, 2, 11), half = int('half_minutes', 10, 1, 45);\n  if (players == null) return bad('Players per side must be between 2 and 11.');\n  if (half == null) return bad('Each half must be 1-45 minutes.');\n  rules = { players_per_side: players, half_minutes: half, rolling_subs: true, extra_time: false, penalties: false, penalty_kicks: 5 };\n  squadMax = Math.min(players + 7, 25);\n} else {\n  const event = String(r.event ?? 'DOUBLES').toUpperCase();\n  if (!['SINGLES', 'DOUBLES'].includes(event)) return bad('Pick singles or doubles.');\n  const ppg = int('points_per_game', sport === 'BADMINTON' ? 21 : 11, 5, 30), games = int('games', sport === 'BADMINTON' ? 3 : 1, 1, 5);\n  if (ppg == null) return bad('Points per game must be between 5 and 30.');\n  if (games == null || games % 2 === 0) return bad('Play 1, 3 or 5 games.');\n  rules = { event, points_per_game: ppg, games, win_by_two: true, ...(sport === 'PICKLEBALL' ? { scoring: 'SIDE_OUT' } : {}) };\n  squadMax = event === 'SINGLES' ? 2 : 4;\n}\n// Start time in India time (\"YYYY-MM-DD HH:mm\"), from a day ago to 60 days ahead; now if not given.\nconst india = new Date(Date.now() + 330 * 60e3).toISOString().slice(0, 16).replace('T', ' ');\nconst at = str(b.scheduled_at) || india;\nif (!/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$/.test(at)) return bad('Pick a valid date and time.');\nconst diff = (Date.parse(at.replace(' ', 'T') + ':00Z') - Date.parse(india.replace(' ', 'T') + ':00Z')) / 86400e3;\nif (!(diff >= -1 && diff <= 60)) return bad('Pick a time within the next 60 days.');\nconst side = b.my_side == null ? null : String(b.my_side).toUpperCase();\nif (side !== null && !['HOME', 'AWAY'].includes(side)) return bad('Pick the team you play for.');\nreturn [{ json: { ok: true, phone: auth.phone, sport, home, away, ground, rules, squadMax, at, side } }];"
+        "jsCode": "const $in = $input.first().json;\nfunction sha256bytes(input){\n  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let b=typeof input==='string'?toB(input):Array.from(input);\n  const l=b.length;b.push(0x80);while(b.length%64!==56)b.push(0);\n  const bl=l*8;b.push(0,0,0,0,(bl>>>24)&0xff,(bl>>>16)&0xff,(bl>>>8)&0xff,bl&0xff);\n  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];\n  const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;const a=(x,y)=>(x+y)>>>0;\n  for(let i=0;i<b.length;i+=64){\n    const w=Array(64);\n    for(let j=0;j<16;j++)w[j]=((b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3])>>>0;\n    for(let j=16;j<64;j++){const s0=r(w[j-15],7)^r(w[j-15],18)^(w[j-15]>>>3);const s1=r(w[j-2],17)^r(w[j-2],19)^(w[j-2]>>>10);w[j]=a(a(a(w[j-16],s0),w[j-7]),s1);}\n    let[aa,bb,cc,dd,ee,ff,gg,hh]=h;\n    for(let j=0;j<64;j++){\n      const S1=r(ee,6)^r(ee,11)^r(ee,25);const ch=((ee&ff)^(~ee&gg))>>>0;\n      const t1=a(a(a(a(hh,S1),ch),K[j]),w[j]);\n      const S0=r(aa,2)^r(aa,13)^r(aa,22);const mj=((aa&bb)^(aa&cc)^(bb&cc))>>>0;\n      const t2=a(S0,mj);hh=gg;gg=ff;ff=ee;ee=a(dd,t1);dd=cc;cc=bb;bb=aa;aa=a(t1,t2);\n    }\n    h[0]=a(h[0],aa);h[1]=a(h[1],bb);h[2]=a(h[2],cc);h[3]=a(h[3],dd);\n    h[4]=a(h[4],ee);h[5]=a(h[5],ff);h[6]=a(h[6],gg);h[7]=a(h[7],hh);\n  }\n  return h.reduce((acc,v)=>{acc.push((v>>>24)&0xff,(v>>>16)&0xff,(v>>>8)&0xff,v&0xff);return acc;},[]);\n}\nfunction hmacSha256(key,msg){\n  function toB(s){const b=[];for(let i=0;i<s.length;i++){let c=s.charCodeAt(i);if(c<0x80)b.push(c);else if(c<0x800)b.push(0xC0|(c>>6),0x80|(c&0x3F));else b.push(0xE0|(c>>12),0x80|((c>>6)&0x3F),0x80|(c&0x3F));}return b;}\n  let kB=toB(key);if(kB.length>64)kB=sha256bytes(kB);\n  const kP=new Array(64).fill(0);kB.forEach((v,i)=>kP[i]=v);\n  const ipad=kP.map(v=>v^0x36);const opad=kP.map(v=>v^0x5c);\n  const mB=toB(msg);\n  return sha256bytes([...opad,...sha256bytes([...ipad,...mB])]);\n}\nfunction b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, ''); }\nfunction signToken(phone) {\n  const now = Math.floor(Date.now() / 1000);\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const body = b64url(Buffer.from(JSON.stringify({ phone, iat: now, exp: now + 30 * 24 * 60 * 60 })));\n  return `${header}.${body}.${b64url(hmacSha256($env.JWT_SECRET, `${header}.${body}`))}`;\n}\nfunction verifyToken(headers) {\n  const auth = String((headers || {}).authorization || '').trim();\n  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';\n  if (!token) return { ok: false, error: 'Please log in again.' };\n  const parts = token.split('.');\n  if (parts.length !== 3) return { ok: false, error: 'Please log in again.' };\n  const [h, p, s] = parts;\n  if (b64url(hmacSha256($env.JWT_SECRET, `${h}.${p}`)) !== s) return { ok: false, error: 'Please log in again.' };\n  let claims;\n  try { claims = JSON.parse(Buffer.from(p, 'base64').toString('utf8')); } catch { return { ok: false, error: 'Please log in again.' }; }\n  if (!claims.exp || claims.exp < Math.floor(Date.now() / 1000)) return { ok: false, error: 'Your session expired. Please log in again.' };\n  if (!/^[6-9]\\d{9}$/.test(String(claims.phone || ''))) return { ok: false, error: 'Please log in again.' };\n  return { ok: true, phone: String(claims.phone) };\n}\n\n\nconst auth = verifyToken($in.headers);\nif (!auth.ok) return [{ json: { ok: false, status: 401, body: { success: false, message: auth.error } } }];\nconst b = $in.body || {};\nconst bad = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nconst str = v => String(v ?? '').trim().replace(/\\s+/g, ' ');\n\nconst sport = str(b.sport).toUpperCase();\nif (!['CRICKET', 'FOOTBALL', 'BADMINTON', 'PICKLEBALL'].includes(sport)) return bad('Pick a sport.');\nconst home = str(b.home_name) || 'Team A', away = str(b.away_name) || 'Team B';\nfor (const t of [home, away]) if (t.length < 2 || t.length > 30) return bad('Team names must be 2-30 characters.');\nif (home.toLowerCase() === away.toLowerCase()) return bad('Give the two teams different names.');\nconst ground = str(b.ground).slice(0, 100);\nconst r = b.rules && typeof b.rules === 'object' ? b.rules : {};\nconst int = (k, d, lo, hi) => { const v = Number(r[k] ?? d); return Number.isInteger(v) && v >= lo && v <= hi ? v : null; };\nlet rules, squadMax;\n// Team sizes follow whoever the creator puts in each team (cricket up to 11, football up to 15 with rolling subs);\n// cricket's \"all out\" counts each team's own players.\nif (sport === 'CRICKET') {\n  const overs = int('overs', 6, 1, 50);\n  if (overs == null) return bad('Overs must be between 1 and 50.');\n  rules = { players_per_side: 11, overs, overs_per_bowler: Math.max(1, Math.ceil(overs / 5)), powerplay_overs: 0,\n    wide_runs: 1, no_ball_runs: 1, free_hit: true, last_batter: r.last_batter === true };\n  squadMax = 11;\n} else if (sport === 'FOOTBALL') {\n  const half = int('half_minutes', 10, 1, 45);\n  if (half == null) return bad('Each half must be 1-45 minutes.');\n  rules = { half_minutes: half, rolling_subs: true, extra_time: false, penalties: false, penalty_kicks: 5 };\n  squadMax = 15;\n} else {\n  const event = String(r.event ?? 'DOUBLES').toUpperCase();\n  if (!['SINGLES', 'DOUBLES'].includes(event)) return bad('Pick singles or doubles.');\n  const ppg = int('points_per_game', sport === 'BADMINTON' ? 21 : 11, 5, 30), games = int('games', sport === 'BADMINTON' ? 3 : 1, 1, 5);\n  if (ppg == null) return bad('Points per game must be between 5 and 30.');\n  if (games == null || games % 2 === 0) return bad('Play 1, 3 or 5 games.');\n  rules = { event, points_per_game: ppg, games, win_by_two: true, ...(sport === 'PICKLEBALL' ? { scoring: 'SIDE_OUT' } : {}) };\n  squadMax = event === 'SINGLES' ? 2 : 4;\n}\n// Start time in India time (\"YYYY-MM-DD HH:mm\"), from a day ago to 60 days ahead; now if not given.\nconst india = new Date(Date.now() + 330 * 60e3).toISOString().slice(0, 16).replace('T', ' ');\nconst at = str(b.scheduled_at) || india;\nif (!/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$/.test(at)) return bad('Pick a valid date and time.');\nconst diff = (Date.parse(at.replace(' ', 'T') + ':00Z') - Date.parse(india.replace(' ', 'T') + ':00Z')) / 86400e3;\nif (!(diff >= -1 && diff <= 60)) return bad('Pick a time within the next 60 days.');\nconst side = b.my_side == null ? null : String(b.my_side).toUpperCase();\nif (side !== null && !['HOME', 'AWAY'].includes(side)) return bad('Pick the team you play for.');\nreturn [{ json: { ok: true, phone: auth.phone, sport, home, away, ground, rules, squadMax, at, side } }];"
       },
       "name": "Check Request",
       "type": "n8n-nodes-base.code",
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "be8ecc08-efd2-4bba-83b6-8e597b10c86f"
+      "id": "3d1ae2e6-9151-49c9-9d08-3dde8c01da44"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "6178d538-98c5-4088-a75b-a94f923291c5",
+              "id": "d21a02fb-eeda-41f3-b936-f9cacba5ae3f",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,7 +67,7 @@
         440,
         0
       ],
-      "id": "436a6509-5f66-4412-a2b9-f6474a70bdbe"
+      "id": "e9006241-8d96-4608-9997-e8193dc2b793"
     },
     {
       "parameters": {
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "ca5e0788-33aa-4f1e-bb6b-9b18196ce973",
+      "id": "a458f68e-fc1a-4c7c-89dd-e4edb9e4a72a",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "7cbd272a-0044-4b5d-b1d9-a4b34c80b02e"
+      "id": "7d6eb7e0-1c92-49d4-a189-194dbb699b12"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "740b4baa-1ddf-48b5-a195-7179ea8ccf79",
+              "id": "d4109fff-2854-49fd-918f-c0b186695f2f",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,7 @@
         1100,
         -100
       ],
-      "id": "78bde980-34b2-40db-b46b-1fa4d81f3fca"
+      "id": "8eb50088-c5fc-4463-9972-950a2d9fcdb3"
     },
     {
       "parameters": {
@@ -155,7 +155,7 @@
         1320,
         -200
       ],
-      "id": "f15f6587-331a-42de-a2d8-81ce1a860b90",
+      "id": "7bf8d43e-8794-4f1b-949f-c3f547666c47",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -175,7 +175,7 @@
         1540,
         -200
       ],
-      "id": "0bbf263c-997f-4840-bc46-5696b9c4e951"
+      "id": "31928211-70a2-437c-b387-e42d081902d9"
     },
     {
       "parameters": {
@@ -192,7 +192,7 @@
         1760,
         0
       ],
-      "id": "ef1565e8-5215-4efb-a3a2-4f23ac239cf4"
+      "id": "3347d502-798f-4438-ba39-6ee6585a5ec1"
     }
   ],
   "connections": {

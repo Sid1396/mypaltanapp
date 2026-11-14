@@ -177,6 +177,19 @@ class CricketState implements EngineState {
   int? winner;
   String? result;
   bool finished = false;
+
+  /// Players the batting team has: its Playing XI, capped at players per side. Teams can be uneven (7 v 8 in a
+  /// friendly), so "all out" and "last man" follow each team's own number.
+  int sideSize(int entry) {
+    final n = setup.players[entry]?.length ?? rules.playersPerSide;
+    return n < rules.playersPerSide ? (n < 2 ? 2 : n) : rules.playersPerSide;
+  }
+
+  /// Wickets that end this innings: one batter is left (or none with last man stands).
+  int allOutFor(Innings i) => rules.lastManStands ? sideSize(i.batting) : sideSize(i.batting) - 1;
+
+  /// Wickets after which only the last batter is left.
+  int lastManAt(Innings i) => sideSize(i.batting) - 1;
   bool tieNeedsDecision = false;
   String? outcome; // WIN, TIE or NO_RESULT once finished
 
@@ -198,7 +211,7 @@ class CricketState implements EngineState {
   String? get pending {
     if (status != 'IN_PROGRESS') return null;
     final c = current!;
-    if (c.battersIn < (c.wickets >= rules.playersPerSide - 1 && rules.lastManStands ? 1 : 2)) return 'NEW_BATTER';
+    if (c.battersIn < (c.wickets >= lastManAt(c) && rules.lastManStands ? 1 : 2)) return 'NEW_BATTER';
     if (c.bowler == null) return 'NEW_BOWLER';
     return null;
   }
@@ -270,7 +283,7 @@ class CricketState implements EngineState {
       // What the points table needs. For net run rate, a team bowled out counts as having faced its full overs.
       'standing': [
         for (final i in innings)
-          {'batting': i.batting, 'runs': i.runs, 'balls': i.wickets >= rules.allOutAt ? rules.overs * 6 : i.legalBalls}
+          {'batting': i.batting, 'runs': i.runs, 'balls': i.wickets >= allOutFor(i) ? rules.overs * 6 : i.legalBalls}
       ],
       // Short scores for lists, e.g. {"12": "124/5 (12.3)"}.
       'summary': {for (final i in innings) '${i.batting}': '${i.runs}/${i.wickets} (${i.overs})'},
@@ -597,7 +610,7 @@ class CricketEngine {
         final t = c.striker;
         c.striker = c.nonStriker;
         c.nonStriker = t;
-      } else if (!(s.rules.lastManStands && c.wickets >= s.rules.playersPerSide - 1)) {
+      } else if (!(s.rules.lastManStands && c.wickets >= s.lastManAt(c))) {
         // One end is empty after a wicket: the remaining batter changes ends, the new batter faces.
         if (c.striker != null && c.nonStriker == null) {
           c.nonStriker = c.striker;
@@ -646,14 +659,14 @@ class CricketEngine {
 
   /// Last man stands: when one batter is left, they face every ball.
   static void _lastManOnStrike(CricketState s, Innings c) {
-    if (s.rules.lastManStands && c.wickets >= s.rules.playersPerSide - 1 && c.striker == null && c.nonStriker != null) {
+    if (s.rules.lastManStands && c.wickets >= s.lastManAt(c) && c.striker == null && c.nonStriker != null) {
       c.striker = c.nonStriker;
       c.nonStriker = null;
     }
   }
 
   static void _checkEnd(CricketState s, Innings c) {
-    if (c.wickets >= s.rules.allOutAt) {
+    if (c.wickets >= s.allOutFor(c)) {
       _endInnings(s, c, 'All out');
     } else if (c.legalBalls >= s.rules.overs * 6) {
       _endInnings(s, c, 'Overs complete');
@@ -676,7 +689,7 @@ class CricketEngine {
     final first = s.innings[0], second = s.innings[1];
     final target = second.target!;
     if (second.runs >= target) {
-      final left = s.rules.allOutAt - second.wickets;
+      final left = s.allOutFor(second) - second.wickets;
       final balls = s.rules.overs * 6 - second.legalBalls;
       s.winner = second.batting;
       s.result = '{${second.batting}} won by $left wicket${left == 1 ? '' : 's'}${balls > 0 ? ' with $balls ball${balls == 1 ? '' : 's'} left' : ''}';

@@ -125,14 +125,13 @@ class QuickMatch {
   bool get isOpen => matchStatus == 'SCHEDULED' && !started && !isCancelled;
   bool get isLead => isCreator || captainOf != null;
 
-  /// Players on the field per team (the number picked when making the match); more can join as substitutes.
-  int get perSide =>
-      sport == 'CRICKET' || sport == 'FOOTBALL' ? _int(rules['players_per_side'], sport == 'CRICKET' ? 11 : 7) : (rules['event'] == 'SINGLES' ? 1 : 2);
+  /// Badminton / pickleball: 1 or 2 per team. Cricket and football: as many as the creator puts in.
+  int? get perSide => sport == 'CRICKET' || sport == 'FOOTBALL' ? null : (rules['event'] == 'SINGLES' ? 1 : 2);
 
-  /// "6/8", or "8/8 + 2 subs" once a team has more than [perSide].
+  /// "7 players" (cricket, football) or "1/2" (doubles).
   String countText(QuickSide s) {
-    final n = s.players.length, extra = n - perSide;
-    return extra > 0 ? '$perSide/$perSide + $extra sub${extra == 1 ? '' : 's'}' : '$n/$perSide';
+    final n = s.players.length, per = perSide;
+    return per != null ? '$n/$per' : '$n player${n == 1 ? '' : 's'}';
   }
 
   /// Players each team needs before the match can start (the server's rule for squads / Playing XI).
@@ -160,12 +159,12 @@ class QuickMatch {
         return 'Team';
       });
 
-  /// "6 overs · 11 a side", "10 min halves · 7 a side", "Doubles · 3 games to 21".
+  /// "6 overs", "6 overs · last man stands", "10 min halves", "Doubles · 3 games to 21".
   String get rulesText {
     int r(String k, int d) => _int(rules[k], d);
     return switch (sport) {
-      'CRICKET' => '${r('overs', 6)} overs · ${r('players_per_side', 11)} a side',
-      'FOOTBALL' => '${r('half_minutes', 10)} min halves · ${r('players_per_side', 7)} a side',
+      'CRICKET' => '${r('overs', 6)} overs${rules['last_batter'] == true ? ' · last man stands' : ''}',
+      'FOOTBALL' => '${r('half_minutes', 10)} min halves',
       _ =>
         '${rules['event'] == 'SINGLES' ? 'Singles' : 'Doubles'} · ${r('games', 1) == 1 ? '1 game' : '${r('games', 3)} games'} to ${r('points_per_game', 21)}',
     };

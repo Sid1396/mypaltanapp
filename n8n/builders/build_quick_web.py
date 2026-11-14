@@ -102,7 +102,7 @@ const rules = parse(s.match_rules) || {};
 const match = {
   code: s.code, sport: s.sport, name: s.name, status: s.status, ground: s.area === 'Quick match' ? '' : s.area,
   scheduled_at: s.scheduled_at, match_status: s.match_status, started: Number(s.event_count) > 0, open,
-  rules: { overs: rules.overs ?? null, half_minutes: rules.half_minutes ?? null, players_per_side: rules.players_per_side ?? null,
+  rules: { overs: rules.overs ?? null, half_minutes: rules.half_minutes ?? null, last_batter: rules.last_batter === true,
     event: rules.event ?? null, games: rules.games ?? null, points_per_game: rules.points_per_game ?? null },
   result_text: s.result_text ? String(s.result_text).replace(/\{(\d+)\}/g, (_, id) => names[id] || 'Team') : null,
   sides: sides.map(x => ({ side: x.side, name: x.name, score: summary[String(x.entry_id)] ?? null, squad_max: Number(s.squad_max),

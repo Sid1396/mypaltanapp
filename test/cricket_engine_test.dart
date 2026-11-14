@@ -168,6 +168,35 @@ void main() {
     expect(s.pending, 'NEW_BOWLER'); // over ended, A2 still batting alone
   });
 
+  test('uneven teams (friendly): each team is all out by its own number of players', () {
+    // Quick match: up to 11 a side, Team A has 3 players, Team B has 2.
+    const uneven = CricketSetup(homeEntry: 1, awayEntry: 2, tossWinner: 1, tossDecision: 'BAT', players: {
+      1: [PlayerRef(11, 'A1'), PlayerRef(12, 'A2'), PlayerRef(13, 'A3')],
+      2: [PlayerRef(21, 'B1'), PlayerRef(22, 'B2')],
+    });
+    const up11 = CricketRules(overs: 2, playersPerSide: 11, oversPerBowler: 1);
+    MatchEvent out(int id) => ball(0, wicket: {'how': 'BOWLED', 'out': id});
+    // Team A (3 players) is all out after 2 wickets, not 10.
+    final first = [start(11, 12, 21), ball(4, four: true), out(11), ev('NEW_BATTER', {'id': 13}), out(13)];
+    final s1 = play(first, r: up11, st: uneven);
+    expect(s1.innings.first.endReason, 'All out');
+    expect(s1.status, 'INNINGS_BREAK');
+    // Team B (2 players) chases 5: all out after 1 wicket.
+    final s2 = play([...first, start(21, 22, 11), ball(1), out(22)], r: up11, st: uneven);
+    expect(s2.innings[1].endReason, 'All out');
+    expect(s2.result, '{1} won by 3 runs');
+    // Team B wins with 1 wicket in hand: "won by 1 wicket" counts its own 2 players.
+    final s3 = play([...first, start(21, 22, 11), ball(6)], r: up11, st: uneven);
+    expect(s3.result, startsWith('{2} won by 1 wicket'));
+    // Last man stands: Team A's last batter carries on alone after 2 wickets, all out at 3.
+    const lms = CricketRules(overs: 2, playersPerSide: 11, oversPerBowler: 1, lastManStands: true);
+    final s4 = play(first, r: lms, st: uneven);
+    expect(s4.current!.complete, false);
+    expect(s4.pending, isNull); // A2 bats alone, no new batter needed
+    final s5 = play([...first, out(12)], r: lms, st: uneven);
+    expect(s5.innings.first.endReason, 'All out');
+  });
+
   test('scoring after the match or before the innings is refused', () {
     expect(() => play([ball(1)]), throwsA(isA<ScoringError>()));
     expect(() => play([start(11, 21, 21)]), throwsA(isA<ScoringError>()));

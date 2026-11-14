@@ -80,19 +80,19 @@ const ground = str(b.ground).slice(0, 100);
 const r = b.rules && typeof b.rules === 'object' ? b.rules : {};
 const int = (k, d, lo, hi) => { const v = Number(r[k] ?? d); return Number.isInteger(v) && v >= lo && v <= hi ? v : null; };
 let rules, squadMax;
+// Team sizes follow whoever the creator puts in each team (cricket up to 11, football up to 15 with rolling subs);
+// cricket's "all out" counts each team's own players.
 if (sport === 'CRICKET') {
-  const overs = int('overs', 6, 1, 50), players = int('players_per_side', 11, 2, 11);
+  const overs = int('overs', 6, 1, 50);
   if (overs == null) return bad('Overs must be between 1 and 50.');
-  if (players == null) return bad('Players per side must be between 2 and 11.');
-  rules = { players_per_side: players, overs, overs_per_bowler: Math.max(1, Math.ceil(overs / 5)), powerplay_overs: 0,
+  rules = { players_per_side: 11, overs, overs_per_bowler: Math.max(1, Math.ceil(overs / 5)), powerplay_overs: 0,
     wide_runs: 1, no_ball_runs: 1, free_hit: true, last_batter: r.last_batter === true };
-  squadMax = players; // no substitutes in cricket
+  squadMax = 11;
 } else if (sport === 'FOOTBALL') {
-  const players = int('players_per_side', 7, 2, 11), half = int('half_minutes', 10, 1, 45);
-  if (players == null) return bad('Players per side must be between 2 and 11.');
+  const half = int('half_minutes', 10, 1, 45);
   if (half == null) return bad('Each half must be 1-45 minutes.');
-  rules = { players_per_side: players, half_minutes: half, rolling_subs: true, extra_time: false, penalties: false, penalty_kicks: 5 };
-  squadMax = Math.min(players + 7, 25);
+  rules = { half_minutes: half, rolling_subs: true, extra_time: false, penalties: false, penalty_kicks: 5 };
+  squadMax = 15;
 } else {
   const event = String(r.event ?? 'DOUBLES').toUpperCase();
   if (!['SINGLES', 'DOUBLES'].includes(event)) return bad('Pick singles or doubles.');
