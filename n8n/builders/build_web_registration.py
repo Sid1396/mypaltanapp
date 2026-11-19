@@ -640,6 +640,185 @@ link(c, "Has SQL?", "Save", 0); link(c, "Has SQL?", "Build Response", 1)
 link(c, "Save", "Build Response"); link(c, "Build Response", "Respond")
 out['public_coach_login'] = workflow("PubCoachL026mPxL", "MyPaltan v2 - Public Coach Login", n, c)
 
+# ───────────── 6. Squad link on the website (mypaltan.com/team/<team>?t=<tournament>): team, tournament and who has joined ─────────────
+# For adult tournaments run from the app: players register themselves with the same profile as the app (no OTP yet) and
+# join the team's squad straight away. With ?phone=, says whether that number already has a full MyPaltan profile.
+SQUAD_LOAD = (
+    "SELECT t.id AS tid, t.code, t.name AS tname, t.sport, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, "
+    "DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, (t.registration_deadline < CONVERT_TZ(NOW(), '+00:00', '+05:30')) AS closed, "
+    "tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, tm.short_name, e.id AS entry_id, e.status AS estatus, "
+    "d.name AS dname, d.min_age, d.max_age, d.squad_max, d.match_rules, TIMESTAMPDIFF(YEAR, u.birthdate, t.start_date) AS my_age, "
+    "(SELECT JSON_ARRAYAGG(JSON_OBJECT('name', COALESCE(pu.name, x.guest_name), 'role', x.role, 'position', x.position)) "
+    " FROM tournament_entry_players ep JOIN team_members x ON x.id = ep.team_member_id LEFT JOIN app_users pu ON pu.id = x.user_id "
+    " WHERE ep.entry_id = e.id AND x.status = 'ACTIVE') AS squad, "
+    "u.id AS uid, u.profile_complete, (u.photo_key IS NOT NULL) AS has_photo, u.name IS NULL AS no_name, u.birthdate IS NULL AS no_birthdate, "
+    "u.gender IS NULL AS no_gender, u.jersey_name IS NULL AS no_jersey_name, u.jersey_number IS NULL AS no_jersey_number, u.jersey_size IS NULL AS no_jersey_size, "
+    "(SELECT COUNT(*) FROM app_user_sports s WHERE s.user_id = u.id AND s.sport = t.sport) AS has_sport, "
+    "(SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.user_id = u.id) AS in_squad, "
+    "(SELECT ot.name FROM tournament_entry_players ep JOIN tournament_entries oe ON oe.id = ep.entry_id JOIN teams ot ON ot.id = oe.team_id "
+    " WHERE ep.tournament_id = t.id AND ep.user_id = u.id AND oe.id <> e.id LIMIT 1) AS other_team "
+    "FROM tournaments t JOIN teams tm ON tm.code = $2 "
+    "LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id AND e.status IN ('PENDING', 'WAITLISTED', 'APPROVED') "
+    "LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN app_users u ON u.phone = $3 "
+    "WHERE t.code = $1 AND t.kind = 'TOURNAMENT' AND t.status <> 'DRAFT'")
+
+SQUAD_SHAPE = r"""
+const parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };
+// "Rohan Katurde" → "Rohan K."
+const short = n => { const p = String(n || '').trim().split(/\s+/); return p.length > 1 ? `${p[0]} ${p[p.length - 1][0].toUpperCase()}.` : p[0]; };
+const squadOf = s => (parse(s.squad) || []).map(m => ({ name: short(m.name), role: m.role, position: m.position || null }));
+const openState = s => {
+  const count = squadOf(s).length;
+  if (!s.entry_id) return { open: false, why: `${s.team_name} is not in ${s.tname}.` };
+  if (s.estatus !== 'APPROVED') return { open: false, why: `${s.team_name} is waiting for the organiser's approval.` };
+  if (s.status !== 'REGISTRATION_OPEN' || Number(s.closed) === 1) return { open: false, why: 'Registration for this tournament is closed.' };
+  if (s.squad_max != null && count >= Number(s.squad_max)) return { open: false, why: `${s.team_name} is full (${s.squad_max} players).` };
+  return { open: true, why: null };
+};
+"""
+
+n, c = [], {}
+n.append(webhook("v2/public/team-squad", "GET"))
+n.append(code("Check Request", rate(600) + r"""
+const q = $in.query || {};
+const t = String(q.t ?? '').toUpperCase(), team = String(q.team ?? '').toUpperCase();
+const phone = String(q.phone ?? '').replace(/\D/g, '').slice(-10);
+if (!/^[A-Z0-9]{6}$/.test(t) || !/^[A-Z0-9]{6}$/.test(team)) return [{ json: { ok: false, status: 404, body: { success: false, message: 'This team link is not valid.' } } }];
+if (phone && !/^[6-9]\d{9}$/.test(phone)) return [{ json: { ok: false, status: 422, body: { success: false, message: 'Enter a valid 10-digit mobile number.' } } }];
+count();
+return [{ json: { ok: true, t, team, phone } }];""", [220, 0]))
+n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
+n.append(mysql("Load", SQUAD_LOAD, "={{ [$json.t, $json.team, $json.phone || '-'] }}", [660, -100], always=True))
+n.append(code("Shape", SQUAD_SHAPE + r"""
+const s = $json, q = $('Check Request').first().json;
+if (!s.tid) return [{ json: { status: 404, body: { success: false, message: 'This team link is not valid. Ask your captain for the right link.' } } }];
+const rules = parse(s.match_rules) || {};
+const body = { success: true,
+  tournament: { code: s.code, name: s.tname, sport: s.sport, start_date: s.start_date, deadline: s.deadline },
+  team: { code: s.team_code, name: s.team_name, short_name: s.short_name, division: s.dname, squad_max: s.squad_max == null ? null : Number(s.squad_max) },
+  rules: { overs: rules.overs ?? null, players_per_side: rules.players_per_side ?? null },
+  squad: squadOf(s), ...openState(s) };
+// Only whether the number is known and complete: no name or details without OTP.
+if (q.phone) body.me = { known: !!s.uid, complete: Number(s.profile_complete) === 1 && Number(s.has_sport) > 0, has_photo: Number(s.has_photo) === 1,
+  in_squad: Number(s.in_squad) > 0, other_team: s.other_team || null };
+return [{ json: { status: 200, body } }];""", [880, -100]))
+n.append(respond([1100, 0]))
+link(c, "Webhook", "Check Request"); link(c, "Check Request", "Valid?")
+link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
+link(c, "Load", "Shape"); link(c, "Shape", "Respond")
+out['public_team_squad'] = workflow("PubTeamSq026mPxS", "MyPaltan v2 - Public Team Squad", n, c)
+
+# ───────────── 7. Player registers (same profile as the app) and joins the team's squad ─────────────
+# A number that already has an account keeps its profile: only missing fields are filled and the sport is added.
+n, c = [], {}
+n.append(webhook("v2/public/team-register", "POST"))
+n.append(code("Check Request", SIZE_HELPER + rate(30) + COMMON + r"""
+if (b.website) return bad('Please try again.');
+const t = str(b.t).toUpperCase(), team = str(b.team).toUpperCase();
+if (!/^[A-Z0-9]{6}$/.test(t) || !/^[A-Z0-9]{6}$/.test(team)) return bad('This team link is not valid.', 404);
+const phone = str(b.phone).replace(/\D/g, '').slice(-10);
+if (!/^[6-9]\d{9}$/.test(phone)) return bad('Enter your 10-digit mobile number.');
+const bin = $input.first().binary || {};
+const files = [];
+// Existing complete profile: just the number. Otherwise the same checks as completing a profile in the app.
+let p = null;
+if (b.profile === '1') {
+  const name = str(b.name).replace(/\s+/g, ' ');
+  if (name.length < 2 || name.length > 50 || !/^[A-Za-z][A-Za-z .'-]*$/.test(name)) return bad('Enter your full name (2-50 letters).');
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str(b.birthdate));
+  const bd = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null;
+  if (!bd || bd.getUTCMonth() !== +m[2] - 1 || +m[1] < 1920) return bad('Enter a valid date of birth.');
+  const now = new Date();
+  let age = now.getUTCFullYear() - bd.getUTCFullYear();
+  if (now.getUTCMonth() < bd.getUTCMonth() || (now.getUTCMonth() === bd.getUTCMonth() && now.getUTCDate() < bd.getUTCDate())) age--;
+  if (age < 13) return bad('You must be 13 or older to register.');
+  const gender = str(b.gender).toUpperCase();
+  if (!['MALE', 'FEMALE', 'UNDISCLOSED'].includes(gender)) return bad('Choose a gender option.');
+  const jname = str(b.jersey_name).replace(/\s+/g, ' ').toUpperCase();
+  if (jname.length < 2 || jname.length > 12 || !/^[A-Z][A-Z ]*$/.test(jname)) return bad('Jersey name must be 2-12 letters.');
+  const jnum = Number(b.jersey_number);
+  if (str(b.jersey_number) === '' || !Number.isInteger(jnum) || jnum < 0 || jnum > 99) return bad('Jersey number must be between 0 and 99.');
+  const size = str(b.jersey_size).toUpperCase();
+  if (!['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].includes(size)) return bad('Choose a jersey size.');
+  const role = str(b.role).toUpperCase(), hand = str(b.batting_hand).toUpperCase(), bowl = str(b.bowling_style).toUpperCase();
+  if (!['BATTER', 'BOWLER', 'ALL_ROUNDER', 'WICKETKEEPER'].includes(role)) return bad('Choose your playing role.');
+  if (!['RIGHT', 'LEFT'].includes(hand)) return bad('Choose your batting hand.');
+  if (!['PACE', 'SPIN', 'NONE'].includes(bowl)) return bad('Choose your bowling style.');
+  if (bin.photo) {
+    const r = await checkImage(bin, 'photo', 'photo');
+    if (r.error) return bad(r.error);
+    files.push({ field: 'photo', mime: r.mime, key: `profile_photos/${phone}_${Date.now()}.${r.ext}` });
+  }
+  p = { name, birthdate: m[0], gender, jersey_name: jname, jersey_number: jnum, jersey_size: size, role, hand, bowl };
+}
+count();
+return [{ json: { ok: true, t, team, phone, p, files }, binary: bin }];""", [220, 0]))
+n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
+n.append(mysql("Load", SQUAD_LOAD, "={{ [$json.t, $json.team, $json.phone] }}", [660, -100], always=True))
+n.append(code("Plan", SQUAD_SHAPE + r"""
+const s = $json, r = $('Check Request').first().json, p = r.p;
+const fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];
+if (!s.tid) return fail('This team link is not valid. Ask your captain for the right link.', 404);
+if (Number(s.in_squad) > 0) return [{ json: { ok: false, status: 200, body: { success: true, already: true, message: `You're already in ${s.team_name}.`, team: s.team_name } } }];
+const st = openState(s);
+if (!st.open) return fail(st.why, 409);
+if (s.other_team) return fail(`This number is already in ${s.other_team} for this tournament.`, 409);
+const complete = Number(s.profile_complete) === 1 && Number(s.has_sport) > 0;
+if (!p && !complete) return fail('Please fill in your details to register.');
+const photo = (r.files[0] || {}).key || null;
+if (p && !photo && Number(s.has_photo) !== 1) return fail('Add your photo.');
+// Age limits of the division, on the first day (existing accounts: their saved birthdate).
+const bdAge = p ? (() => { const [y, m, d] = p.birthdate.split('-').map(Number), [ty, tm, td] = s.start_date.split('-').map(Number);
+  return ty - y - (tm < m || (tm === m && td < d) ? 1 : 0); })() : (s.my_age == null ? null : Number(s.my_age));
+if (bdAge != null && s.max_age != null && bdAge > s.max_age) return fail(`You will be ${bdAge} on the first day, too old for ${s.dname}.`);
+if (bdAge != null && s.min_age != null && bdAge < s.min_age) return fail(`You will be ${bdAge} on the first day, too young for ${s.dname}.`);
+
+const prm = [], q = [];
+const add = v => { prm.push(v); return '$' + prm.length; };
+const sport = s.sport, ph = add(r.phone);
+if (p) {
+  const sp = { sport, role: p.role, batting_hand: sport === 'CRICKET' ? p.hand : null, bowling_style: sport === 'CRICKET' ? p.bowl : null };
+  if (!s.uid) {
+    // New account: exactly what the app saves when a profile is completed.
+    q.push(`CALL sp_save_profile(${ph}, ${add(p.name)}, ${add(p.birthdate)}, ${add(p.gender)}, ${add(p.jersey_name)}, ${add(p.jersey_number)}, ${add(p.jersey_size)}, ${add(JSON.stringify([sp]))})`);
+  } else {
+    // Existing account: never rename or change what is already there; fill only the gaps.
+    const keep = (flag, v) => Number(s[flag]) === 1 ? v : null;
+    q.push(`CALL sp_save_profile(${ph}, ${add(keep('no_name', p.name))}, ${add(keep('no_birthdate', p.birthdate))}, ${add(keep('no_gender', p.gender))}, ` +
+      `${add(keep('no_jersey_name', p.jersey_name))}, ${add(keep('no_jersey_number', p.jersey_number))}, ${add(keep('no_jersey_size', p.jersey_size))}, NULL)`);
+    if (Number(s.has_sport) === 0)
+      q.push(`INSERT INTO app_user_sports (user_id, sport, role, batting_hand, bowling_style, \`rank\`) SELECT ${add(s.uid)}, ${add(sport)}, ${add(sp.role)}, ${add(sp.batting_hand)}, ${add(sp.bowling_style)}, ` +
+        `COALESCE((SELECT MAX(x.\`rank\`) FROM app_user_sports x WHERE x.user_id = ${add(s.uid)}), 0) + 1`);
+  }
+  if (photo && Number(s.has_photo) !== 1) q.push(`CALL sp_set_photo(${ph}, ${add(photo)})`);
+  else q.push(`CALL sp_refresh_profile_complete((SELECT id FROM app_users WHERE phone = ${ph}))`);
+}
+// Team member (back in if removed earlier), then the tournament squad, like joining from the app's squad link.
+q.push(`SET @u = (SELECT id FROM app_users WHERE phone = ${ph})`);
+q.push(`INSERT INTO team_members (team_id, user_id, role, position, added_by, status) VALUES (${add(s.team_id)}, @u, 'PLAYER', ` +
+  `(SELECT s.role FROM app_user_sports s WHERE s.user_id = @u AND s.sport = ${add(sport)}), @u, 'ACTIVE') ON DUPLICATE KEY UPDATE status = 'ACTIVE'`);
+q.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, food_pref, jersey_name, jersey_number, jersey_size) ` +
+  `SELECT ${add(s.entry_id)}, ${add(s.tid)}, m.id, u.id, u.food_pref, COALESCE(m.jersey_name, u.jersey_name), COALESCE(m.jersey_number, u.jersey_number), u.jersey_size ` +
+  `FROM team_members m JOIN app_users u ON u.id = m.user_id WHERE m.team_id = ${add(s.team_id)} AND m.user_id = @u`);
+q.push(`SELECT COUNT(*) AS squad FROM tournament_entry_players WHERE entry_id = ${add(s.entry_id)}`);
+return [{ json: { ok: true, has_files: !!(photo && Number(s.has_photo) !== 1), sql: q.join('; '), params: prm,
+  result: { team: s.team_name, tournament: s.tname } } }];""", [880, -100]))
+n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
+n.append(iff("Has Files?", "={{ $json.has_files }}", [1320, -200]))
+upload_chain(n, c, "Has Files?", 1540, -400, "Save", "Upload Failed")
+save_and_respond(n, c, 3300, r"""
+if (msg.includes('uq_tournament_user')) return [{ json: { status: 409, body: { success: false, message: 'This number is already in another team for this tournament.' } } }];
+return [{ json: { status: 200, body: { success: true, message: `You're in ${p.result.team}!`, ...p.result } } }];""",
+    dup_message="This number is already in another team for this tournament.")
+n.append(respond([3800, 0]))
+c["Has Files?"]["main"][0] = [{"node": "Files", "type": "main", "index": 0}]
+link(c, "Has Files?", "Save", 1)
+link(c, "Webhook", "Check Request"); link(c, "Check Request", "Valid?")
+link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
+link(c, "Load", "Plan"); link(c, "Plan", "Plan OK?")
+link(c, "Plan OK?", "Has Files?", 0); link(c, "Plan OK?", "Respond", 1)
+out['public_team_register'] = workflow("PubTeamRg026mPxR", "MyPaltan v2 - Public Team Register", n, c)
+
 for k, w in out.items():
     json.dump(w, open(os.path.join(OUT, f'{k}.json'), 'w'), indent=2)
     print(k, w['id'], len(w['nodes']), 'nodes')
