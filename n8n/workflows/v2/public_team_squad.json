@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "4470f09c-5dd3-43c8-be3e-133a7ad7d6bb",
-      "webhookId": "17dbf538-10ee-4bee-b1f9-1de2d0efd71a"
+      "id": "fa70cc52-e844-436c-a0ba-3ce9df84bb8c",
+      "webhookId": "524cf21b-0d66-4826-aa26-0e8d353eac49"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "22e4d822-a191-46f2-9d91-a42859ba1dc6"
+      "id": "3477ebaa-307b-4306-913f-763309b664a4"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "d39969d6-15d1-4821-91ae-70cdfb48f3cb",
+              "id": "95325f1f-46d1-49e7-8e95-b84bc2476404",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,12 +67,12 @@
         440,
         0
       ],
-      "id": "7a843396-1dbe-43ea-9fdc-1b4954989bec"
+      "id": "5da7cf43-9959-486e-8609-1e3b5baa3e06"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.id AS tid, t.code, t.name AS tname, t.sport, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, (t.registration_deadline < CONVERT_TZ(NOW(), '+00:00', '+05:30')) AS closed, tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, tm.short_name, e.id AS entry_id, e.status AS estatus, d.name AS dname, d.min_age, d.max_age, d.squad_max, d.match_rules, TIMESTAMPDIFF(YEAR, u.birthdate, t.start_date) AS my_age, (SELECT JSON_ARRAYAGG(JSON_OBJECT('name', COALESCE(pu.name, x.guest_name), 'role', x.role, 'position', x.position))  FROM tournament_entry_players ep JOIN team_members x ON x.id = ep.team_member_id LEFT JOIN app_users pu ON pu.id = x.user_id  WHERE ep.entry_id = e.id AND x.status = 'ACTIVE') AS squad, u.id AS uid, u.profile_complete, (u.photo_key IS NOT NULL) AS has_photo, u.name IS NULL AS no_name, u.birthdate IS NULL AS no_birthdate, u.gender IS NULL AS no_gender, u.jersey_name IS NULL AS no_jersey_name, u.jersey_number IS NULL AS no_jersey_number, u.jersey_size IS NULL AS no_jersey_size, (SELECT COUNT(*) FROM app_user_sports s WHERE s.user_id = u.id AND s.sport = t.sport) AS has_sport, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.user_id = u.id) AS in_squad, (SELECT ot.name FROM tournament_entry_players ep JOIN tournament_entries oe ON oe.id = ep.entry_id JOIN teams ot ON ot.id = oe.team_id  WHERE ep.tournament_id = t.id AND ep.user_id = u.id AND oe.id <> e.id LIMIT 1) AS other_team FROM tournaments t JOIN teams tm ON tm.code = $2 LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id AND e.status IN ('PENDING', 'WAITLISTED', 'APPROVED') LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN app_users u ON u.phone = $3 WHERE t.code = $1 AND t.kind = 'TOURNAMENT' AND t.status <> 'DRAFT'",
+        "query": "SELECT t.id AS tid, t.code, t.name AS tname, t.sport, t.status, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, DATE_FORMAT(t.registration_deadline, '%Y-%m-%d %H:%i') AS deadline, (t.registration_deadline < CONVERT_TZ(NOW(), '+00:00', '+05:30')) AS closed, tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, tm.short_name, e.id AS entry_id, e.status AS estatus, d.name AS dname, d.min_age, d.max_age, d.squad_max, d.match_rules, TIMESTAMPDIFF(YEAR, u.birthdate, t.start_date) AS my_age, (SELECT JSON_ARRAYAGG(JSON_OBJECT('name', COALESCE(pu.name, x.guest_name), 'role', x.role, 'position', x.position))  FROM tournament_entry_players ep JOIN team_members x ON x.id = ep.team_member_id LEFT JOIN app_users pu ON pu.id = x.user_id  WHERE ep.entry_id = e.id AND x.status = 'ACTIVE') AS squad, u.id AS uid, u.profile_complete, (u.photo_key IS NOT NULL) AS has_photo, u.name IS NULL AS no_name, u.birthdate IS NULL AS no_birthdate, u.gender IS NULL AS no_gender, u.jersey_name IS NULL AS no_jersey_name, u.jersey_number IS NULL AS no_jersey_number, u.jersey_size IS NULL AS no_jersey_size, (SELECT COUNT(*) FROM app_user_sports s WHERE s.user_id = u.id AND s.sport = t.sport) AS has_sport, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.user_id = u.id) AS in_squad, (SELECT x.status FROM team_members x WHERE x.team_id = tm.id AND x.user_id = u.id) AS my_status, (SELECT COUNT(*) FROM team_members x WHERE x.team_id = tm.id AND x.status = 'PENDING') AS waiting, COALESCE((SELECT ot.name FROM tournament_entry_players ep JOIN tournament_entries oe ON oe.id = ep.entry_id JOIN teams ot ON ot.id = oe.team_id  WHERE ep.tournament_id = t.id AND ep.user_id = u.id AND oe.id <> e.id LIMIT 1),  (SELECT ot.name FROM team_members x JOIN teams ot ON ot.id = x.team_id JOIN tournament_entries oe ON oe.team_id = ot.id AND oe.tournament_id = t.id   WHERE x.user_id = u.id AND x.status = 'PENDING' AND ot.id <> tm.id LIMIT 1)) AS other_team FROM tournaments t JOIN teams tm ON tm.code = $2 LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id AND e.status IN ('PENDING', 'WAITLISTED', 'APPROVED') LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN app_users u ON u.phone = $3 WHERE t.code = $1 AND t.kind = 'TOURNAMENT' AND t.status <> 'DRAFT'",
         "options": {
           "queryReplacement": "={{ [$json.t, $json.team, $json.phone || '-'] }}"
         }
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "1efc51df-72d9-4f26-82b6-24815d7ffafd",
+      "id": "aa42b60b-ecd6-4227-805b-293ac5fe967f",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n// \"Rohan Katurde\" \u2192 \"Rohan K.\"\nconst short = n => { const p = String(n || '').trim().split(/\\s+/); return p.length > 1 ? `${p[0]} ${p[p.length - 1][0].toUpperCase()}.` : p[0]; };\nconst squadOf = s => (parse(s.squad) || []).map(m => ({ name: short(m.name), role: m.role, position: m.position || null }));\nconst openState = s => {\n  const count = squadOf(s).length;\n  if (!s.entry_id) return { open: false, why: `${s.team_name} is not in ${s.tname}.` };\n  if (s.estatus !== 'APPROVED') return { open: false, why: `${s.team_name} is waiting for the organiser's approval.` };\n  if (s.status !== 'REGISTRATION_OPEN' || Number(s.closed) === 1) return { open: false, why: 'Registration for this tournament is closed.' };\n  if (s.squad_max != null && count >= Number(s.squad_max)) return { open: false, why: `${s.team_name} is full (${s.squad_max} players).` };\n  return { open: true, why: null };\n};\n\nconst s = $in, q = $('Check Request').first().json;\nif (!s.tid) return [{ json: { status: 404, body: { success: false, message: 'This team link is not valid. Ask your captain for the right link.' } } }];\nconst rules = parse(s.match_rules) || {};\nconst body = { success: true,\n  tournament: { code: s.code, name: s.tname, sport: s.sport, start_date: s.start_date, deadline: s.deadline },\n  team: { code: s.team_code, name: s.team_name, short_name: s.short_name, division: s.dname, squad_max: s.squad_max == null ? null : Number(s.squad_max) },\n  rules: { overs: rules.overs ?? null, players_per_side: rules.players_per_side ?? null },\n  squad: squadOf(s), ...openState(s) };\n// Only whether the number is known and complete: no name or details without OTP.\nif (q.phone) body.me = { known: !!s.uid, complete: Number(s.profile_complete) === 1 && Number(s.has_sport) > 0, has_photo: Number(s.has_photo) === 1,\n  in_squad: Number(s.in_squad) > 0, other_team: s.other_team || null };\nreturn [{ json: { status: 200, body } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n// \"Rohan Katurde\" \u2192 \"Rohan K.\"\nconst short = n => { const p = String(n || '').trim().split(/\\s+/); return p.length > 1 ? `${p[0]} ${p[p.length - 1][0].toUpperCase()}.` : p[0]; };\nconst squadOf = s => (parse(s.squad) || []).map(m => ({ name: short(m.name), role: m.role, position: m.position || null }));\nconst openState = s => {\n  const count = squadOf(s).length;\n  if (!s.entry_id) return { open: false, why: `${s.team_name} is not in ${s.tname}.` };\n  if (s.estatus !== 'APPROVED') return { open: false, why: `${s.team_name} is waiting for the organiser's approval.` };\n  if (s.status !== 'REGISTRATION_OPEN' || Number(s.closed) === 1) return { open: false, why: 'Registration for this tournament is closed.' };\n  if (s.squad_max != null && count >= Number(s.squad_max)) return { open: false, why: `${s.team_name} is full (${s.squad_max} players).` };\n  if (Number(s.waiting) >= 30) return { open: false, why: `Too many players are waiting for the ${s.team_name} captain. Please try again later.` };\n  return { open: true, why: null };\n};\n\nconst s = $in, q = $('Check Request').first().json;\nif (!s.tid) return [{ json: { status: 404, body: { success: false, message: 'This team link is not valid. Ask your captain for the right link.' } } }];\nconst rules = parse(s.match_rules) || {};\nconst body = { success: true,\n  tournament: { code: s.code, name: s.tname, sport: s.sport, start_date: s.start_date, deadline: s.deadline },\n  team: { code: s.team_code, name: s.team_name, short_name: s.short_name, division: s.dname, squad_max: s.squad_max == null ? null : Number(s.squad_max) },\n  rules: { overs: rules.overs ?? null, players_per_side: rules.players_per_side ?? null },\n  squad: squadOf(s), waiting: Number(s.waiting || 0), ...openState(s) };\n// Only whether the number is known and complete: no name or details without OTP.\nif (q.phone) body.me = { known: !!s.uid, complete: Number(s.profile_complete) === 1 && Number(s.has_sport) > 0, has_photo: Number(s.has_photo) === 1,\n  in_squad: Number(s.in_squad) > 0, pending: s.my_status === 'PENDING', other_team: s.other_team || null };\nreturn [{ json: { status: 200, body } }];"
       },
       "name": "Shape",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "2dd4ecd1-f81c-46d0-b7a4-4e01e0dfe737"
+      "id": "95e96015-3e5a-4a14-947f-eb9c4cc8a0a5"
     },
     {
       "parameters": {
@@ -121,7 +121,7 @@
         1100,
         0
       ],
-      "id": "fc139be3-7065-423c-a986-ad67a1067f42"
+      "id": "afa0143f-2ffd-4b34-9cb4-7d31d2bb39d8"
     }
   ],
   "connections": {

@@ -655,8 +655,12 @@ SQUAD_LOAD = (
     "u.gender IS NULL AS no_gender, u.jersey_name IS NULL AS no_jersey_name, u.jersey_number IS NULL AS no_jersey_number, u.jersey_size IS NULL AS no_jersey_size, "
     "(SELECT COUNT(*) FROM app_user_sports s WHERE s.user_id = u.id AND s.sport = t.sport) AS has_sport, "
     "(SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.user_id = u.id) AS in_squad, "
-    "(SELECT ot.name FROM tournament_entry_players ep JOIN tournament_entries oe ON oe.id = ep.entry_id JOIN teams ot ON ot.id = oe.team_id "
-    " WHERE ep.tournament_id = t.id AND ep.user_id = u.id AND oe.id <> e.id LIMIT 1) AS other_team "
+    "(SELECT x.status FROM team_members x WHERE x.team_id = tm.id AND x.user_id = u.id) AS my_status, "
+    "(SELECT COUNT(*) FROM team_members x WHERE x.team_id = tm.id AND x.status = 'PENDING') AS waiting, "
+    "COALESCE((SELECT ot.name FROM tournament_entry_players ep JOIN tournament_entries oe ON oe.id = ep.entry_id JOIN teams ot ON ot.id = oe.team_id "
+    " WHERE ep.tournament_id = t.id AND ep.user_id = u.id AND oe.id <> e.id LIMIT 1), "
+    " (SELECT ot.name FROM team_members x JOIN teams ot ON ot.id = x.team_id JOIN tournament_entries oe ON oe.team_id = ot.id AND oe.tournament_id = t.id "
+    "  WHERE x.user_id = u.id AND x.status = 'PENDING' AND ot.id <> tm.id LIMIT 1)) AS other_team "
     "FROM tournaments t JOIN teams tm ON tm.code = $2 "
     "LEFT JOIN tournament_entries e ON e.tournament_id = t.id AND e.team_id = tm.id AND e.status IN ('PENDING', 'WAITLISTED', 'APPROVED') "
     "LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN app_users u ON u.phone = $3 "
@@ -673,6 +677,7 @@ const openState = s => {
   if (s.estatus !== 'APPROVED') return { open: false, why: `${s.team_name} is waiting for the organiser's approval.` };
   if (s.status !== 'REGISTRATION_OPEN' || Number(s.closed) === 1) return { open: false, why: 'Registration for this tournament is closed.' };
   if (s.squad_max != null && count >= Number(s.squad_max)) return { open: false, why: `${s.team_name} is full (${s.squad_max} players).` };
+  if (Number(s.waiting) >= 30) return { open: false, why: `Too many players are waiting for the ${s.team_name} captain. Please try again later.` };
   return { open: true, why: null };
 };
 """
@@ -697,10 +702,10 @@ const body = { success: true,
   tournament: { code: s.code, name: s.tname, sport: s.sport, start_date: s.start_date, deadline: s.deadline },
   team: { code: s.team_code, name: s.team_name, short_name: s.short_name, division: s.dname, squad_max: s.squad_max == null ? null : Number(s.squad_max) },
   rules: { overs: rules.overs ?? null, players_per_side: rules.players_per_side ?? null },
-  squad: squadOf(s), ...openState(s) };
+  squad: squadOf(s), waiting: Number(s.waiting || 0), ...openState(s) };
 // Only whether the number is known and complete: no name or details without OTP.
 if (q.phone) body.me = { known: !!s.uid, complete: Number(s.profile_complete) === 1 && Number(s.has_sport) > 0, has_photo: Number(s.has_photo) === 1,
-  in_squad: Number(s.in_squad) > 0, other_team: s.other_team || null };
+  in_squad: Number(s.in_squad) > 0, pending: s.my_status === 'PENDING', other_team: s.other_team || null };
 return [{ json: { status: 200, body } }];""", [880, -100]))
 n.append(respond([1100, 0]))
 link(c, "Webhook", "Check Request"); link(c, "Check Request", "Valid?")
@@ -708,7 +713,7 @@ link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
 link(c, "Load", "Shape"); link(c, "Shape", "Respond")
 out['public_team_squad'] = workflow("PubTeamSq026mPxS", "MyPaltan v2 - Public Team Squad", n, c)
 
-# ───────────── 7. Player registers (same profile as the app) and joins the team's squad ─────────────
+# ───────────── 7. Player registers (same profile as the app) and asks to join the team; the captain approves ─────────────
 # A number that already has an account keeps its profile: only missing fields are filled and the sport is added.
 n, c = [], {}
 n.append(webhook("v2/public/team-register", "POST"))
@@ -760,6 +765,8 @@ const s = $json, r = $('Check Request').first().json, p = r.p;
 const fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];
 if (!s.tid) return fail('This team link is not valid. Ask your captain for the right link.', 404);
 if (Number(s.in_squad) > 0) return [{ json: { ok: false, status: 200, body: { success: true, already: true, message: `You're already in ${s.team_name}.`, team: s.team_name } } }];
+if (s.my_status === 'PENDING') return [{ json: { ok: false, status: 200, body: { success: true, already: true, pending: true,
+  message: `You've already asked to join ${s.team_name}. Your captain will approve you.`, team: s.team_name } } }];
 const st = openState(s);
 if (!st.open) return fail(st.why, 409);
 if (s.other_team) return fail(`This number is already in ${s.other_team} for this tournament.`, 409);
@@ -793,22 +800,28 @@ if (p) {
   if (photo && Number(s.has_photo) !== 1) q.push(`CALL sp_set_photo(${ph}, ${add(photo)})`);
   else q.push(`CALL sp_refresh_profile_complete((SELECT id FROM app_users WHERE phone = ${ph}))`);
 }
-// Team member (back in if removed earlier), then the tournament squad, like joining from the app's squad link.
+// A request to join the team (back as a request if removed or declined earlier); the captain approves it on the captain
+// link, which adds the player to the tournament squad.
 q.push(`SET @u = (SELECT id FROM app_users WHERE phone = ${ph})`);
 q.push(`INSERT INTO team_members (team_id, user_id, role, position, added_by, status) VALUES (${add(s.team_id)}, @u, 'PLAYER', ` +
-  `(SELECT s.role FROM app_user_sports s WHERE s.user_id = @u AND s.sport = ${add(sport)}), @u, 'ACTIVE') ON DUPLICATE KEY UPDATE status = 'ACTIVE'`);
-q.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, food_pref, jersey_name, jersey_number, jersey_size) ` +
-  `SELECT ${add(s.entry_id)}, ${add(s.tid)}, m.id, u.id, u.food_pref, COALESCE(m.jersey_name, u.jersey_name), COALESCE(m.jersey_number, u.jersey_number), u.jersey_size ` +
-  `FROM team_members m JOIN app_users u ON u.id = m.user_id WHERE m.team_id = ${add(s.team_id)} AND m.user_id = @u`);
-q.push(`SELECT COUNT(*) AS squad FROM tournament_entry_players WHERE entry_id = ${add(s.entry_id)}`);
+  `(SELECT s.role FROM app_user_sports s WHERE s.user_id = @u AND s.sport = ${add(sport)}), @u, 'PENDING') ` +
+  `ON DUPLICATE KEY UPDATE status = IF(status = 'ACTIVE', 'ACTIVE', 'PENDING')`);
+// Already a member of the team in the app (but not in this squad): straight into the squad, as from the app's squad link.
+const member = s.my_status === 'ACTIVE';
+if (member)
+  q.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, food_pref, jersey_name, jersey_number, jersey_size) ` +
+    `SELECT ${add(s.entry_id)}, ${add(s.tid)}, m.id, u.id, u.food_pref, COALESCE(m.jersey_name, u.jersey_name), COALESCE(m.jersey_number, u.jersey_number), u.jersey_size ` +
+    `FROM team_members m JOIN app_users u ON u.id = m.user_id WHERE m.team_id = ${add(s.team_id)} AND m.user_id = @u`);
+q.push('SELECT 1 AS done');
 return [{ json: { ok: true, has_files: !!(photo && Number(s.has_photo) !== 1), sql: q.join('; '), params: prm,
-  result: { team: s.team_name, tournament: s.tname } } }];""", [880, -100]))
+  result: { team: s.team_name, tournament: s.tname, pending: !member } } }];""", [880, -100]))
 n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
 n.append(iff("Has Files?", "={{ $json.has_files }}", [1320, -200]))
 upload_chain(n, c, "Has Files?", 1540, -400, "Save", "Upload Failed")
 save_and_respond(n, c, 3300, r"""
 if (msg.includes('uq_tournament_user')) return [{ json: { status: 409, body: { success: false, message: 'This number is already in another team for this tournament.' } } }];
-return [{ json: { status: 200, body: { success: true, message: `You're in ${p.result.team}!`, ...p.result } } }];""",
+return [{ json: { status: 200, body: { success: true, ...p.result,
+  message: p.result.pending ? `Request sent! Your ${p.result.team} captain will approve you.` : `You're in ${p.result.team}!` } } }];""",
     dup_message="This number is already in another team for this tournament.")
 n.append(respond([3800, 0]))
 c["Has Files?"]["main"][0] = [{"node": "Files", "type": "main", "index": 0}]
@@ -818,6 +831,97 @@ link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
 link(c, "Load", "Plan"); link(c, "Plan", "Plan OK?")
 link(c, "Plan OK?", "Has Files?", 0); link(c, "Plan OK?", "Respond", 1)
 out['public_team_register'] = workflow("PubTeamRg026mPxR", "MyPaltan v2 - Public Team Register", n, c)
+
+
+# ───────────── 8. Captain link (mypaltan.com/captain/<key>): see requests, approve / decline, remove from the squad ─────────────
+# For teams the organiser set up (no captain login on the website yet): the private key's SHA-256 is kept in
+# tournament_entries.manage_key_hash, and the link goes to the captain on WhatsApp.
+n, c = [], {}
+n.append(webhook("v2/public/team-captain", "POST"))
+n.append(code("Check Request", SHA256 + rate(300) + COMMON + r"""
+const key = str(b.key);
+if (!/^[A-Za-z0-9]{20,40}$/.test(key)) return bad('This captain link is not valid.', 404);
+const action = str(b.action || 'LOAD').toUpperCase();
+if (!['LOAD', 'APPROVE', 'REJECT', 'REMOVE'].includes(action)) return bad('Invalid request.');
+const member = Number(b.member_id || 0);
+if (action !== 'LOAD' && !(Number.isInteger(member) && member > 0)) return bad('Invalid request.');
+count();
+return [{ json: { ok: true, hash: sha256hex(key), action, member } }];""", [220, 0]))
+n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
+n.append(mysql("Load",
+    "SELECT e.id AS eid, e.status AS estatus, t.id AS tid, t.code AS tcode, t.name AS tname, t.status AS tstatus, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, "
+    "(t.start_date <= DATE(CONVERT_TZ(NOW(), '+00:00', '+05:30'))) AS started, tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, "
+    "d.name AS dname, d.min_age, d.max_age, d.squad_max, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, "
+    "(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', x.id, 'name', au.name, 'phone', au.phone, 'age', TIMESTAMPDIFF(YEAR, au.birthdate, t.start_date), "
+    "'role', x.role, 'position', x.position, 'jersey_name', COALESCE(x.jersey_name, au.jersey_name), 'jersey_number', COALESCE(x.jersey_number, au.jersey_number), "
+    "'jersey_size', au.jersey_size, 'status', x.status, 'in_squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = x.id), "
+    "'joined', DATE_FORMAT(CONVERT_TZ(x.joined_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) "
+    "FROM team_members x JOIN app_users au ON au.id = x.user_id WHERE x.team_id = tm.id AND x.status IN ('ACTIVE', 'PENDING') AND x.role <> 'COACH') AS members, "
+    "g.id AS tgt_id, g.status AS tgt_status, g.user_id AS tgt_user, gu.name AS tgt_name, TIMESTAMPDIFF(YEAR, gu.birthdate, t.start_date) AS tgt_age, "
+    "(SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = g.id) AS tgt_in_squad, "
+    "(SELECT ot.name FROM tournament_entry_players ep JOIN tournament_entries oe ON oe.id = ep.entry_id JOIN teams ot ON ot.id = oe.team_id "
+    " WHERE ep.tournament_id = t.id AND ep.user_id = g.user_id AND oe.id <> e.id LIMIT 1) AS tgt_other_team "
+    "FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id "
+    "LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN team_members g ON g.id = $2 AND g.team_id = tm.id LEFT JOIN app_users gu ON gu.id = g.user_id "
+    "WHERE e.manage_key_hash = $1 LIMIT 1",
+    "={{ [$json.hash, $json.member || 0] }}", [660, -100], always=True))
+n.append(code("Plan", r"""
+const s = $json, r = $('Check Request').first().json;
+const fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];
+if (!s.eid) return fail('This captain link is not valid. Ask the organiser for the right link.', 404);
+const parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };
+if (r.action === 'LOAD') {
+  const members = (parse(s.members) || []).map(m => ({ ...m, in_squad: Number(m.in_squad) === 1 }))
+    .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'PENDING' ? -1 : 1));
+  return [{ json: { ok: false, status: 200, body: { success: true,
+    tournament: { code: s.tcode, name: s.tname, start_date: s.start_date, started: Number(s.started) === 1 },
+    team: { code: s.team_code, name: s.team_name, division: s.dname, squad_max: s.squad_max == null ? null : Number(s.squad_max), squad_count: Number(s.squad_count) },
+    members } } }];
+}
+if (s.estatus !== 'APPROVED') return fail(`${s.team_name} is not in ${s.tname} any more, so the squad can't be changed.`, 409);
+if (Number(s.started) === 1 || ['COMPLETED', 'CANCELLED'].includes(s.tstatus)) return fail('The tournament has started, so the squad can no longer be changed. Contact the organiser.', 409);
+if (!s.tgt_id || !s.tgt_user) return fail('That player is no longer in the list. Refresh the page.', 404);
+const first = String(s.tgt_name || 'This player').split(' ')[0];
+const p = [], st = [];
+const add = v => { p.push(v); return '$' + p.length; };
+let message;
+if (r.action === 'APPROVE') {
+  if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad.`, 409);
+  if (s.tgt_other_team) return fail(`${first} is already in ${s.tgt_other_team} for this tournament. Decline the request.`, 409);
+  const age = s.tgt_age == null ? null : Number(s.tgt_age);
+  if (age != null && s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on the first day, too old for ${s.dname}.`);
+  if (age != null && s.min_age != null && age < s.min_age) return fail(`${first} will be ${age} on the first day, too young for ${s.dname}.`);
+  if (s.squad_max != null && Number(s.squad_count) >= Number(s.squad_max)) return fail(`The squad is full (${s.squad_max} players). Remove someone first.`, 409);
+  st.push(`UPDATE team_members SET status = 'ACTIVE' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);
+  st.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, food_pref, jersey_name, jersey_number, jersey_size) ` +
+    `SELECT ${add(s.eid)}, ${add(s.tid)}, m.id, u.id, u.food_pref, COALESCE(m.jersey_name, u.jersey_name), COALESCE(m.jersey_number, u.jersey_number), u.jersey_size ` +
+    `FROM team_members m JOIN app_users u ON u.id = m.user_id WHERE m.id = ${add(s.tgt_id)}`);
+  message = `${first} is in the squad.`;
+} else if (r.action === 'REJECT') {
+  if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad. Use Remove instead.`, 409);
+  st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);
+  message = `${first}'s request was declined.`;
+} else {
+  if (s.tgt_status !== 'ACTIVE') return fail(`${first} is not in the squad.`, 409);
+  st.push(`DELETE FROM tournament_entry_players WHERE entry_id = ${add(s.eid)} AND team_member_id = ${add(s.tgt_id)}`);
+  st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)}`);
+  message = `${first} was removed from the squad.`;
+}
+return [{ json: { ok: true, sql: st.join('; '), params: p, message } }];""", [880, -100]))
+n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
+n.append(mysql("Save", "={{ $('Plan').first().json.sql }}", "={{ $('Plan').first().json.params }}", [1320, -200], continue_on_error=True))
+n.append(code("Build Response", r"""
+const msg = String($json.message || $json.error?.message || '');
+if (msg.includes('uq_tournament_user')) return [{ json: { status: 409, body: { success: false, message: 'This player is already in another team for this tournament.' } } }];
+if ($json.error || /ER_|syntax|Duplicate/i.test(msg)) return [{ json: { status: 500, body: { success: false, message: 'Could not save. Please try again.' } } }];
+return [{ json: { status: 200, body: { success: true, message: $('Plan').first().json.message } } }];""", [1540, -200]))
+n.append(respond([1760, 0]))
+link(c, "Webhook", "Check Request"); link(c, "Check Request", "Valid?")
+link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
+link(c, "Load", "Plan"); link(c, "Plan", "Plan OK?")
+link(c, "Plan OK?", "Save", 0); link(c, "Plan OK?", "Respond", 1)
+link(c, "Save", "Build Response"); link(c, "Build Response", "Respond")
+out['public_team_captain'] = workflow("PubTeamCp026mPxC", "MyPaltan v2 - Public Team Captain", n, c)
 
 for k, w in out.items():
     json.dump(w, open(os.path.join(OUT, f'{k}.json'), 'w'), indent=2)

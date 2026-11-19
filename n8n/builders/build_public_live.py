@@ -51,7 +51,7 @@ return [{ json: out }];
 """
 
 
-def make_public(src_name, wid, name, path, check_js, cache_key_js, filter_js, sql_edits, params):
+def make_public(src_name, wid, name, path, check_js, cache_key_js, filter_js, sql_edits, params, code_edits=()):
     w = copy.deepcopy(load(src_name))
     w.update(id=wid, name=name, active=False)
     nodes = {n['name']: n for n in w['nodes']}
@@ -68,6 +68,8 @@ def make_public(src_name, wid, name, path, check_js, cache_key_js, filter_js, sq
         q = rep(q, a, b)
     load_node['parameters']['query'] = q
     load_node['parameters']['options']['queryReplacement'] = params
+    for node_name, a, b in code_edits:
+        nodes[node_name]['parameters']['jsCode'] = rep(nodes[node_name]['parameters']['jsCode'], a, b)
     # Privacy filter + cache between Build Response and Respond.
     br, resp = nodes['Build Response'], nodes['Respond']
     filt = {"id": str(uuid.uuid4()), "name": "Public Filter", "type": "n8n-nodes-base.code", "typeVersion": 2,
@@ -105,7 +107,9 @@ out['public_live'] = make_public(
     r"""  for (const k of ['is_owner', 'my_entry_ids', 'teams_changed']) delete b[k];
   for (const d of b.divisions || []) delete d.settings;""",
     [("WHERE t.code = $2 AND t.status <> 'DRAFT'", WEB_TOURNAMENT)],
-    "={{ [$json.phone, $json.code] }}")
+    "={{ [$json.phone, $json.code] }}",
+    # The page shows a cricket or football table.
+    [("Build Response", "body: { success: true, code: t.code,", "body: { success: true, sport: t.sport, code: t.code,")])
 
 out['public_live_stats'] = make_public(
     'tournament_stats', 'PubLiveSt026mPxR', 'MyPaltan v2 - Public Live Stats', 'v2/public/live/stats', SLUG_CHECK,
@@ -137,6 +141,14 @@ return [{ json: { ok: true, phone: '', id, slug, light: false, _q: { slug, id } 
   const live = b.live && typeof b.live === 'object' ? b.live : null;
   for (const p of (live && live.player_stats) || []) add(p.name);
   if (live && live.potm) add(live.potm.name);
+  // Cricket scorecard: batters, bowlers, wickets, commentary and the current batters and bowler.
+  const cur = live && live.current;
+  for (const inn of (live && live.innings) || []) {
+    for (const p of [...(inn.batting || []), ...(inn.bowling || []), ...(inn.fall_of_wickets || [])]) add(p.name);
+    for (const n of inn.yet_to_bat || []) add(n);
+  }
+  for (const c of (live && live.commentary) || []) { add(c.batter); add(c.bowler); }
+  if (cur) for (const p of [cur.striker, cur.non_striker, cur.bowler]) if (p) add(p.name);
   const fix = s => { if (typeof s !== 'string') return s; let t = s; for (const [f, sh] of names) t = t.split(f).join(sh); return t; };
   for (const side of [b.home, b.away]) if (side && side.squad) side.squad = side.squad.map(p => ({ member_id: p.member_id, name: short(p.name), jersey_number: p.jersey_number ?? null }));
   if (b.lineups) b.lineups = b.lineups.map(p => ({ ...p, name: short(p.name), user_id: undefined }));
@@ -144,6 +156,13 @@ return [{ json: { ok: true, phone: '', id, slug, light: false, _q: { slug, id } 
     for (const e of live.timeline || []) { if (e.player) e.player = short(e.player); if (e.assist) e.assist = short(e.assist); e.text = fix(e.text); }
     for (const p of live.player_stats || []) p.name = short(p.name);
     if (live.potm) live.potm.name = short(live.potm.name);
+    for (const inn of live.innings || []) {
+      for (const p of inn.batting || []) { p.name = short(p.name); p.how_out = fix(p.how_out); }
+      for (const p of [...(inn.bowling || []), ...(inn.fall_of_wickets || [])]) p.name = short(p.name);
+      inn.yet_to_bat = (inn.yet_to_bat || []).map(short);
+    }
+    for (const c of live.commentary || []) { c.batter = short(c.batter); c.bowler = short(c.bowler); c.text = fix(c.text); }
+    if (cur) for (const p of [cur.striker, cur.non_striker, cur.bowler]) if (p) p.name = short(p.name);
     live.result = fix(live.result);
   }
   b.result_text = fix(b.result_text);""",
