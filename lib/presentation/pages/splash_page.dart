@@ -70,20 +70,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     );
 
     _imageTimer = Timer.periodic(const Duration(seconds: 3), (_) => _next());
-    _resumeLogin();
-  }
-
-  /// Skips the splash for players who are already logged in.
-  Future<void> _resumeLogin() async {
-    final session = Get.find<SessionService>();
-    if (!session.isLoggedIn) return;
-    try {
-      final route = await session.resumeSession();
-      if (!mounted) return;
-      if (route != null) Get.offAllNamed(route);
-    } on ApiException catch (e) {
-      if (mounted) AppSnackbar.warning("Couldn't load your profile", e.message);
-    }
   }
 
   void _next() {
@@ -109,9 +95,24 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _onStart() {
-    Get.toNamed(AppRoutes.login)
-        ?.then((_) => _bottomNavKey.currentState?.reset());
+  /// Players who are already logged in still see the splash and swipe in, with no login code. Their profile is loaded
+  /// on the swipe, not before: an expired login sends them to the login screen, and that should happen after the swipe.
+  Future<void> _onStart() async {
+    final session = Get.find<SessionService>();
+    if (session.isLoggedIn) {
+      try {
+        final route = await session.resumeSession();
+        if (!mounted) return;
+        if (route != null) return Get.offAllNamed(route);
+        // No route: the login is no longer valid (an expired one is sent to the login screen by the API service).
+        if (Get.currentRoute != AppRoutes.splash) return;
+      } on ApiException catch (e) {
+        if (mounted) AppSnackbar.warning("Couldn't load your profile", e.message);
+        _bottomNavKey.currentState?.reset();
+        return;
+      }
+    }
+    Get.toNamed(AppRoutes.login)?.then((_) => _bottomNavKey.currentState?.reset());
   }
 
   @override
