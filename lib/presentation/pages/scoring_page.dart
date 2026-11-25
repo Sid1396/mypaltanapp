@@ -6,6 +6,7 @@ import '../../scoring/football_engine.dart';
 import '../../scoring/racket_engine.dart';
 import '../widgets/scoring_other_sports.dart';
 import '../../utils/helpers/size_config.dart';
+import '../controllers/match_controller.dart';
 import '../controllers/scoring_controller.dart';
 import '../widgets/cricket_scorecard.dart';
 import '../widgets/home_widgets.dart';
@@ -161,7 +162,15 @@ class _ActionPanel extends GetView<ScoringController> {
           ]),
         );
     }
-    if (s.pending == 'NEW_BATTER') return _PickPlayer(title: 'New batter', players: s.availableBatters(), onPick: (id) => _newBatter(id), batter: true);
+    if (s.pending == 'NEW_BATTER') {
+      return _PickPlayer(
+        title: 'New batter',
+        players: s.availableBatters(),
+        onPick: (id) => _newBatter(id),
+        batter: true,
+        labelOf: (p) => s.current!.batters[p.id]?.retiredHurt == true ? '${p.name} · retired hurt' : p.name,
+      );
+    }
     if (s.pending == 'NEW_BOWLER') return _PickPlayer(title: 'Bowler for the next over', players: s.availableBowlers(), onPick: c.newBowler);
     return const SizedBox.shrink();
   }
@@ -235,6 +244,18 @@ class _StartInnings extends GetView<ScoringController> {
             },
           ),
         ),
+        // Wrong toss from the umpire, or a change in the XI: still possible until the first ball.
+        if (s.innings.isEmpty && Get.isRegistered<MatchController>())
+          Center(
+            child: TextButton(
+              key: const ValueKey('start-change-setup'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                Get.find<MatchController>().changeSetup();
+              },
+              child: Text('Wrong toss? Change toss & Playing XI', style: tfStyle(13.5, weight: FontWeight.w700, color: AppColors.primary)),
+            ),
+          ),
         if (s.innings.isNotEmpty) ...[
           gapH(14),
           Text('Someone from ${controller.teamName(batting)} can score their innings.',
@@ -264,7 +285,8 @@ class _PickPlayer extends StatelessWidget {
   final List<PlayerRef> players;
   final ValueChanged<int> onPick;
   final bool batter;
-  const _PickPlayer({required this.title, required this.players, required this.onPick, this.batter = false});
+  final String Function(PlayerRef)? labelOf;
+  const _PickPlayer({required this.title, required this.players, required this.onPick, this.batter = false, this.labelOf});
 
   @override
   Widget build(BuildContext context) => FormCard(
@@ -276,7 +298,7 @@ class _PickPlayer extends StatelessWidget {
             Text(batter ? 'No batters left.' : 'No bowler can bowl this over.', style: tfStyle(13, color: _amber))
           else
             Wrap(spacing: SizeConfig.w(6), runSpacing: SizeConfig.h(6), children: [
-              for (final p in players) _Chip(key: ValueKey('pick-${p.id}'), label: p.name, selected: false, onTap: () => onPick(p.id)),
+              for (final p in players) _Chip(key: ValueKey('pick-${p.id}'), label: labelOf?.call(p) ?? p.name, selected: false, onTap: () => onPick(p.id)),
             ]),
         ]),
       );
@@ -333,8 +355,8 @@ class _ScorePad extends GetView<ScoringController> {
       child: Column(children: [
         Row(children: [key('0', () => c.runs(0)), key('1', () => c.runs(1)), key('2', () => c.runs(2)), key('3', () => c.runs(3))]),
         Row(children: [
-          key('4', () => c.runs(4, boundary: true), color: AppColors.primary.withAlpha(90)),
-          key('6', () => c.runs(6), color: AppColors.primary.withAlpha(130)),
+          key('4', () => c.runs(4, boundary: true), color: AppColors.positive.withAlpha(90)),
+          key('6', () => c.runs(6), color: AppColors.positive.withAlpha(170)),
           key('Wd', () => _runsSheet('Wide', 'WIDE', from: 0, to: 4, hint: 'Extra runs taken or a boundary off the wide'), color: _amber.withAlpha(60)),
           key('Nb', () => _runsSheet('No ball', 'NO_BALL', from: 0, to: 6, hint: 'Runs off the bat (or byes)', nb: true), color: _amber.withAlpha(60)),
         ]),
@@ -374,6 +396,17 @@ class _ScorePad extends GetView<ScoringController> {
                           c.extra(extra, r, nbByes: nb && areByes, boundary: r == 4);
                         },
                       ),
+                    // A declared run off the bat on a no-ball: 1 to the batter, the batters stay at their ends.
+                    if (nb && !areByes)
+                      _Chip(
+                        key: const ValueKey('runs-NO_BALL-1D'),
+                        label: '1D',
+                        selected: false,
+                        onTap: () {
+                          Navigator.of(sheet).pop();
+                          c.extra('NO_BALL', 1, declared: true);
+                        },
+                      ),
                     // A wicket off this wide / no-ball.
                     if (extra == 'WIDE' || extra == 'NO_BALL')
                       _Chip(
@@ -394,46 +427,94 @@ class _ScorePad extends GetView<ScoringController> {
 
   /// The wicket sheet. With [onBall] (WIDE / NO_BALL, from the Wd / Nb sheet) only the wickets that can fall off that
   /// ball are offered: run out or stumped off a wide; run out, stumped or box out off a no-ball.
+  ///
+  /// Built to stop the slips seen at real matches: nothing is picked until the scorer chooses how; "Who is out?" is
+  /// always asked, with who is on strike, and picking the other batter for a bowled / caught / lbw moves the strike to
+  /// him first so the ball counts for the right man; Box out sits apart from the usual wickets; a catch and a run out
+  /// need the fielder; and the Out button reads the dismissal back before it is saved.
   void _wicketSheet({String? onBall}) {
     final c = controller;
     final i = s.current!;
     final fielders = s.playersOf(i.bowling);
-    final all = [
+    final usual = [
       ('BOWLED', 'Bowled'),
       ('CAUGHT', 'Caught'),
-      ('LBW', 'LBW'),
       ('RUN_OUT', 'Run out'),
+      ('LBW', 'LBW'),
       ('STUMPED', 'Stumped'),
       ('HIT_WICKET', 'Hit wicket'),
-      if (s.rules.boxOut) ('BOX_OUT', 'Box out'), // ball hit the roof
     ];
-    final hows = switch (onBall) {
-      'WIDE' => all.where((h) => const {'STUMPED', 'RUN_OUT'}.contains(h.$1)).toList(),
-      'NO_BALL' => all.where((h) => const {'RUN_OUT', 'STUMPED', 'BOX_OUT'}.contains(h.$1)).toList(),
-      _ => all,
-    };
-    final how = hows.first.$1.obs, out = Rx<int?>(i.striker), fielder = Rx<int?>(null), runs = 0.obs, ballType = (onBall ?? 'NONE').obs;
+    bool fits(String h) => switch (onBall) {
+          'WIDE' => const {'STUMPED', 'RUN_OUT'}.contains(h),
+          'NO_BALL' => const {'RUN_OUT', 'STUMPED', 'BOX_OUT'}.contains(h),
+          _ => true,
+        };
+    final hows = usual.where((h) => fits(h.$1)).toList();
+    final boxOut = s.rules.boxOut && fits('BOX_OUT');
+    final batters = [i.striker, i.nonStriker].whereType<int>().toList();
+    final how = Rx<String?>(null), out = Rx<int?>(i.striker), fielder = Rx<int?>(null), runs = 0.obs, ballType = (onBall ?? 'NONE').obs;
     Get.bottomSheet(
       Builder(
           builder: (sheet) => Obx(() {
-                final needsFielder = const {'CAUGHT', 'RUN_OUT', 'STUMPED'}.contains(how.value);
+                final h = how.value;
+                final needsFielder = const {'CAUGHT', 'RUN_OUT', 'STUMPED'}.contains(h);
+                final fielderRequired = h == 'CAUGHT' || h == 'RUN_OUT';
                 // Wickets that can fall off a wide or no-ball: run out (either), stumped (either), box out (no-ball).
                 final ballTypes = [
-                  if (const {'RUN_OUT', 'STUMPED'}.contains(how.value)) ('WIDE', 'Wide'),
-                  if (const {'RUN_OUT', 'STUMPED', 'BOX_OUT'}.contains(how.value)) ('NO_BALL', 'No ball'),
+                  if (const {'RUN_OUT', 'STUMPED'}.contains(h)) ('WIDE', 'Wide'),
+                  if (const {'RUN_OUT', 'STUMPED', 'BOX_OUT'}.contains(h)) ('NO_BALL', 'No ball'),
                 ];
                 final ballOn = ballTypes.any((t) => t.$1 == ballType.value) ? ballType.value : 'NONE';
+                final outId = out.value ?? i.striker!;
+                // Anything but a run out falls to the batter facing: the other batter means the strike was wrong.
+                final swap = h != null && h != 'RUN_OUT' && outId != i.striker;
+                final missing = h == null
+                    ? 'Choose how he is out'
+                    : (fielderRequired && fielder.value == null ? (h == 'CAUGHT' ? 'Choose who took the catch' : 'Choose the fielder') : null);
                 return SheetFrame(title: switch (onBall) { 'WIDE' => 'Wide + wicket', 'NO_BALL' => 'No ball + wicket', _ => 'Wicket' }, children: [
+                  const FormLabel('Who is out?'),
                   Wrap(spacing: SizeConfig.w(6), runSpacing: SizeConfig.h(6), children: [
-                    for (final (v, l) in hows) _Chip(key: ValueKey('how-$v'), label: l, selected: how.value == v, onTap: () => how.value = v),
+                    for (final id in batters)
+                      _Chip(
+                        key: ValueKey('out-$id'),
+                        label: id == i.striker ? '${s.nameOf(id)} · on strike' : s.nameOf(id),
+                        selected: outId == id,
+                        onTap: () => out.value = id,
+                      ),
                   ]),
-                  if (how.value == 'RUN_OUT') ...[
+                  gapH(14),
+                  const FormLabel('How?'),
+                  Wrap(spacing: SizeConfig.w(6), runSpacing: SizeConfig.h(6), children: [
+                    for (final (v, l) in hows) _Chip(key: ValueKey('how-$v'), label: l, selected: h == v, onTap: () => how.value = v),
+                  ]),
+                  if (boxOut) ...[
+                    gapH(10),
+                    Text('Box cricket rule: only if the ball hit the roof or net', style: tfStyle(12, color: Colors.white.withAlpha(140))),
+                    gapH(6),
+                    _Chip(key: const ValueKey('how-BOX_OUT'), label: 'Box out', selected: h == 'BOX_OUT', onTap: () => how.value = 'BOX_OUT'),
+                  ],
+                  // Leaving hurt is not a wicket and not a ball; offered here because the scorer reaches for W when a
+                  // batter walks off. He can come back in later from the new-batter list.
+                  if (onBall == null) ...[
                     gapH(14),
-                    const FormLabel('Who is out?'),
-                    Wrap(spacing: SizeConfig.w(6), children: [
-                      for (final id in [i.striker, i.nonStriker].whereType<int>())
-                        _Chip(key: ValueKey('out-$id'), label: s.nameOf(id), selected: out.value == id, onTap: () => out.value = id),
-                    ]),
+                    Text('Not out, left the field', style: tfStyle(12, color: Colors.white.withAlpha(140))),
+                    gapH(6),
+                    _Chip(
+                      key: ValueKey('retired-hurt-$outId'),
+                      label: '${s.nameOf(outId)} retired hurt',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(sheet).pop();
+                        c.retire(outId, out: false);
+                      },
+                    ),
+                  ],
+                  if (swap) ...[
+                    gapH(10),
+                    Text('${s.nameOf(outId)} was facing, so the strike moves to him before the wicket.',
+                        style: tfStyle(12.5, color: _amber)),
+                  ],
+                  if (h == 'RUN_OUT') ...[
                     gapH(14),
                     const FormLabel('Runs completed before the run out'),
                     Wrap(spacing: SizeConfig.w(6), children: [
@@ -450,34 +531,57 @@ class _ScorePad extends GetView<ScoringController> {
                   ],
                   if (needsFielder) ...[
                     gapH(14),
-                    FormLabel(how.value == 'CAUGHT' ? 'Caught by' : (how.value == 'STUMPED' ? 'Wicket-keeper' : 'Fielder'), optional: how.value != 'CAUGHT'),
+                    FormLabel(h == 'CAUGHT' ? 'Caught by' : (h == 'STUMPED' ? 'Wicket-keeper' : 'Fielder'), optional: !fielderRequired),
                     Wrap(spacing: SizeConfig.w(6), runSpacing: SizeConfig.h(6), children: [
                       for (final p in fielders)
-                        _Chip(key: ValueKey('fielder-${p.id}'), label: p.name, selected: fielder.value == p.id, onTap: () => fielder.value = p.id),
+                        _Chip(
+                          key: ValueKey('fielder-${p.id}'),
+                          label: p.id == i.bowler ? '${p.name} · bowler' : p.name,
+                          selected: fielder.value == p.id,
+                          onTap: () => fielder.value = p.id,
+                        ),
                     ]),
                   ],
                   gapH(18),
+                  if (missing != null) ...[
+                    Text(missing, textAlign: TextAlign.center, style: tfStyle(12.5, color: Colors.white.withAlpha(150))),
+                    gapH(8),
+                  ],
                   SizedBox(
                     width: double.infinity,
                     child: SmallButtonLarge(
                       key: const ValueKey('wicket-save'),
-                      label: 'Out',
-                      onTap: () {
-                        final ok = c.wicket(
-                          how.value,
-                          how.value == 'RUN_OUT' ? (out.value ?? i.striker!) : i.striker!,
-                          fielder: needsFielder ? fielder.value : null,
-                          runs: how.value == 'RUN_OUT' ? runs.value : 0,
-                          extraType: ballOn,
-                        );
-                        if (ok && sheet.mounted) Navigator.of(sheet).pop();
-                      },
+                      label: missing != null ? 'Out' : 'Out: ${s.nameOf(outId)} · ${_dismissal(h!, fielder.value, i.bowler)}',
+                      onTap: missing != null
+                          ? null
+                          : () {
+                              final f = needsFielder ? fielder.value : null, w = h!;
+                              final ok = swap
+                                  ? c.wicketAfterSwap(w, outId, fielder: f)
+                                  : c.wicket(w, outId, fielder: f, runs: w == 'RUN_OUT' ? runs.value : 0, extraType: ballOn);
+                              if (ok && sheet.mounted) Navigator.of(sheet).pop();
+                            },
                     ),
                   ),
                 ]);
               })),
       isScrollControlled: true,
     );
+  }
+
+  /// How the scorecard will read, for the Out button: "c Anil b Chetan", "run out (Deepak)", "b Vishal".
+  String _dismissal(String how, int? fielder, int? bowler) {
+    final b = bowler == null ? '' : s.nameOf(bowler);
+    final f = fielder == null ? null : s.nameOf(fielder);
+    return switch (how) {
+      'BOWLED' => 'b $b',
+      'CAUGHT' => f == null || fielder == bowler ? 'c & b $b' : 'c $f b $b',
+      'LBW' => 'lbw b $b',
+      'STUMPED' => 'st ${f ?? 'keeper'} b $b',
+      'HIT_WICKET' => 'hit wicket b $b',
+      'BOX_OUT' => 'box out b $b',
+      _ => 'run out${f == null ? '' : ' ($f)'}',
+    };
   }
 
   /// Over by over for every innings so far (latest first), with each bowler's figures.

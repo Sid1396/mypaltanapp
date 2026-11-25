@@ -118,6 +118,15 @@ class MatchDetail {
   /// Cricket needs the toss too; other sports only the players.
   bool get hasSetup => lineups.isNotEmpty && (!isCricket || tossWinner != null);
 
+  /// Cricket, set up but no ball bowled yet: at most the openers and bowler have been entered, so the toss and Playing
+  /// XI can still be changed (the server clears that innings start). False when the events were not loaded.
+  bool get beforeFirstBall {
+    if (!isCricket || !hasSetup || status == 'COMPLETED') return false;
+    if (eventCount > 0 && events.isEmpty) return false;
+    const prep = {'START_INNINGS', 'NEW_BATTER', 'NEW_BOWLER', 'SWAP_STRIKE'};
+    return effectiveEvents(events).every((e) => prep.contains(e.type));
+  }
+
   Map<int, List<PlayerRef>> get _players => {
         for (final t in [home!, away!])
           t.entryId: [for (final p in lineups.where((p) => p.entryId == t.entryId)) PlayerRef(p.memberId, p.name)],

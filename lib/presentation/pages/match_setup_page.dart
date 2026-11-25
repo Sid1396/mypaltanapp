@@ -102,6 +102,11 @@ class _XiPicker extends GetView<MatchSetupController> {
                     : 'Tick who plays this match.',
             style: tfStyle(12, color: Colors.white.withAlpha(130)),
           ),
+          if (controller.missingRoles(t.entryId) case final missing?)
+            Padding(
+              padding: EdgeInsets.only(top: SizeConfig.h(4)),
+              child: Text('Choose the $missing', style: tfStyle(12, weight: FontWeight.w700, color: const Color(0xFFFFB74D))),
+            ),
           gapH(8),
           if (t.squad.isEmpty) Text('No squad yet. The team adds players before the match.', style: tfStyle(13, color: const Color(0xFFFFB74D))),
           for (final p in t.squad)

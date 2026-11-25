@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import '../../data/models/match.dart';
 import '../../data/services/api_service.dart';
 import '../../utils/helpers/snackbar_helper.dart';
@@ -96,8 +97,17 @@ class MatchSetupController extends GetxController {
     for (final t in [m.home!, m.away!]) {
       final n = picked[t.entryId]?.length ?? 0;
       if (n < (m.isRacket ? 1 : 2)) return 'Pick the players for ${t.name}.';
+      final missing = missingRoles(t.entryId);
+      if (missing != null) return 'Choose the $missing for ${t.name}.';
     }
     return null;
+  }
+
+  /// Cricket: what a team still needs before the match, "captain", "wicket-keeper" or "captain and wicket-keeper".
+  String? missingRoles(int entry) {
+    if (!isCricket) return null;
+    final needs = [if (captain[entry] == null) 'captain', if (keeper[entry] == null) 'wicket-keeper'];
+    return needs.isEmpty ? null : needs.join(' and ');
   }
 
   /// Saves and returns true; the page then opens scoring.
@@ -126,6 +136,8 @@ class MatchSetupController extends GetxController {
         AppSnackbar.error('Could not save', res['message']?.toString() ?? 'Please try again.');
         return false;
       }
+      // A changed toss clears the innings start on the server; drop any not-yet-sent scoring kept on this phone.
+      GetStorage().remove('score_pending_$id');
       return true;
     } on ApiException catch (e) {
       AppSnackbar.error('Could not save', e.message);

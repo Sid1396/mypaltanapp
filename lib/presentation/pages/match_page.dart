@@ -106,6 +106,12 @@ class MatchPage extends GetView<MatchController> {
                   ),
                 ),
               ),
+              if (m.canScore && m.beforeFirstBall)
+                TextButton(
+                  key: const ValueKey('match-change-setup'),
+                  onPressed: c.changeSetup,
+                  child: Text('Change toss & Playing XI', style: tfStyle(13.5, weight: FontWeight.w700, color: AppColors.primary)),
+                ),
               if (m.status != 'COMPLETED')
                 StepBottomButton(
                   key: const ValueKey('match-score'),

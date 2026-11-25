@@ -87,6 +87,15 @@ class MatchController extends GetxController {
     await load();
   }
 
+  /// Before the first ball: opens toss & Playing XI again (the umpire gave the wrong toss result, or a player changed).
+  Future<void> changeSetup() async {
+    final m = match.value;
+    if (m == null || !m.canScore || !m.beforeFirstBall) return;
+    final saved = await Get.toNamed(AppRoutes.matchSetup, arguments: {'id': id});
+    await load();
+    if (saved == true) await Get.toNamed(AppRoutes.matchScore, arguments: {'id': id});
+  }
+
   /// Asks for the tournament's scoring PIN. Returns true when it was accepted.
   Future<bool> askPin(String tournamentCode) async {
     final ctrl = TextEditingController();

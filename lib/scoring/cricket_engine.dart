@@ -5,7 +5,8 @@
 //
 // A match is a list of events, applied in order:
 //   START_INNINGS {striker, non_striker, bowler, overs?}  overs (first innings only): this match's overs when cut short
-//   BALL          {runs, extra: NONE|WIDE|NO_BALL|BYE|LEG_BYE, boundary?, nb_byes?, declared? (a run given without running: strike stays), wicket?: {how, out, fielder?}}
+//   BALL          {runs, extra: NONE|WIDE|NO_BALL|BYE|LEG_BYE, boundary?, nb_byes?, declared? (a run given without running, on a
+//                 normal ball or off the bat on a no-ball: strike stays), wicket?: {how, out, fielder?}}
 //   NEW_BATTER    {id, position: STRIKER|NON_STRIKER}
 //   NEW_BOWLER    {id}
 //   SWAP_STRIKE   {}
@@ -633,8 +634,8 @@ class CricketEngine {
       c.freeHit = false;
     }
 
-    final declared = d['declared'] == true && extra == 'NONE';
-    final symbol = declared ? '${runs}D' : _symbol(extra, runs, total, w != null, d['boundary'] == true);
+    final declared = d['declared'] == true && (extra == 'NONE' || (extra == 'NO_BALL' && d['nb_byes'] != true));
+    final symbol = declared ? (extra == 'NO_BALL' ? '${runs}DNb' : '${runs}D') : _symbol(extra, runs, total, w != null, d['boundary'] == true);
     c.thisOver = [...c.thisOver, symbol];
     final overNo = (legal ? c.legalBalls - 1 : c.legalBalls) ~/ 6 + 1;
     if (c.overLog.isEmpty || c.overLog.last['over'] != overNo) {

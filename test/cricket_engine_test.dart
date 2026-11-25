@@ -89,6 +89,68 @@ void main() {
     expect(() => play([...events, ball(0)]), throwsA(isA<ScoringError>()));
   });
 
+  test('the other batter was facing: the wicket screen swaps strike first, so the ball and wicket are his', () {
+    // A1 is on strike in the app, but A2 was the one bowled. The wicket screen sends SWAP_STRIKE, then the wicket.
+    final s = play([start(11, 12, 21), ball(0), ev('SWAP_STRIKE'), ball(0, wicket: {'how': 'BOWLED', 'out': 12})]);
+    final i = s.current!;
+    expect(i.batters[12]!.out, true);
+    expect(i.batters[12]!.balls, 1); // the ball he was bowled by is his
+    expect(i.batters[11]!.out, false);
+    expect(i.batters[11]!.balls, 1);
+    expect(i.bowlers[21]!.wickets, 1);
+    expect(i.striker, isNull); // the new batter comes in on strike
+    expect(i.nonStriker, 11);
+  });
+
+  test('retired hurt: not a wicket and not a ball; he can come back later; retired out is a wicket', () {
+    final events = [start(11, 12, 21), ball(1), ev('RETIRE', {'id': 11, 'out': false})];
+    var s = play(events);
+    var i = s.current!;
+    expect(i.wickets, 0);
+    expect(i.legalBalls, 1);
+    expect(i.batters[11]!.retiredHurt, true);
+    expect(i.batters[11]!.out, false);
+    expect(s.pending, 'NEW_BATTER');
+    expect(s.availableBatters().map((p) => p.id), contains(11)); // he can return
+    expect(s.toJson()['innings'][0]['batting'][0]['how_out'], 'retired hurt');
+    // A3 comes in; later A2 is out and A1 returns with his score kept.
+    s = play([
+      ...events,
+      ev('NEW_BATTER', {'id': 13, 'position': 'NON_STRIKER'}),
+      ball(0, wicket: {'how': 'BOWLED', 'out': 12}),
+      ev('NEW_BATTER', {'id': 11, 'position': 'STRIKER'}),
+      ball(2),
+    ]);
+    i = s.current!;
+    expect(i.batters[11]!.retiredHurt, false);
+    expect(i.batters[11]!.runs, 1 + 2);
+    expect(i.wickets, 1);
+    // Retired out counts as a wicket, with no bowler credit.
+    i = play([start(11, 12, 21), ev('RETIRE', {'id': 11, 'out': true})]).current!;
+    expect(i.wickets, 1);
+    expect(i.batters[11]!.howOut, 'retired out');
+    expect(i.bowlers[21]?.wickets ?? 0, 0);
+  });
+
+  test('1D on a no-ball: the run is the batter\'s, not a legal ball, strike stays; byes off a no-ball are never declared', () {
+    final s = play([start(11, 12, 21), ev('BALL', {'runs': 1, 'extra': 'NO_BALL', 'declared': true})]);
+    final i = s.current!;
+    expect(i.runs, 2); // no-ball run + the declared run
+    expect(i.noBalls, 1);
+    expect(i.legalBalls, 0);
+    expect(i.batters[11]!.runs, 1);
+    expect(i.batters[11]!.balls, 1);
+    expect(i.bowlers[21]!.runs, 2);
+    expect(i.striker, 11); // declared: they did not run, so no change of ends
+    expect(i.thisOver, ['1DNb']);
+    // A normal 1 off a no-ball does change ends.
+    expect(play([start(11, 12, 21), ball(1, extra: 'NO_BALL')]).current!.striker, 12);
+    // "Declared" on no-ball byes is ignored: byes are run.
+    final b = play([start(11, 12, 21), ev('BALL', {'runs': 1, 'extra': 'NO_BALL', 'nb_byes': true, 'declared': true})]).current!;
+    expect(b.striker, 12);
+    expect(b.byes, 1);
+  });
+
   test('a bowler cannot bowl consecutive overs or more than the limit', () {
     final over = [ball(0), ball(0), ball(0), ball(0), ball(0), ball(0)];
     final events = [start(11, 12, 21), ...over];

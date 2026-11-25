@@ -163,8 +163,8 @@ class ScoringController extends GetxController with LoggerMixin {
 
   /// A declared run ("1D"): the batter's run and a ball, but the batters stay at their ends.
   void declared(int r) => add('BALL', {'runs': r, 'extra': 'NONE', 'declared': true});
-  void extra(String type, int r, {bool nbByes = false, bool boundary = false}) =>
-      add('BALL', {'runs': r, 'extra': type, if (nbByes) 'nb_byes': true, if (boundary) 'boundary': true});
+  void extra(String type, int r, {bool nbByes = false, bool boundary = false, bool declared = false}) =>
+      add('BALL', {'runs': r, 'extra': type, if (nbByes) 'nb_byes': true, if (boundary) 'boundary': true, if (declared) 'declared': true});
   bool wicket(String how, int outId, {int? fielder, int runs = 0, String extraType = 'NONE'}) => add('BALL', {
         'runs': runs,
         'extra': extraType,
@@ -173,6 +173,15 @@ class ScoringController extends GetxController with LoggerMixin {
   void newBatter(int id, String position) => add('NEW_BATTER', {'id': id, 'position': position});
   void newBowler(int id) => add('NEW_BOWLER', {'id': id});
   void swapStrike() => add('SWAP_STRIKE');
+
+  /// A wicket to the batter who was really facing, when the app had the other one on strike: swaps strike first, so the
+  /// ball counts for the right batter, and takes the swap back if the wicket is refused.
+  bool wicketAfterSwap(String how, int outId, {int? fielder}) {
+    if (!add('SWAP_STRIKE')) return false;
+    if (wicket(how, outId, fielder: fielder)) return true;
+    add('UNDO');
+    return false;
+  }
   void retire(int id, {required bool out}) => add('RETIRE', {'id': id, 'out': out});
   void endInnings(String reason) => add('END_INNINGS', {'reason': reason});
   void endMatch({int? winner, required String text}) => add('END_MATCH', {if (winner != null) 'winner': winner, 'text': text});
