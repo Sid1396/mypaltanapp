@@ -155,7 +155,8 @@ class _ActionPanel extends GetView<ScoringController> {
             gapH(6),
             Text(c.fill(s.result), textAlign: TextAlign.center, style: tfStyle(17, weight: FontWeight.w900)),
             gapH(12),
-            SizedBox(width: double.infinity, child: SmallButtonLarge(key: const ValueKey('score-done'), label: 'Done', onTap: () => Navigator.of(context).pop())),
+            SizedBox(
+                width: double.infinity, child: SmallButtonLarge(key: const ValueKey('score-done'), label: 'Done', onTap: () => Navigator.of(context).pop())),
             TextButton(onPressed: c.undo, child: Text('Undo last ball', style: tfStyle(13, color: Colors.white.withAlpha(160)))),
           ]),
         );
@@ -202,6 +203,25 @@ class _StartInnings extends GetView<ScoringController> {
         chips('Striker', s.playersOf(batting), striker, not: nonStriker),
         chips('Non-striker', s.playersOf(batting), nonStriker, not: striker),
         chips('Opening bowler', s.playersOf(bowling), bowler),
+        // Overs for this match: the tournament's by default, more or fewer on the day. Fixed once the match starts.
+        // At most what the bowlers can bowl between them (players × overs per bowler).
+        if (s.innings.isEmpty)
+          Obx(() => Column(children: [
+                NumberStepper(
+                  key: const ValueKey('start-overs'),
+                  label: 'Overs in this match',
+                  hint: 'Change it if the organiser says so. Both teams get the same overs.',
+                  value: controller.startOvers.value ?? s.rules.overs,
+                  min: 1,
+                  max: (s.rules.playersPerSide * s.rules.oversPerBowler).clamp(s.rules.overs, 50),
+                  onChanged: (n) => controller.startOvers.value = n,
+                ),
+                gapH(12),
+              ]))
+        else ...[
+          Text('${s.rules.overs} overs', style: tfStyle(13, color: Colors.white.withAlpha(170))),
+          gapH(12),
+        ],
         SizedBox(
           width: double.infinity,
           child: SmallButtonLarge(
@@ -209,7 +229,9 @@ class _StartInnings extends GetView<ScoringController> {
             label: s.innings.isEmpty ? 'Start match' : 'Start second innings',
             onTap: () {
               if (striker.value == null || nonStriker.value == null || bowler.value == null) return;
-              controller.startInnings(striker.value!, nonStriker.value!, bowler.value!);
+              final overs = controller.startOvers.value;
+              controller.startInnings(striker.value!, nonStriker.value!, bowler.value!,
+                  overs: s.innings.isEmpty && overs != null && overs != s.rules.overs ? overs : null);
             },
           ),
         ),
@@ -322,7 +344,7 @@ class _ScorePad extends GetView<ScoringController> {
           key('W', () => _wicketSheet(), color: AppColors.negative.withAlpha(150), id: 'W'),
           key('Undo', c.undo),
         ]),
-        Row(children: [key('More', _moreSheet, id: 'More')]),
+        Row(children: [key('1D', () => c.declared(1), id: '1D'), key('Overs', _oversSheet, id: 'Overs'), key('More', _moreSheet, id: 'More')]),
       ]),
     );
   }
@@ -352,6 +374,17 @@ class _ScorePad extends GetView<ScoringController> {
                           c.extra(extra, r, nbByes: nb && areByes, boundary: r == 4);
                         },
                       ),
+                    // A wicket off this wide / no-ball.
+                    if (extra == 'WIDE' || extra == 'NO_BALL')
+                      _Chip(
+                        key: ValueKey('wicket-on-$extra'),
+                        label: 'W',
+                        selected: false,
+                        onTap: () {
+                          Navigator.of(sheet).pop();
+                          _wicketSheet(onBall: extra);
+                        },
+                      ),
                   ]),
                 ]);
               })),
@@ -359,12 +392,13 @@ class _ScorePad extends GetView<ScoringController> {
     );
   }
 
-  void _wicketSheet() {
+  /// The wicket sheet. With [onBall] (WIDE / NO_BALL, from the Wd / Nb sheet) only the wickets that can fall off that
+  /// ball are offered: run out or stumped off a wide; run out, stumped or box out off a no-ball.
+  void _wicketSheet({String? onBall}) {
     final c = controller;
     final i = s.current!;
-    final how = 'BOWLED'.obs, out = Rx<int?>(i.striker), fielder = Rx<int?>(null), runs = 0.obs, ballType = 'NONE'.obs;
     final fielders = s.playersOf(i.bowling);
-    final hows = [
+    final all = [
       ('BOWLED', 'Bowled'),
       ('CAUGHT', 'Caught'),
       ('LBW', 'LBW'),
@@ -373,11 +407,23 @@ class _ScorePad extends GetView<ScoringController> {
       ('HIT_WICKET', 'Hit wicket'),
       if (s.rules.boxOut) ('BOX_OUT', 'Box out'), // ball hit the roof
     ];
+    final hows = switch (onBall) {
+      'WIDE' => all.where((h) => const {'STUMPED', 'RUN_OUT'}.contains(h.$1)).toList(),
+      'NO_BALL' => all.where((h) => const {'RUN_OUT', 'STUMPED', 'BOX_OUT'}.contains(h.$1)).toList(),
+      _ => all,
+    };
+    final how = hows.first.$1.obs, out = Rx<int?>(i.striker), fielder = Rx<int?>(null), runs = 0.obs, ballType = (onBall ?? 'NONE').obs;
     Get.bottomSheet(
       Builder(
           builder: (sheet) => Obx(() {
                 final needsFielder = const {'CAUGHT', 'RUN_OUT', 'STUMPED'}.contains(how.value);
-                return SheetFrame(title: 'Wicket', children: [
+                // Wickets that can fall off a wide or no-ball: run out (either), stumped (either), box out (no-ball).
+                final ballTypes = [
+                  if (const {'RUN_OUT', 'STUMPED'}.contains(how.value)) ('WIDE', 'Wide'),
+                  if (const {'RUN_OUT', 'STUMPED', 'BOX_OUT'}.contains(how.value)) ('NO_BALL', 'No ball'),
+                ];
+                final ballOn = ballTypes.any((t) => t.$1 == ballType.value) ? ballType.value : 'NONE';
+                return SheetFrame(title: switch (onBall) { 'WIDE' => 'Wide + wicket', 'NO_BALL' => 'No ball + wicket', _ => 'Wicket' }, children: [
                   Wrap(spacing: SizeConfig.w(6), runSpacing: SizeConfig.h(6), children: [
                     for (final (v, l) in hows) _Chip(key: ValueKey('how-$v'), label: l, selected: how.value == v, onTap: () => how.value = v),
                   ]),
@@ -394,13 +440,12 @@ class _ScorePad extends GetView<ScoringController> {
                       for (var r = 0; r <= 3; r++) _Chip(label: '$r', selected: runs.value == r, onTap: () => runs.value = r),
                     ]),
                   ],
-                  if (how.value == 'RUN_OUT' || how.value == 'STUMPED') ...[
+                  if (onBall == null && ballTypes.isNotEmpty) ...[
                     gapH(14),
                     const FormLabel('On which ball?'),
                     Wrap(spacing: SizeConfig.w(6), children: [
-                      _Chip(label: 'Normal', selected: ballType.value == 'NONE', onTap: () => ballType.value = 'NONE'),
-                      _Chip(label: 'Wide', selected: ballType.value == 'WIDE', onTap: () => ballType.value = 'WIDE'),
-                      if (how.value == 'RUN_OUT') _Chip(label: 'No ball', selected: ballType.value == 'NO_BALL', onTap: () => ballType.value = 'NO_BALL'),
+                      _Chip(label: 'Normal', selected: ballOn == 'NONE', onTap: () => ballType.value = 'NONE'),
+                      for (final (v, l) in ballTypes) _Chip(key: ValueKey('ball-$v'), label: l, selected: ballOn == v, onTap: () => ballType.value = v),
                     ]),
                   ],
                   if (needsFielder) ...[
@@ -423,7 +468,7 @@ class _ScorePad extends GetView<ScoringController> {
                           how.value == 'RUN_OUT' ? (out.value ?? i.striker!) : i.striker!,
                           fielder: needsFielder ? fielder.value : null,
                           runs: how.value == 'RUN_OUT' ? runs.value : 0,
-                          extraType: (how.value == 'RUN_OUT' || how.value == 'STUMPED') ? ballType.value : 'NONE',
+                          extraType: ballOn,
                         );
                         if (ok && sheet.mounted) Navigator.of(sheet).pop();
                       },
@@ -431,6 +476,49 @@ class _ScorePad extends GetView<ScoringController> {
                   ),
                 ]);
               })),
+      isScrollControlled: true,
+    );
+  }
+
+  /// Over by over for every innings so far (latest first), with each bowler's figures.
+  void _oversSheet() {
+    final c = controller;
+    Get.bottomSheet(
+      SheetFrame(title: 'Overs', children: [
+        for (final inn in s.innings.reversed) ...[
+          Text('${c.teamName(inn.batting)} · ${s.scoreOf(inn)} (${inn.overs})', style: tfStyle(15, weight: FontWeight.w800, color: AppColors.primary)),
+          gapH(8),
+          if (inn.overLog.isEmpty) Text('No balls yet.', style: tfStyle(13, color: Colors.white.withAlpha(150))),
+          for (final o in inn.overLog.reversed)
+            Padding(
+              padding: EdgeInsets.only(bottom: SizeConfig.h(8)),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SizedBox(width: SizeConfig.w(54), child: Text('Over ${o['over']}', style: tfStyle(12.5, weight: FontWeight.w800))),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${o['bowler']}', style: tfStyle(12.5, color: Colors.white.withAlpha(170))),
+                    gapH(2),
+                    Text((o['balls'] as List).join('  '), style: tfStyle(14, weight: FontWeight.w700)),
+                  ]),
+                ),
+                Text('${o['runs']} run${o['runs'] == 1 ? '' : 's'}${(o['wickets'] as int) > 0 ? ' · ${o['wickets']}W' : ''}',
+                    style: tfStyle(12.5, weight: FontWeight.w700)),
+              ]),
+            ),
+          gapH(4),
+          Text('BOWLING  O-M-R-W', style: tfStyle(11.5, weight: FontWeight.w800, color: Colors.white.withAlpha(140))),
+          gapH(4),
+          for (final b in inn.bowlers.values)
+            Padding(
+              padding: EdgeInsets.only(bottom: SizeConfig.h(4)),
+              child: Row(children: [
+                Expanded(child: Text(b.name, style: tfStyle(13.5))),
+                Text('${b.overs}-${b.maidens}-${b.runs}-${b.wickets}', style: tfStyle(13.5, weight: FontWeight.w700)),
+              ]),
+            ),
+          gapH(16),
+        ],
+      ]),
       isScrollControlled: true,
     );
   }

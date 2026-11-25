@@ -10,6 +10,7 @@ List<Map<String, dynamic>> _maps(dynamic v) => (v as List? ?? []).whereType<Map>
 
 /// Leaderboard categories: key in the server response, title, the value shown, and an optional detail.
 final _boards = <(String, String, String Function(Map<String, dynamic>), String Function(Map<String, dynamic>)?)>[
+  ('series_points', 'Player of the Series race', (p) => '${p['points']}', (p) => '${p['reason'] ?? ''}'),
   ('most_runs', 'Most runs', (p) => '${p['runs']}', (p) => '${p['innings']} inns · SR ${p['strike_rate'] ?? '-'}'),
   ('most_wickets', 'Most wickets', (p) => '${p['wickets']}', (p) => '${p['overs']} ov · Econ ${p['economy'] ?? '-'}'),
   ('highest_score', 'Highest score', (p) => '${p['highest']}', null),
@@ -78,8 +79,8 @@ class StatsTabBody extends GetView<TournamentController> {
             ),
             gapH(14),
           ],
-          if (football && selected['player_of_tournament'] is Map) ...[
-            _AwardCard(p: Map<String, dynamic>.from(selected['player_of_tournament'] as Map), teams: teams),
+          if (selected['player_of_tournament'] is Map) ...[
+            _AwardCard(p: Map<String, dynamic>.from(selected['player_of_tournament'] as Map), teams: teams, football: football),
             gapH(12),
           ],
           for (final (key, title, value, detail) in football ? _footballBoards : _boards)
@@ -98,7 +99,7 @@ class StatsTabBody extends GetView<TournamentController> {
           Text(
             football
                 ? 'MVP points: goal 3, assist 2, clean sheet 3, Player of the Match 3, yellow −1, red −3.'
-                : 'Strike rate needs 10 balls faced; economy needs 2 overs bowled.',
+                : 'Series points: run 1, wicket 20, catch / stumping / run out 10. Strike rate needs 10 balls faced; economy needs 2 overs bowled.',
             style: tfStyle(11.5, color: Colors.white.withAlpha(120), height: 1.4),
           ),
         ],
@@ -116,11 +117,13 @@ class StatsTabBody extends GetView<TournamentController> {
       );
 }
 
-/// Player of the Tournament (official once every match in the division is finished; until then the MVP race leader).
+/// Player of the Tournament (football) / Player of the Series (cricket): official once every match in the division is
+/// finished; until then the leader of the race.
 class _AwardCard extends StatelessWidget {
   final Map<String, dynamic> p;
   final Map<int, Map<String, dynamic>> teams;
-  const _AwardCard({required this.p, required this.teams});
+  final bool football;
+  const _AwardCard({required this.p, required this.teams, required this.football});
 
   @override
   Widget build(BuildContext context) {
@@ -139,12 +142,17 @@ class _AwardCard extends StatelessWidget {
         SizedBox(width: SizeConfig.w(12)),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(official ? 'PLAYER OF THE TOURNAMENT' : 'MVP RACE · LEADING NOW',
+            Text(
+                football
+                    ? (official ? 'PLAYER OF THE TOURNAMENT' : 'MVP RACE · LEADING NOW')
+                    : (official ? 'PLAYER OF THE SERIES' : 'PLAYER OF THE SERIES · LEADING NOW'),
                 style: tfStyle(11, weight: FontWeight.w800, color: AppColors.primary).copyWith(letterSpacing: 0.6)),
             gapH(2),
             Text('${p['name']}', style: tfStyle(18, weight: FontWeight.w900)),
             Text(
-                '${team?['name'] ?? ''} · ${p['goals']} goal${p['goals'] == 1 ? '' : 's'} · ${p['assists']} assist${p['assists'] == 1 ? '' : 's'} · ${p['potm']} POTM',
+                football
+                    ? '${team?['name'] ?? ''} · ${p['goals']} goal${p['goals'] == 1 ? '' : 's'} · ${p['assists']} assist${p['assists'] == 1 ? '' : 's'} · ${p['potm']} POTM'
+                    : [team?['name'] ?? '', p['reason'] ?? ''].where((x) => '$x'.isNotEmpty).join(' · '),
                 style: tfStyle(12, color: Colors.white.withAlpha(170))),
           ]),
         ),

@@ -725,6 +725,9 @@ const phone = str(b.phone).replace(/\D/g, '').slice(-10);
 if (!/^[6-9]\d{9}$/.test(phone)) return bad('Enter your 10-digit mobile number.');
 const bin = $input.first().binary || {};
 const files = [];
+// Food preference, asked of everyone (also existing profiles); saved on the profile and copied into the squad.
+const food = str(b.food_pref).toUpperCase();
+if (!['VEG', 'NON_VEG', 'JAIN'].includes(food)) return bad('Choose your food preference.');
 // Existing complete profile: just the number. Otherwise the same checks as completing a profile in the app.
 let p = null;
 if (b.profile === '1') {
@@ -757,7 +760,7 @@ if (b.profile === '1') {
   p = { name, birthdate: m[0], gender, jersey_name: jname, jersey_number: jnum, jersey_size: size, role, hand, bowl };
 }
 count();
-return [{ json: { ok: true, t, team, phone, p, files }, binary: bin }];""", [220, 0]))
+return [{ json: { ok: true, t, team, phone, p, food, files }, binary: bin }];""", [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
 n.append(mysql("Load", SQUAD_LOAD, "={{ [$json.t, $json.team, $json.phone] }}", [660, -100], always=True))
 n.append(code("Plan", SQUAD_SHAPE + r"""
@@ -802,6 +805,7 @@ if (p) {
 }
 // A request to join the team (back as a request if removed or declined earlier); the captain approves it on the captain
 // link, which adds the player to the tournament squad.
+q.push(`UPDATE app_users SET food_pref = ${add(r.food)} WHERE phone = ${ph}`);
 q.push(`SET @u = (SELECT id FROM app_users WHERE phone = ${ph})`);
 q.push(`INSERT INTO team_members (team_id, user_id, role, position, added_by, status) VALUES (${add(s.team_id)}, @u, 'PLAYER', ` +
   `(SELECT s.role FROM app_user_sports s WHERE s.user_id = @u AND s.sport = ${add(sport)}), @u, 'PENDING') ` +
@@ -854,7 +858,7 @@ n.append(mysql("Load",
     "d.name AS dname, d.min_age, d.max_age, d.squad_max, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', x.id, 'name', au.name, 'phone', au.phone, 'age', TIMESTAMPDIFF(YEAR, au.birthdate, t.start_date), "
     "'role', x.role, 'position', x.position, 'jersey_name', COALESCE(x.jersey_name, au.jersey_name), 'jersey_number', COALESCE(x.jersey_number, au.jersey_number), "
-    "'jersey_size', au.jersey_size, 'status', x.status, 'in_squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = x.id), "
+    "'jersey_size', au.jersey_size, 'food_pref', au.food_pref, 'photo_key', au.photo_key, 'status', x.status, 'in_squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = x.id), "
     "'joined', DATE_FORMAT(CONVERT_TZ(x.joined_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) "
     "FROM team_members x JOIN app_users au ON au.id = x.user_id WHERE x.team_id = tm.id AND x.status IN ('ACTIVE', 'PENDING') AND x.role <> 'COACH') AS members, "
     "g.id AS tgt_id, g.status AS tgt_status, g.user_id AS tgt_user, gu.name AS tgt_name, TIMESTAMPDIFF(YEAR, gu.birthdate, t.start_date) AS tgt_age, "
@@ -873,7 +877,7 @@ const parse = v => { if (v == null) return null; if (typeof v === 'object') retu
 if (r.action === 'LOAD') {
   const members = (parse(s.members) || []).map(m => ({ ...m, in_squad: Number(m.in_squad) === 1 }))
     .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'PENDING' ? -1 : 1));
-  return [{ json: { ok: false, status: 200, body: { success: true,
+  return [{ json: { ok: true, mode: 'LOAD', data: {
     tournament: { code: s.tcode, name: s.tname, start_date: s.start_date, started: Number(s.started) === 1 },
     team: { code: s.team_code, name: s.team_name, division: s.dname, squad_max: s.squad_max == null ? null : Number(s.squad_max), squad_count: Number(s.squad_count) },
     members } } }];
@@ -907,8 +911,25 @@ if (r.action === 'APPROVE') {
   st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)}`);
   message = `${first} was removed from the squad.`;
 }
-return [{ json: { ok: true, sql: st.join('; '), params: p, message } }];""", [880, -100]))
+return [{ json: { ok: true, mode: 'RUN', sql: st.join('; '), params: p, message } }];""", [880, -100]))
 n.append(iff("Plan OK?", "={{ $json.ok }}", [1100, -100]))
+n.append(iff("Load?", "={{ $json.mode === 'LOAD' }}", [1210, -100]))
+# LOAD: profile photos for the captain to check faces, through a download link that lasts an hour.
+n.append(code("B2 Load Credentials", B2_AUTH, [1320, -500]))
+n.append(http("Authorize B2 Load", "GET", "https://api.backblazeb2.com/b2api/v4/b2_authorize_account", [("Authorization", "={{ $json.basicAuth }}")], [1520, -500]))
+n.append(http("Photos Link", "POST", "={{ $('Authorize B2 Load').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_download_authorization",
+              [("Authorization", "={{ $('Authorize B2 Load').first().json.authorizationToken }}"), ("Content-Type", "application/json")], [1720, -500],
+              json_body="={{ JSON.stringify({ bucketId: '" + BUCKET_ID + "', fileNamePrefix: 'profile_photos/', validDurationInSeconds: 3600 }) }}"))
+for x in n:
+    if x["name"] in ("Photos Link", "Authorize B2 Load"):
+        x["onError"] = "continueRegularOutput"
+n.append(code("Build Load", r"""
+const d = $('Plan').first().json.data;
+const b2 = $('Authorize B2 Load').first().json, t = $json.authorizationToken;
+const dl = b2 && b2.apiInfo ? b2.apiInfo.storageApi.downloadUrl : null;
+const sign = k => k && dl && t && k.startsWith('profile_photos/') ? `${dl}/file/""" + BUCKET_NAME + r"""/${k.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null;
+const members = d.members.map(({ photo_key, ...m }) => ({ ...m, photo_url: sign(photo_key) }));
+return [{ json: { status: 200, body: { success: true, ...d, members } } }];""", [1920, -500]))
 n.append(mysql("Save", "={{ $('Plan').first().json.sql }}", "={{ $('Plan').first().json.params }}", [1320, -200], continue_on_error=True))
 n.append(code("Build Response", r"""
 const msg = String($json.message || $json.error?.message || '');
@@ -919,7 +940,9 @@ n.append(respond([1760, 0]))
 link(c, "Webhook", "Check Request"); link(c, "Check Request", "Valid?")
 link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
 link(c, "Load", "Plan"); link(c, "Plan", "Plan OK?")
-link(c, "Plan OK?", "Save", 0); link(c, "Plan OK?", "Respond", 1)
+link(c, "Plan OK?", "Load?", 0); link(c, "Plan OK?", "Respond", 1)
+link(c, "Load?", "B2 Load Credentials", 0); link(c, "Load?", "Save", 1)
+link(c, "B2 Load Credentials", "Authorize B2 Load"); link(c, "Authorize B2 Load", "Photos Link"); link(c, "Photos Link", "Build Load"); link(c, "Build Load", "Respond")
 link(c, "Save", "Build Response"); link(c, "Build Response", "Respond")
 out['public_team_captain'] = workflow("PubTeamCp026mPxC", "MyPaltan v2 - Public Team Captain", n, c)
 

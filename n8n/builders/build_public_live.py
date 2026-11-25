@@ -8,7 +8,8 @@ Each one is the app's own workflow (fixtures_get / tournament_stats / match_deta
   - no login: the tournament comes from its web-link slug, and nothing shows until the fixtures are published;
   - a privacy filter: players are shown as "First L." (they are children), with no photos, birthdates or phones,
     and nothing only the organiser or scorer should see;
-  - a 20-second cache per request, so a crowd of parents refreshing doesn't load the database or storage.
+  - a 5-second cache for the pages' automatic refreshes, so a crowd watching doesn't load the database or storage;
+    a page load or a manual refresh (?fresh=1) skips it and always gets the latest score.
 So the website always shows exactly what the app shows.
 """
 import copy
@@ -35,11 +36,12 @@ const short = n => { const w = String(n || '').trim().split(/\s+/).filter(Boolea
 """
 
 CACHE_CHECK = r"""
-// Serve a fresh copy for 20 seconds so many parents refreshing at once don't each hit the database.
+// Automatic refreshes share one copy for 5 seconds so a crowd watching doesn't each hit the database.
+// A page load or manual refresh sends fresh=1 and always reads the latest score (still rate limited).
 const cache = $getWorkflowStaticData('global');
 const key = %s;
 const hit = (cache.c || {})[key];
-if (hit && Date.now() - hit.at < 20000) return [{ json: { ok: false, status: 200, body: hit.body } }];
+if (hit && Date.now() - hit.at < 5000 && String(($in.query || {}).fresh || '') !== '1') return [{ json: { ok: false, status: 200, body: hit.body } }];
 """
 
 CACHE_STORE = r"""
@@ -98,6 +100,83 @@ count();
 return [{ json: { ok: true, phone: '', code: slug, slug, _q: { slug } } }];"""
 
 WEB_TOURNAMENT = "WHERE t.id = (SELECT l.tournament_id FROM tournament_web_links l WHERE l.slug = $2) AND t.status <> 'DRAFT'"
+
+# Cricket Player of the Series (app and website): the app's player-of-the-match points over every match, 1 a run, 20 a
+# wicket, 10 a catch / stumping / run out; ties go to more runs, then more wickets. Catches and run outs aren't in the
+# scorecards, so they come from the match events (replayed with UNDO, as the app does).
+SERIES_SQL = (
+    "(SELECT JSON_ARRAYAGG(JSON_OBJECT('m', ev.match_id, 'd', xm.division_id, 's', ev.seq, 'type', ev.type, 'data', ev.data)) "
+    " FROM match_events ev JOIN tournament_matches xm ON xm.id = ev.match_id "
+    " WHERE xm.tournament_id = t.id AND xm.status IN ('LIVE', 'COMPLETED') AND t.sport = 'CRICKET') AS events, "
+    "(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', ep.team_member_id, 'entry', ep.entry_id, 'name', COALESCE(pu.name, x.guest_name))) "
+    " FROM tournament_entry_players ep JOIN team_members x ON x.id = ep.team_member_id LEFT JOIN app_users pu ON pu.id = x.user_id "
+    " WHERE ep.tournament_id = t.id AND t.sport = 'CRICKET') AS members")
+
+SERIES_JS = r"""
+// ── Cricket Player of the Series: player-of-the-match points over the whole tournament ──
+const fielding = new Map(); // `${division}:${member}` → { catches, run_outs }
+{
+  const byMatch = new Map();
+  for (const e of parseJ(t.events) || []) { if (!byMatch.has(e.m)) byMatch.set(e.m, []); byMatch.get(e.m).push(e); }
+  for (const evs of byMatch.values()) {
+    const kept = [];
+    for (const e of evs.sort((a, b) => a.s - b.s)) { if (e.type === 'UNDO') kept.pop(); else kept.push(e); }
+    let bowler = null;
+    for (const e of kept) {
+      const data = parseJ(e.data) || {};
+      if (e.type === 'START_INNINGS') bowler = data.bowler ?? null;
+      if (e.type === 'NEW_BOWLER') bowler = data.id ?? null;
+      const w = e.type === 'BALL' ? data.wicket : null;
+      if (!w) continue;
+      const fid = w.fielder ?? (w.how === 'CAUGHT' ? bowler : null);
+      if (fid == null || !['CAUGHT', 'STUMPED', 'RUN_OUT'].includes(w.how)) continue;
+      const k = `${e.d}:${fid}`;
+      const f = fielding.get(k) || { catches: 0, run_outs: 0 };
+      if (w.how === 'CAUGHT') f.catches++; else f.run_outs++;
+      fielding.set(k, f);
+    }
+  }
+}
+const memberOf = new Map((parseJ(t.members) || []).map(m => [Number(m.id), m]));
+function seriesOf(div, players, leaders, done) {
+  const byId = new Map(players.map(p => [p.member_id, { ...p }]));
+  for (const [k, f] of fielding) {
+    const [d, id] = k.split(':').map(Number);
+    if (d !== div || byId.has(id)) continue;
+    const m = memberOf.get(id) || {};
+    byId.set(id, { division_id: div, member_id: id, name: m.name || 'Player', entry_id: m.entry ?? null, runs: 0, wickets: 0 });
+  }
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : w === 'catch' ? 'es' : 's'}`;
+  const rows = [...byId.values()].map(p => {
+    const f = fielding.get(`${div}:${p.member_id}`) || { catches: 0, run_outs: 0 };
+    const points = (p.runs || 0) + 20 * (p.wickets || 0) + 10 * (f.catches + f.run_outs);
+    const reason = [p.innings && (p.runs || !p.wickets) ? `${p.runs} runs` : null, p.wickets ? plural(p.wickets, 'wicket') : null,
+      f.catches ? plural(f.catches, 'catch') : null, f.run_outs ? plural(f.run_outs, 'run out') : null].filter(Boolean).join(' · ');
+    return { member_id: p.member_id, name: p.name, entry_id: p.entry_id, runs: p.runs || 0, wickets: p.wickets || 0,
+      catches: f.catches, run_outs: f.run_outs, points, reason };
+  }).filter(p => p.points > 0).sort((a, b) => b.points - a.points || b.runs - a.runs || b.wickets - a.wickets);
+  leaders.series_points = rows.slice(0, 10);
+  return rows.length ? { ...rows[0], final: done } : null;
+}
+"""
+
+SERIES_EDITS = (
+    [(" AS my_entries FROM tournaments t", " AS my_entries, " + SERIES_SQL + " FROM tournaments t")],
+    [("Build Response", "const divisions = (parseJ(t.divisions)", SERIES_JS + "const divisions = (parseJ(t.divisions)"),
+     ("Build Response", "const pott = football && leaders.mvp.length ? { ...leaders.mvp[0], final: done } : null;",
+      "const pott = football ? (leaders.mvp.length ? { ...leaders.mvp[0], final: done } : null) : seriesOf(d.id, players, leaders, done);")])
+
+# The app's own stats workflow gets Player of the Series too (once: the repo copy keeps it); the public one copies it.
+stats_src = load('tournament_stats')
+if 'seriesOf(' not in json.dumps(stats_src):
+    nodes = {n['name']: n for n in stats_src['nodes']}
+    sql_node = [n for n in stats_src['nodes'] if n['type'].endswith('mySql')][0]
+    for a, b in SERIES_EDITS[0]:
+        sql_node['parameters']['query'] = rep(sql_node['parameters']['query'], a, b)
+    for node_name, a, b in SERIES_EDITS[1]:
+        nodes[node_name]['parameters']['jsCode'] = rep(nodes[node_name]['parameters']['jsCode'], a, b)
+    json.dump(stats_src, open(os.path.join(OUT, 'tournament_stats.json'), 'w'), indent=2)
+    print('tournament_stats', stats_src['id'], 'with Player of the Series')
 
 out = {}
 

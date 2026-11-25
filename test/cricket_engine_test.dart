@@ -38,7 +38,8 @@ void main() {
   });
 
   test('extras: wide and no-ball are not legal balls; byes do not count against the bowler', () {
-    final s = play([start(11, 12, 21), ball(0, extra: 'WIDE'), ball(2, extra: 'WIDE'), ball(1, extra: 'NO_BALL'), ball(2, extra: 'BYE'), ball(1, extra: 'LEG_BYE')]);
+    final s =
+        play([start(11, 12, 21), ball(0, extra: 'WIDE'), ball(2, extra: 'WIDE'), ball(1, extra: 'NO_BALL'), ball(2, extra: 'BYE'), ball(1, extra: 'LEG_BYE')]);
     final i = s.current!;
     expect(i.legalBalls, 2);
     expect(i.wides, 1 + 3);
@@ -55,7 +56,12 @@ void main() {
   test('free hit after a no-ball: only run out allowed, carries over a wide', () {
     final events = [start(11, 12, 21), ball(0, extra: 'NO_BALL')];
     expect(play(events).current!.freeHit, true);
-    expect(() => play([...events, ball(0, wicket: {'how': 'BOWLED'})]), throwsA(isA<ScoringError>()));
+    expect(
+        () => play([
+              ...events,
+              ball(0, wicket: {'how': 'BOWLED'})
+            ]),
+        throwsA(isA<ScoringError>()));
     final s = play([...events, ball(0, extra: 'WIDE')]);
     expect(s.current!.freeHit, true);
     expect(play([...events, ball(0, extra: 'WIDE'), ball(1)]).current!.freeHit, false);
@@ -87,9 +93,19 @@ void main() {
     final over = [ball(0), ball(0), ball(0), ball(0), ball(0), ball(0)];
     final events = [start(11, 12, 21), ...over];
     expect(play(events).current!.bowlers[21]!.maidens, 1);
-    expect(() => play([...events, ev('NEW_BOWLER', {'id': 21})]), throwsA(isA<ScoringError>()));
+    expect(
+        () => play([
+              ...events,
+              ev('NEW_BOWLER', {'id': 21})
+            ]),
+        throwsA(isA<ScoringError>()));
     expect(play(events).availableBowlers().map((p) => p.id), isNot(contains(21)));
-    expect(play([...events, ev('NEW_BOWLER', {'id': 22})]).current!.bowler, 22);
+    expect(
+        play([
+          ...events,
+          ev('NEW_BOWLER', {'id': 22})
+        ]).current!.bowler,
+        22);
   });
 
   test('undo removes the latest event, repeatedly', () {
@@ -122,18 +138,49 @@ void main() {
   test('net run rate counts the full overs for a team bowled out', () {
     MatchEvent out(int id) => ball(0, wicket: {'how': 'BOWLED', 'out': id});
     final s = play([
-      start(11, 12, 21), ball(4, four: true), out(11), ev('NEW_BATTER', {'id': 13}), out(13), ev('NEW_BATTER', {'id': 14}),
-      out(14), ev('NEW_BATTER', {'id': 15}), out(15), ev('NEW_BATTER', {'id': 16}), out(16),
+      start(11, 12, 21),
+      ball(4, four: true),
+      out(11),
+      ev('NEW_BATTER', {'id': 13}),
+      out(13),
+      ev('NEW_BATTER', {'id': 14}),
+      out(14),
+      ev('NEW_BATTER', {'id': 15}),
+      out(15),
+      ev('NEW_BATTER', {'id': 16}),
+      out(16),
     ]);
     expect((s.toJson()['standing'] as List).first, {'batting': 1, 'runs': 4, 'balls': 12});
   });
 
   test('defending: won by runs, and a tie in a league', () {
     final over = [ball(1), ball(1), ball(1), ball(1), ball(1), ball(1)];
-    final first = [start(11, 12, 21), ...over, ev('NEW_BOWLER', {'id': 22}), ...over]; // 12
-    final short = play([...first, start(21, 22, 11), ...over, ev('NEW_BOWLER', {'id': 12}), ball(0), ball(0), ball(0), ball(0), ball(0), ball(0)]);
+    final first = [
+      start(11, 12, 21),
+      ...over,
+      ev('NEW_BOWLER', {'id': 22}),
+      ...over
+    ]; // 12
+    final short = play([
+      ...first,
+      start(21, 22, 11),
+      ...over,
+      ev('NEW_BOWLER', {'id': 12}),
+      ball(0),
+      ball(0),
+      ball(0),
+      ball(0),
+      ball(0),
+      ball(0)
+    ]);
     expect(short.result, '{1} won by 6 runs');
-    final tie = play([...first, start(21, 22, 11), ...over, ev('NEW_BOWLER', {'id': 12}), ...over]);
+    final tie = play([
+      ...first,
+      start(21, 22, 11),
+      ...over,
+      ev('NEW_BOWLER', {'id': 12}),
+      ...over
+    ]);
     expect(tie.result, 'Match tied');
     expect(tie.outcome, 'TIE');
     expect(tie.winner, isNull);
@@ -142,10 +189,22 @@ void main() {
   test('a tie in a knockout waits for the winner of the super over', () {
     const ko = CricketSetup(homeEntry: 1, awayEntry: 2, tossWinner: 1, tossDecision: 'BAT', players: {1: a, 2: b}, knockout: true);
     final over = [ball(1), ball(1), ball(1), ball(1), ball(1), ball(1)];
-    final events = [start(11, 12, 21), ...over, ev('NEW_BOWLER', {'id': 22}), ...over, start(21, 22, 11), ...over, ev('NEW_BOWLER', {'id': 12}), ...over];
+    final events = [
+      start(11, 12, 21),
+      ...over,
+      ev('NEW_BOWLER', {'id': 22}),
+      ...over,
+      start(21, 22, 11),
+      ...over,
+      ev('NEW_BOWLER', {'id': 12}),
+      ...over
+    ];
     final s = play(events, st: ko);
     expect(s.status, 'TIE_DECISION');
-    final done = play([...events, ev('END_MATCH', {'winner': 2, 'text': '{2} won the super over'})], st: ko);
+    final done = play([
+      ...events,
+      ev('END_MATCH', {'winner': 2, 'text': '{2} won the super over'})
+    ], st: ko);
     expect(done.status, 'COMPLETED');
     expect(done.winner, 2);
   });
@@ -153,14 +212,31 @@ void main() {
   test('all out, and last man stands lets the last batter bat alone', () {
     MatchEvent out(int id) => ball(0, wicket: {'how': 'BOWLED', 'out': id});
     final normal = play([
-      start(11, 12, 21), out(11), ev('NEW_BATTER', {'id': 13}), out(13), ev('NEW_BATTER', {'id': 14}),
-      out(14), ev('NEW_BATTER', {'id': 15}), out(15), ev('NEW_BATTER', {'id': 16}), out(16),
+      start(11, 12, 21),
+      out(11),
+      ev('NEW_BATTER', {'id': 13}),
+      out(13),
+      ev('NEW_BATTER', {'id': 14}),
+      out(14),
+      ev('NEW_BATTER', {'id': 15}),
+      out(15),
+      ev('NEW_BATTER', {'id': 16}),
+      out(16),
     ]);
     expect(normal.innings.first.endReason, 'All out');
     const lms = CricketRules(overs: 2, playersPerSide: 6, oversPerBowler: 1, lastManStands: true);
     final s = play([
-      start(11, 12, 21), out(11), ev('NEW_BATTER', {'id': 13}), out(13), ev('NEW_BATTER', {'id': 14}),
-      out(14), ev('NEW_BATTER', {'id': 15}), out(15), ev('NEW_BATTER', {'id': 16}), out(16), ball(1),
+      start(11, 12, 21),
+      out(11),
+      ev('NEW_BATTER', {'id': 13}),
+      out(13),
+      ev('NEW_BATTER', {'id': 14}),
+      out(14),
+      ev('NEW_BATTER', {'id': 15}),
+      out(15),
+      ev('NEW_BATTER', {'id': 16}),
+      out(16),
+      ball(1),
     ], r: lms);
     expect(s.current!.complete, false);
     expect(s.current!.wickets, 5);
@@ -177,7 +253,13 @@ void main() {
     const up11 = CricketRules(overs: 2, playersPerSide: 11, oversPerBowler: 1);
     MatchEvent out(int id) => ball(0, wicket: {'how': 'BOWLED', 'out': id});
     // Team A (3 players) is all out after 2 wickets, not 10.
-    final first = [start(11, 12, 21), ball(4, four: true), out(11), ev('NEW_BATTER', {'id': 13}), out(13)];
+    final first = [
+      start(11, 12, 21),
+      ball(4, four: true),
+      out(11),
+      ev('NEW_BATTER', {'id': 13}),
+      out(13)
+    ];
     final s1 = play(first, r: up11, st: uneven);
     expect(s1.innings.first.endReason, 'All out');
     expect(s1.status, 'INNINGS_BREAK');
@@ -216,11 +298,12 @@ void main() {
     expect(done.finished, true);
     expect(done.catches[22], 1);
     final potm = done.toJson()['potm'] as Map;
-    // B1: 1 run + 1 wicket (21 points) beats A1's 10 runs and B2's catch (10).
-    expect(potm['name'], 'B1');
-    expect(potm['reason'], '1* (1) · 1 wicket');
-    expect(potm['team'], 2);
-    // Level on points: the winning team's player gets it (A1 10 runs v B2 1 catch = 10 each, Team A won).
+    // Team A won, so it goes to A1 (10 runs) even though B1 (1 run + 1 wicket, 21 points) has more.
+    expect(done.winner, 1);
+    expect(potm['name'], 'A1');
+    expect(potm['reason'], '10 (3)');
+    expect(potm['team'], 1);
+    // Same again in a 1-over match: A1's 10 beats B1's 20 because Team A won.
     final s2 = play([
       ...first.take(3),
       outC(11, 22),
@@ -238,7 +321,8 @@ void main() {
     ], r: const CricketRules(overs: 1, playersPerSide: 6, oversPerBowler: 1));
     final p2 = s2.toJson()['potm'] as Map;
     expect(s2.winner, 1);
-    expect(p2['points'], 20); // B1 still has the wicket: 20 points
+    expect(p2['name'], 'A1');
+    expect(p2['points'], 10);
   });
 
   test('box out: only when the match has it on; the bowler\'s wicket, like bowled', () {
@@ -250,10 +334,152 @@ void main() {
     expect(s.current!.batters[11]!.howOut, 'box out b B1');
     expect(s.current!.bowlers[21]!.wickets, 1);
     expect(s.pending, 'NEW_BATTER');
-    // Not on a no-ball (only a run out can happen there).
-    expect(() => play([start(11, 12, 21), ball(0, extra: 'NO_BALL', wicket: {'how': 'BOX_OUT', 'out': 11})], r: box), throwsA(isA<ScoringError>()));
+    // Not on a wide (only run out or stumped there).
+    expect(
+        () => play([
+              start(11, 12, 21),
+              ball(0, extra: 'WIDE', wicket: {'how': 'BOX_OUT', 'out': 11})
+            ], r: box),
+        throwsA(isA<ScoringError>()));
     expect(CricketRules.fromJson({'box_out': true, 'free_hit': false}).boxOut, true);
     expect(CricketRules.fromJson({'box_out': true, 'free_hit': false}).freeHit, false);
+  });
+
+  test('wickets off a wide or no-ball: only a run out off a no-ball counts as a ball; stumped off a no-ball is not the bowler\'s', () {
+    const box = CricketRules(overs: 2, playersPerSide: 6, oversPerBowler: 1, boxOut: true, freeHit: false);
+    // No-ball, 1 run, then the striker is run out: the over moves on, 1 no-ball + 1 run, no wicket for the bowler.
+    var s = play([
+      start(11, 12, 21),
+      ball(1, extra: 'NO_BALL', wicket: {'how': 'RUN_OUT', 'out': 11, 'fielder': 22})
+    ], r: box);
+    var i = s.current!;
+    expect(i.legalBalls, 1);
+    expect(i.noBalls, 1);
+    expect(i.runs, 2);
+    expect(i.wickets, 1);
+    expect(i.bowlers[21]!.wickets, 0);
+    expect(i.bowlers[21]!.legalBalls, 1);
+    expect(s.runOuts[22], 1);
+    // Wide, run out: bowled again, the wide still added.
+    s = play([
+      start(11, 12, 21),
+      ball(0, extra: 'WIDE', wicket: {'how': 'RUN_OUT', 'out': 12})
+    ], r: box);
+    expect(s.current!.legalBalls, 0);
+    expect(s.current!.wides, 1);
+    // Stumped off a wide: bowled again, the bowler's wicket and the keeper's stumping.
+    s = play([
+      start(11, 12, 21),
+      ball(0, extra: 'WIDE', wicket: {'how': 'STUMPED', 'out': 11, 'fielder': 23})
+    ], r: box);
+    i = s.current!;
+    expect(i.legalBalls, 0);
+    expect(i.wides, 1);
+    expect(i.wickets, 1);
+    expect(i.bowlers[21]!.wickets, 1);
+    expect(s.runOuts[23], 1);
+    // Stumped off a no-ball: bowled again, not the bowler's.
+    s = play([
+      start(11, 12, 21),
+      ball(0, extra: 'NO_BALL', wicket: {'how': 'STUMPED', 'out': 11, 'fielder': 23})
+    ], r: box);
+    expect(s.current!.legalBalls, 0);
+    expect(s.current!.bowlers[21]!.wickets, 0);
+    // Box out off a no-ball: bowled again, the bowler's wicket.
+    s = play([
+      start(11, 12, 21),
+      ball(0, extra: 'NO_BALL', wicket: {'how': 'BOX_OUT', 'out': 11})
+    ], r: box);
+    i = s.current!;
+    expect(i.legalBalls, 0);
+    expect(i.noBalls, 1);
+    expect(i.wickets, 1);
+    expect(i.bowlers[21]!.wickets, 1);
+    // Still nothing but a run out on a no-ball other than these.
+    expect(
+        () => play([
+              start(11, 12, 21),
+              ball(0, extra: 'NO_BALL', wicket: {'how': 'BOWLED', 'out': 11})
+            ], r: box),
+        throwsA(isA<ScoringError>()));
+  });
+
+  test('overs cut before the match: both innings, result, balls left and NRR use it', () {
+    final four = CricketRules(overs: 4, playersPerSide: 6, oversPerBowler: 1);
+    MatchEvent startOvers(int s, int n, int bw, int overs) => ev('START_INNINGS', {'striker': s, 'non_striker': n, 'bowler': bw, 'overs': overs});
+    List<MatchEvent> over(int bowler, [int r = 1]) => [
+          ev('NEW_BOWLER', {'id': bowler}),
+          for (var k = 0; k < 6; k++) ball(r)
+        ];
+    final first = [startOvers(11, 12, 21, 3), for (var k = 0; k < 6; k++) ball(1), ...over(22), ...over(23)];
+    final s1 = play(first, r: four);
+    expect(s1.rules.overs, 3);
+    expect(s1.innings.first.complete, true); // 18 balls, not 24
+    expect(s1.toJson()['overs_limit'], 3);
+    final s2 = play([...first, start(21, 22, 11), ball(2)], r: four);
+    expect((s2.toJson()['current'] as Map)['balls_left'], 17);
+    // A different overs value on the second innings is ignored: the match is already 3 overs.
+    expect(play([...first, startOvers(21, 22, 11, 4)], r: four).rules.overs, 3);
+    expect(() => play([startOvers(11, 12, 21, 0)], r: four), throwsA(isA<ScoringError>()));
+    // More overs than the tournament's works too.
+    expect(play([startOvers(11, 12, 21, 6)], r: four).toJson()['overs_limit'], 6);
+  });
+
+  test('declared run: the batter\'s run and a ball, strike stays', () {
+    final s = play([
+      start(11, 12, 21),
+      ev('BALL', {'runs': 1, 'extra': 'NONE', 'declared': true})
+    ]);
+    final i = s.current!;
+    expect(i.runs, 1);
+    expect(i.legalBalls, 1);
+    expect(i.batters[11]!.runs, 1);
+    expect(i.batters[11]!.balls, 1);
+    expect(i.striker, 11);
+    expect(i.thisOver, ['1D']);
+  });
+
+  test('over log: each over\'s bowler, balls, runs and wickets', () {
+    final s = play([
+      start(11, 12, 21),
+      ball(1),
+      ball(0, extra: 'WIDE'),
+      ball(4, four: true),
+      ball(0, wicket: {'how': 'BOWLED'}),
+      ev('NEW_BATTER', {'id': 13, 'position': 'STRIKER'}),
+      ball(0),
+      ball(2),
+      ball(1),
+      ev('NEW_BOWLER', {'id': 22}),
+      ball(6)
+    ]);
+    final log = s.current!.overLog;
+    expect(log.length, 2);
+    expect(log[0]['bowler'], 'B1');
+    expect(log[0]['balls'], ['1', 'Wd', '4', 'W', '0', '2', '1']);
+    expect(log[0]['runs'], 9);
+    expect(log[0]['wickets'], 1);
+    expect(log[1]['bowler'], 'B2');
+    expect(log[1]['balls'], ['6']);
+  });
+
+  test('all out shows as "45 all out"; no-tie rule sends a league tie to a super over', () {
+    final s = play([
+      start(11, 12, 21),
+      for (var k = 0; k < 5; k++) ...[
+        ball(0, wicket: {'how': 'BOWLED'}),
+        if (k < 4) ev('NEW_BATTER', {'id': 13 + k, 'position': 'STRIKER'})
+      ]
+    ]);
+    expect(s.innings.first.wickets, 5);
+    expect(s.scoreOf(s.innings.first), '0 all out');
+    expect((s.toJson()['innings'] as List).first['all_out'], true);
+    const noTie = CricketRules(overs: 1, playersPerSide: 6, oversPerBowler: 1, noTie: true);
+    final t = play(
+        [start(11, 12, 21), ball(1), ball(0), ball(0), ball(0), ball(0), ball(0), start(21, 22, 11), ball(1), ball(0), ball(0), ball(0), ball(0), ball(0)],
+        r: noTie);
+    expect(t.status, 'TIE_DECISION');
+    expect(CricketRules.fromJson({'no_tie': true}).noTie, true);
   });
 
   test('scoring after the match or before the innings is refused', () {

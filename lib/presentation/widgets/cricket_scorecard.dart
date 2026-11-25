@@ -68,7 +68,7 @@ class LiveScoreHeader extends StatelessWidget {
                     child: Text(teamName(i['batting_entry_id'] as int?),
                         style: tfStyle(i == shown && status != 'COMPLETED' ? 15 : 13.5, weight: FontWeight.w700, color: i == shown ? Colors.white : Colors.white.withAlpha(160))),
                   ),
-                  Text('${i['runs']}/${i['wickets']}',
+                  Text(i['all_out'] == true ? '${i['runs']} all out' : '${i['runs']}/${i['wickets']}',
                       style: tfStyle(i == shown && status != 'COMPLETED' ? 30 : 18, weight: FontWeight.w900, color: i == shown ? Colors.white : Colors.white.withAlpha(170))),
                   SizedBox(width: SizeConfig.w(6)),
                   Padding(
@@ -205,7 +205,7 @@ class Scorecard extends StatelessWidget {
               children: [
                 Row(children: [
                   Expanded(child: Text(teamName(i['batting_entry_id'] as int?), style: tfStyle(15, weight: FontWeight.w800))),
-                  Text('${i['runs']}/${i['wickets']} (${i['overs']})', style: tfStyle(15, weight: FontWeight.w900, color: AppColors.primary)),
+                  Text('${i['all_out'] == true ? '${i['runs']} all out' : '${i['runs']}/${i['wickets']}'} (${i['overs']})', style: tfStyle(15, weight: FontWeight.w900, color: AppColors.primary)),
                 ]),
                 gapH(10),
                 cells(['BATTING', 'R', 'B', '4s', '6s', 'SR'], style: head),

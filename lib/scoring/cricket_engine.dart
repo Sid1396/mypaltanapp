@@ -4,8 +4,8 @@
 // Result texts use {entryId} placeholders (e.g. "{12} won by 4 wickets"); callers swap in team names.
 //
 // A match is a list of events, applied in order:
-//   START_INNINGS {striker, non_striker, bowler}
-//   BALL          {runs, extra: NONE|WIDE|NO_BALL|BYE|LEG_BYE, boundary?, nb_byes?, wicket?: {how, out, fielder?}}
+//   START_INNINGS {striker, non_striker, bowler, overs?}  overs (first innings only): this match's overs when cut short
+//   BALL          {runs, extra: NONE|WIDE|NO_BALL|BYE|LEG_BYE, boundary?, nb_byes?, declared? (a run given without running: strike stays), wicket?: {how, out, fielder?}}
 //   NEW_BATTER    {id, position: STRIKER|NON_STRIKER}
 //   NEW_BOWLER    {id}
 //   SWAP_STRIKE   {}
@@ -32,6 +32,7 @@ class CricketRules {
   final bool freeHit;
   final bool lastManStands;
   final bool boxOut; // box cricket: the batter is out if the ball hits the roof
+  final bool noTie; // compulsory result: a tie in any match goes to a super over, not only in knockouts
 
   const CricketRules({
     required this.overs,
@@ -42,7 +43,21 @@ class CricketRules {
     this.freeHit = true,
     this.lastManStands = false,
     this.boxOut = false,
+    this.noTie = false,
   });
+
+  /// The same rules for a match cut to [n] overs (no bowler may bowl more than the whole innings).
+  CricketRules withOvers(int n) => CricketRules(
+        overs: n,
+        playersPerSide: playersPerSide,
+        oversPerBowler: oversPerBowler.clamp(1, n),
+        wideRuns: wideRuns,
+        noBallRuns: noBallRuns,
+        freeHit: freeHit,
+        lastManStands: lastManStands,
+        boxOut: boxOut,
+        noTie: noTie,
+      );
 
   /// Wickets that end an innings (with last man stands the last batter bats alone).
   int get allOutAt => lastManStands ? playersPerSide : playersPerSide - 1;
@@ -59,6 +74,7 @@ class CricketRules {
       freeHit: r['free_hit'] != false,
       lastManStands: r['last_man_stands'] == true || r['last_batter'] == true,
       boxOut: r['box_out'] == true,
+      noTie: r['no_tie'] == true,
     );
   }
 }
@@ -157,6 +173,7 @@ class Innings {
   final bowlers = <int, BowlerCard>{};
   final fallOfWickets = <Map<String, dynamic>>[];
   final log = <Map<String, dynamic>>[]; // ball-by-ball commentary
+  final overLog = <Map<String, dynamic>>[]; // per over: {over, bowler, balls: [symbols], runs, wickets}
   int? striker, nonStriker, bowler, lastOverBowler;
   List<String> thisOver = [];
   int overRunsByBowler = 0;
@@ -175,7 +192,7 @@ class Innings {
 
 class CricketState implements EngineState {
   final CricketSetup setup;
-  final CricketRules rules;
+  CricketRules rules; // the tournament's, with the overs this match was cut to (START_INNINGS overs)
   final innings = <Innings>[];
   int? winner;
   String? result;
@@ -192,6 +209,9 @@ class CricketState implements EngineState {
   }
 
   /// Wickets that end this innings: one batter is left (or none with last man stands).
+  /// "124/5", or "45 all out" once the side is bowled out.
+  String scoreOf(Innings i) => i.wickets >= allOutFor(i) ? '${i.runs} all out' : '${i.runs}/${i.wickets}';
+
   int allOutFor(Innings i) => rules.lastManStands ? sideSize(i.batting) : sideSize(i.batting) - 1;
 
   /// Wickets after which only the last batter is left.
@@ -254,8 +274,8 @@ class CricketState implements EngineState {
     }).toList();
   }
 
-  /// Most points when the match is over: 1 a run, 20 a wicket, 10 a catch / stumping / run out. Ties go to the
-  /// winning team, then more runs. Null when nobody earned points.
+  /// Most points on the winning team when the match is over (anyone's, when there is no winner): 1 a run, 20 a wicket,
+  /// 10 a catch / stumping / run out. Ties go to more runs. Null when nobody earned points.
   Map<String, dynamic>? playerOfMatch() {
     final runs = <int, int>{}, balls = <int, int>{}, notOut = <int, bool>{}, wkts = <int, int>{};
     for (final i in innings) {
@@ -277,13 +297,12 @@ class CricketState implements EngineState {
 
     final ids = {...runs.keys, ...wkts.keys, ...catches.keys, ...runOuts.keys};
     int points(int id) => (runs[id] ?? 0) + 20 * (wkts[id] ?? 0) + 10 * ((catches[id] ?? 0) + (runOuts[id] ?? 0));
-    final ranked = ids.where((id) => points(id) > 0).toList()
-      ..sort((a, b) {
-        final p = points(b).compareTo(points(a));
-        if (p != 0) return p;
-        final w = (teamOf(b) == winner ? 1 : 0).compareTo(teamOf(a) == winner ? 1 : 0);
-        return w != 0 ? w : (runs[b] ?? 0).compareTo(runs[a] ?? 0);
-      });
+    var ranked = ids.where((id) => points(id) > 0).toList();
+    if (winner != null && ranked.any((id) => teamOf(id) == winner)) ranked = ranked.where((id) => teamOf(id) == winner).toList();
+    ranked.sort((a, b) {
+      final p = points(b).compareTo(points(a));
+      return p != 0 ? p : (runs[b] ?? 0).compareTo(runs[a] ?? 0);
+    });
     if (ranked.isEmpty) return null;
     final id = ranked.first;
     String plural(int n, String w) => '$n $w${n == 1 ? '' : (w == 'catch' ? 'es' : 's')}';
@@ -314,7 +333,9 @@ class CricketState implements EngineState {
           'run_rate': i.legalBalls == 0 ? 0 : double.parse((i.runs * 6 / i.legalBalls).toStringAsFixed(2)),
           'batting': [for (final b in (i.batters.values.toList()..sort((a, b) => a.order.compareTo(b.order)))) b.toJson()],
           'bowling': [for (final b in i.bowlers.values) b.toJson()],
+          'all_out': i.wickets >= allOutFor(i),
           'fall_of_wickets': i.fallOfWickets,
+          'over_log': i.overLog,
           'yet_to_bat': [
             for (final p in playersOf(i.batting))
               if (!i.batters.containsKey(p.id)) p.name
@@ -331,11 +352,10 @@ class CricketState implements EngineState {
       if (finished) 'potm': playerOfMatch(),
       // What the points table needs. For net run rate, a team bowled out counts as having faced its full overs.
       'standing': [
-        for (final i in innings)
-          {'batting': i.batting, 'runs': i.runs, 'balls': i.wickets >= allOutFor(i) ? rules.overs * 6 : i.legalBalls}
+        for (final i in innings) {'batting': i.batting, 'runs': i.runs, 'balls': i.wickets >= allOutFor(i) ? rules.overs * 6 : i.legalBalls}
       ],
       // Short scores for lists, e.g. {"12": "124/5 (12.3)"}.
-      'summary': {for (final i in innings) '${i.batting}': '${i.runs}/${i.wickets} (${i.overs})'},
+      'summary': {for (final i in innings) '${i.batting}': '${scoreOf(i)} (${i.overs})'},
     };
     if (c != null && !c.complete && !finished) {
       final ballsLeft = rules.overs * 6 - c.legalBalls;
@@ -344,7 +364,8 @@ class CricketState implements EngineState {
         'innings': c.no,
         'striker': c.striker == null ? null : c.batters[c.striker]!.toJson(),
         'non_striker': c.nonStriker == null ? null : c.batters[c.nonStriker]!.toJson(),
-        'bowler': c.bowler == null ? null : c.bowlers[c.bowler]?.toJson() ?? {'id': c.bowler, 'name': nameOf(c.bowler!), 'overs': '0.0', 'runs': 0, 'wickets': 0},
+        'bowler':
+            c.bowler == null ? null : c.bowlers[c.bowler]?.toJson() ?? {'id': c.bowler, 'name': nameOf(c.bowler!), 'overs': '0.0', 'runs': 0, 'wickets': 0},
         'this_over': c.thisOver,
         'free_hit': c.freeHit,
         'partnership': {'runs': c.partnershipRuns, 'balls': c.partnershipBalls},
@@ -401,7 +422,7 @@ class CricketEngine {
     final d = e.data;
     switch (e.type) {
       case 'START_INNINGS':
-        return _startInnings(s, _i(d, 'striker'), _i(d, 'non_striker'), _i(d, 'bowler'));
+        return _startInnings(s, _i(d, 'striker'), _i(d, 'non_striker'), _i(d, 'bowler'), overs: d['overs']);
       case 'BALL':
         return _ball(s, d);
       case 'NEW_BATTER':
@@ -446,10 +467,16 @@ class CricketEngine {
     return c;
   }
 
-  static void _startInnings(CricketState s, int striker, int nonStriker, int bowler) {
+  static void _startInnings(CricketState s, int striker, int nonStriker, int bowler, {Object? overs}) {
     if (s.finished || s.tieNeedsDecision) throw const ScoringError('The match is over.');
     if (s.innings.length >= 2) throw const ScoringError('Both innings have been played.');
     if (s.current != null && !s.current!.complete) throw const ScoringError('The current innings is still going on.');
+    // Overs for this match (e.g. 4 cut to 3 when short of time), set before the first ball; both innings use it.
+    if (overs != null && s.innings.isEmpty) {
+      final n = overs is num ? overs.toInt() : int.tryParse('$overs');
+      if (n == null || n < 1 || n > 50) throw const ScoringError('Overs must be between 1 and 50.');
+      if (n != s.rules.overs) s.rules = s.rules.withOvers(n);
+    }
     final batting = s.innings.isEmpty ? s.setup.firstBatting : s.setup.other(s.innings.first.batting);
     final bowling = s.setup.other(batting);
     final ids = {for (final p in s.playersOf(batting)) p.id};
@@ -542,14 +569,17 @@ class CricketEngine {
     if (w != null) {
       if (!const {'BOWLED', 'CAUGHT', 'LBW', 'RUN_OUT', 'STUMPED', 'HIT_WICKET', 'BOX_OUT'}.contains(how)) throw const ScoringError('Unknown way out.');
       if (how == 'BOX_OUT' && !s.rules.boxOut) throw const ScoringError('Box out is not on for this match.');
-      if (extra == 'NO_BALL' && how != 'RUN_OUT') throw const ScoringError('On a no-ball a batter can only be run out.');
+      if (extra == 'NO_BALL' && !const {'RUN_OUT', 'STUMPED', 'BOX_OUT'}.contains(how)) {
+        throw const ScoringError('On a no-ball a batter can only be run out, stumped or box out.');
+      }
       if (extra == 'WIDE' && how != 'RUN_OUT' && how != 'STUMPED') throw const ScoringError('On a wide a batter can only be run out or stumped.');
       if (wasFreeHit && how != 'RUN_OUT') throw const ScoringError('On a free hit a batter can only be run out.');
     }
     final bowler = c.bowlers[c.bowler]!;
     final bat = c.batters[striker]!;
     final over = '${c.legalBalls ~/ 6}.${c.legalBalls % 6 + 1}'; // e.g. 3.4 (extras repeat the ball number)
-    final legal = extra != 'WIDE' && extra != 'NO_BALL';
+    // A wide or no-ball is bowled again, except a no-ball a batter is run out off: that counts as a ball of the over.
+    final legal = (extra != 'WIDE' && extra != 'NO_BALL') || (extra == 'NO_BALL' && how == 'RUN_OUT');
     var total = runs;
     var charged = 0; // runs against the bowler
     switch (extra) {
@@ -603,11 +633,20 @@ class CricketEngine {
       c.freeHit = false;
     }
 
-    final symbol = _symbol(extra, runs, total, w != null, d['boundary'] == true);
+    final declared = d['declared'] == true && extra == 'NONE';
+    final symbol = declared ? '${runs}D' : _symbol(extra, runs, total, w != null, d['boundary'] == true);
     c.thisOver = [...c.thisOver, symbol];
+    final overNo = (legal ? c.legalBalls - 1 : c.legalBalls) ~/ 6 + 1;
+    if (c.overLog.isEmpty || c.overLog.last['over'] != overNo) {
+      c.overLog.add({'over': overNo, 'bowler': bowler.name, 'balls': <String>[], 'runs': 0, 'wickets': 0});
+    }
+    final ol = c.overLog.last;
+    (ol['balls'] as List<String>).add(symbol);
+    ol['runs'] = (ol['runs'] as int) + total;
+    if (w != null) ol['wickets'] = (ol['wickets'] as int) + 1;
 
-    // Odd runs completed between the wickets change ends.
-    if (runs.isOdd && c.nonStriker != null) {
+    // Odd runs completed between the wickets change ends (not a declared run: the batters didn't run).
+    if (runs.isOdd && !declared && c.nonStriker != null) {
       final t = c.striker;
       c.striker = c.nonStriker;
       c.nonStriker = t;
@@ -629,7 +668,8 @@ class CricketEngine {
         'BOX_OUT' => 'box out b ${bowler.name}',
         _ => 'run out${fielder == null ? '' : ' ($fielder)'}',
       };
-      if (_bowlerWickets.contains(how)) bowler.wickets++;
+      // Stumped off a wide is the bowler's wicket, stumped off a no-ball is not.
+      if (_bowlerWickets.contains(how) && !(extra == 'NO_BALL' && how == 'STUMPED')) bowler.wickets++;
       final fid = w['fielder'] is num ? (w['fielder'] as num).toInt() : (how == 'CAUGHT' ? bowler.id : null);
       if (fid != null && how == 'CAUGHT') s.catches[fid] = (s.catches[fid] ?? 0) + 1;
       if (fid != null && (how == 'STUMPED' || how == 'RUN_OUT')) s.runOuts[fid] = (s.runOuts[fid] ?? 0) + 1;
@@ -750,7 +790,7 @@ class CricketEngine {
       s.finished = true;
       s.outcome = 'WIN';
     } else if (second.runs == target - 1) {
-      if (s.setup.knockout) {
+      if (s.setup.knockout || s.rules.noTie) {
         s.tieNeedsDecision = true;
         s.result = 'Scores level. Play a super over and record the winner.';
       } else {

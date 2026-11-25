@@ -24,7 +24,7 @@
           "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
         }
       },
-      "webhookId": "1e579000-8bbd-4bd8-86d7-a969dd2270bb"
+      "webhookId": "1db48432-f379-4086-957e-88c5fbed2195"
     },
     {
       "id": "30a0ee04-dd98-4538-b0b6-ea7da3d7a594",
@@ -36,7 +36,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 3000) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\nconst count = () => { store.hits[ip] = [...mine, now]; };\n\n// Serve a fresh copy for 20 seconds so many parents refreshing at once don't each hit the database.\nconst cache = $getWorkflowStaticData('global');\nconst key = 'm:' + String(($in.query || {}).slug || '') + ':' + String(($in.query || {}).id || '');\nconst hit = (cache.c || {})[key];\nif (hit && Date.now() - hit.at < 20000) return [{ json: { ok: false, status: 200, body: hit.body } }];\n\nconst q = $in.query || {};\nconst slug = String(q.slug || '').toLowerCase(), id = Number(q.id);\nif (!/^[a-z0-9-]{2,40}$/.test(slug) || !(Number.isInteger(id) && id > 0)) return [{ json: { ok: false, status: 404, body: { success: false, message: 'Match not found.' } } }];\ncount();\nreturn [{ json: { ok: true, phone: '', id, slug, light: false, _q: { slug, id } } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst h = $in.headers || {};\nconst ip = String(h['x-real-ip'] || String(h['x-forwarded-for'] || '').split(',')[0] || 'unknown').trim();\nconst store = $getWorkflowStaticData('global');\nconst now = Date.now();\nstore.hits = Object.fromEntries(Object.entries(store.hits || {}).map(([k, v]) => [k, v.filter(t => now - t < 3600e3)]).filter(([, v]) => v.length));\nconst mine = store.hits[ip] || [];\nif (mine.length >= 3000) return [{ json: { ok: false, status: 429, body: { success: false, message: 'Too many attempts from this network. Please try again in an hour.' } } }];\nconst count = () => { store.hits[ip] = [...mine, now]; };\n\n// Automatic refreshes share one copy for 5 seconds so a crowd watching doesn't each hit the database.\n// A page load or manual refresh sends fresh=1 and always reads the latest score (still rate limited).\nconst cache = $getWorkflowStaticData('global');\nconst key = 'm:' + String(($in.query || {}).slug || '') + ':' + String(($in.query || {}).id || '');\nconst hit = (cache.c || {})[key];\nif (hit && Date.now() - hit.at < 5000 && String(($in.query || {}).fresh || '') !== '1') return [{ json: { ok: false, status: 200, body: hit.body } }];\n\nconst q = $in.query || {};\nconst slug = String(q.slug || '').toLowerCase(), id = Number(q.id);\nif (!/^[a-z0-9-]{2,40}$/.test(slug) || !(Number.isInteger(id) && id > 0)) return [{ json: { ok: false, status: 404, body: { success: false, message: 'Match not found.' } } }];\ncount();\nreturn [{ json: { ok: true, phone: '', id, slug, light: false, _q: { slug, id } } }];"
       }
     },
     {
@@ -245,7 +245,7 @@
       }
     },
     {
-      "id": "8fe26126-1396-43d9-a0f9-fd7201bf8e0b",
+      "id": "2ed263e0-7c2b-4177-977a-f1bcf443ae6c",
       "name": "Public Filter",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

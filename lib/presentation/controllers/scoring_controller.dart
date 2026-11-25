@@ -35,6 +35,7 @@ class ScoringController extends GetxController with LoggerMixin {
 
   // Picks on the "start innings" panel.
   final startStriker = Rx<int?>(null);
+  final startOvers = Rx<int?>(null); // overs for this match, picked before the first ball (null: the tournament's)
   final startNonStriker = Rx<int?>(null);
   final startBowler = Rx<int?>(null);
   Timer? _retry;
@@ -156,8 +157,12 @@ class ScoringController extends GetxController with LoggerMixin {
     return true;
   }
 
-  void startInnings(int striker, int nonStriker, int bowler) => add('START_INNINGS', {'striker': striker, 'non_striker': nonStriker, 'bowler': bowler});
+  void startInnings(int striker, int nonStriker, int bowler, {int? overs}) =>
+      add('START_INNINGS', {'striker': striker, 'non_striker': nonStriker, 'bowler': bowler, if (overs != null) 'overs': overs});
   void runs(int r, {bool boundary = false}) => add('BALL', {'runs': r, 'extra': 'NONE', if (boundary) 'boundary': true});
+
+  /// A declared run ("1D"): the batter's run and a ball, but the batters stay at their ends.
+  void declared(int r) => add('BALL', {'runs': r, 'extra': 'NONE', 'declared': true});
   void extra(String type, int r, {bool nbByes = false, bool boundary = false}) =>
       add('BALL', {'runs': r, 'extra': type, if (nbByes) 'nb_byes': true, if (boundary) 'boundary': true});
   bool wicket(String how, int outId, {int? fielder, int runs = 0, String extraType = 'NONE'}) => add('BALL', {

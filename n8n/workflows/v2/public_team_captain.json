@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "a8ad310c-b3e8-4b65-bd44-16de7c213f84",
-      "webhookId": "ba029cb3-efe7-47d9-bdcb-23a476d4f57a"
+      "id": "b24cb57a-f468-456d-b429-914bbf051489",
+      "webhookId": "fd280619-e0f0-4e88-8e07-47241b4402b7"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "3423806a-5273-400a-9997-4bd93faad44b"
+      "id": "60ff8cf7-c30b-40c2-a7a3-8c64238c2b2a"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "a75363b1-dafc-4d12-8111-30304fbee898",
+              "id": "f5acd712-f272-4fa1-b35e-fa8ab9e8241b",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,12 +67,12 @@
         440,
         0
       ],
-      "id": "a2a43b86-bead-4ca4-8f3c-3eaf8e98a65c"
+      "id": "93656719-e9bd-4897-a11b-5d9b4273e5f1"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT e.id AS eid, e.status AS estatus, t.id AS tid, t.code AS tcode, t.name AS tname, t.status AS tstatus, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, (t.start_date <= DATE(CONVERT_TZ(NOW(), '+00:00', '+05:30'))) AS started, tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, d.name AS dname, d.min_age, d.max_age, d.squad_max, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', x.id, 'name', au.name, 'phone', au.phone, 'age', TIMESTAMPDIFF(YEAR, au.birthdate, t.start_date), 'role', x.role, 'position', x.position, 'jersey_name', COALESCE(x.jersey_name, au.jersey_name), 'jersey_number', COALESCE(x.jersey_number, au.jersey_number), 'jersey_size', au.jersey_size, 'status', x.status, 'in_squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = x.id), 'joined', DATE_FORMAT(CONVERT_TZ(x.joined_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM team_members x JOIN app_users au ON au.id = x.user_id WHERE x.team_id = tm.id AND x.status IN ('ACTIVE', 'PENDING') AND x.role <> 'COACH') AS members, g.id AS tgt_id, g.status AS tgt_status, g.user_id AS tgt_user, gu.name AS tgt_name, TIMESTAMPDIFF(YEAR, gu.birthdate, t.start_date) AS tgt_age, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = g.id) AS tgt_in_squad, (SELECT ot.name FROM tournament_entry_players ep JOIN tournament_entries oe ON oe.id = ep.entry_id JOIN teams ot ON ot.id = oe.team_id  WHERE ep.tournament_id = t.id AND ep.user_id = g.user_id AND oe.id <> e.id LIMIT 1) AS tgt_other_team FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN team_members g ON g.id = $2 AND g.team_id = tm.id LEFT JOIN app_users gu ON gu.id = g.user_id WHERE e.manage_key_hash = $1 LIMIT 1",
+        "query": "SELECT e.id AS eid, e.status AS estatus, t.id AS tid, t.code AS tcode, t.name AS tname, t.status AS tstatus, DATE_FORMAT(t.start_date, '%Y-%m-%d') AS start_date, (t.start_date <= DATE(CONVERT_TZ(NOW(), '+00:00', '+05:30'))) AS started, tm.id AS team_id, tm.code AS team_code, tm.name AS team_name, d.name AS dname, d.min_age, d.max_age, d.squad_max, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id) AS squad_count, (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', x.id, 'name', au.name, 'phone', au.phone, 'age', TIMESTAMPDIFF(YEAR, au.birthdate, t.start_date), 'role', x.role, 'position', x.position, 'jersey_name', COALESCE(x.jersey_name, au.jersey_name), 'jersey_number', COALESCE(x.jersey_number, au.jersey_number), 'jersey_size', au.jersey_size, 'food_pref', au.food_pref, 'photo_key', au.photo_key, 'status', x.status, 'in_squad', (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = x.id), 'joined', DATE_FORMAT(CONVERT_TZ(x.joined_at, '+00:00', '+05:30'), '%e %b, %l:%i %p'))) FROM team_members x JOIN app_users au ON au.id = x.user_id WHERE x.team_id = tm.id AND x.status IN ('ACTIVE', 'PENDING') AND x.role <> 'COACH') AS members, g.id AS tgt_id, g.status AS tgt_status, g.user_id AS tgt_user, gu.name AS tgt_name, TIMESTAMPDIFF(YEAR, gu.birthdate, t.start_date) AS tgt_age, (SELECT COUNT(*) FROM tournament_entry_players ep WHERE ep.entry_id = e.id AND ep.team_member_id = g.id) AS tgt_in_squad, (SELECT ot.name FROM tournament_entry_players ep JOIN tournament_entries oe ON oe.id = ep.entry_id JOIN teams ot ON ot.id = oe.team_id  WHERE ep.tournament_id = t.id AND ep.user_id = g.user_id AND oe.id <> e.id LIMIT 1) AS tgt_other_team FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id JOIN teams tm ON tm.id = e.team_id LEFT JOIN tournament_divisions d ON d.id = e.division_id LEFT JOIN team_members g ON g.id = $2 AND g.team_id = tm.id LEFT JOIN app_users gu ON gu.id = g.user_id WHERE e.manage_key_hash = $1 LIMIT 1",
         "options": {
           "queryReplacement": "={{ [$json.hash, $json.member || 0] }}"
         }
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "e7cdfbe9-7bd9-40f1-bc26-5648040a8efc",
+      "id": "9d25178b-590a-4d7f-b0c8-56735ab4916b",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nif (!s.eid) return fail('This captain link is not valid. Ask the organiser for the right link.', 404);\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nif (r.action === 'LOAD') {\n  const members = (parse(s.members) || []).map(m => ({ ...m, in_squad: Number(m.in_squad) === 1 }))\n    .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'PENDING' ? -1 : 1));\n  return [{ json: { ok: false, status: 200, body: { success: true,\n    tournament: { code: s.tcode, name: s.tname, start_date: s.start_date, started: Number(s.started) === 1 },\n    team: { code: s.team_code, name: s.team_name, division: s.dname, squad_max: s.squad_max == null ? null : Number(s.squad_max), squad_count: Number(s.squad_count) },\n    members } } }];\n}\nif (s.estatus !== 'APPROVED') return fail(`${s.team_name} is not in ${s.tname} any more, so the squad can't be changed.`, 409);\nif (Number(s.started) === 1 || ['COMPLETED', 'CANCELLED'].includes(s.tstatus)) return fail('The tournament has started, so the squad can no longer be changed. Contact the organiser.', 409);\nif (!s.tgt_id || !s.tgt_user) return fail('That player is no longer in the list. Refresh the page.', 404);\nconst first = String(s.tgt_name || 'This player').split(' ')[0];\nconst p = [], st = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nlet message;\nif (r.action === 'APPROVE') {\n  if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad.`, 409);\n  if (s.tgt_other_team) return fail(`${first} is already in ${s.tgt_other_team} for this tournament. Decline the request.`, 409);\n  const age = s.tgt_age == null ? null : Number(s.tgt_age);\n  if (age != null && s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on the first day, too old for ${s.dname}.`);\n  if (age != null && s.min_age != null && age < s.min_age) return fail(`${first} will be ${age} on the first day, too young for ${s.dname}.`);\n  if (s.squad_max != null && Number(s.squad_count) >= Number(s.squad_max)) return fail(`The squad is full (${s.squad_max} players). Remove someone first.`, 409);\n  st.push(`UPDATE team_members SET status = 'ACTIVE' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n  st.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, food_pref, jersey_name, jersey_number, jersey_size) ` +\n    `SELECT ${add(s.eid)}, ${add(s.tid)}, m.id, u.id, u.food_pref, COALESCE(m.jersey_name, u.jersey_name), COALESCE(m.jersey_number, u.jersey_number), u.jersey_size ` +\n    `FROM team_members m JOIN app_users u ON u.id = m.user_id WHERE m.id = ${add(s.tgt_id)}`);\n  message = `${first} is in the squad.`;\n} else if (r.action === 'REJECT') {\n  if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad. Use Remove instead.`, 409);\n  st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n  message = `${first}'s request was declined.`;\n} else {\n  if (s.tgt_status !== 'ACTIVE') return fail(`${first} is not in the squad.`, 409);\n  st.push(`DELETE FROM tournament_entry_players WHERE entry_id = ${add(s.eid)} AND team_member_id = ${add(s.tgt_id)}`);\n  st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)}`);\n  message = `${first} was removed from the squad.`;\n}\nreturn [{ json: { ok: true, sql: st.join('; '), params: p, message } }];"
+        "jsCode": "const $in = $input.first().json;\n\nconst s = $in, r = $('Check Request').first().json;\nconst fail = (m, status = 422) => [{ json: { ok: false, status, body: { success: false, message: m } } }];\nif (!s.eid) return fail('This captain link is not valid. Ask the organiser for the right link.', 404);\nconst parse = v => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\nif (r.action === 'LOAD') {\n  const members = (parse(s.members) || []).map(m => ({ ...m, in_squad: Number(m.in_squad) === 1 }))\n    .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === 'PENDING' ? -1 : 1));\n  return [{ json: { ok: true, mode: 'LOAD', data: {\n    tournament: { code: s.tcode, name: s.tname, start_date: s.start_date, started: Number(s.started) === 1 },\n    team: { code: s.team_code, name: s.team_name, division: s.dname, squad_max: s.squad_max == null ? null : Number(s.squad_max), squad_count: Number(s.squad_count) },\n    members } } }];\n}\nif (s.estatus !== 'APPROVED') return fail(`${s.team_name} is not in ${s.tname} any more, so the squad can't be changed.`, 409);\nif (Number(s.started) === 1 || ['COMPLETED', 'CANCELLED'].includes(s.tstatus)) return fail('The tournament has started, so the squad can no longer be changed. Contact the organiser.', 409);\nif (!s.tgt_id || !s.tgt_user) return fail('That player is no longer in the list. Refresh the page.', 404);\nconst first = String(s.tgt_name || 'This player').split(' ')[0];\nconst p = [], st = [];\nconst add = v => { p.push(v); return '$' + p.length; };\nlet message;\nif (r.action === 'APPROVE') {\n  if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad.`, 409);\n  if (s.tgt_other_team) return fail(`${first} is already in ${s.tgt_other_team} for this tournament. Decline the request.`, 409);\n  const age = s.tgt_age == null ? null : Number(s.tgt_age);\n  if (age != null && s.max_age != null && age > s.max_age) return fail(`${first} will be ${age} on the first day, too old for ${s.dname}.`);\n  if (age != null && s.min_age != null && age < s.min_age) return fail(`${first} will be ${age} on the first day, too young for ${s.dname}.`);\n  if (s.squad_max != null && Number(s.squad_count) >= Number(s.squad_max)) return fail(`The squad is full (${s.squad_max} players). Remove someone first.`, 409);\n  st.push(`UPDATE team_members SET status = 'ACTIVE' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n  st.push(`INSERT INTO tournament_entry_players (entry_id, tournament_id, team_member_id, user_id, food_pref, jersey_name, jersey_number, jersey_size) ` +\n    `SELECT ${add(s.eid)}, ${add(s.tid)}, m.id, u.id, u.food_pref, COALESCE(m.jersey_name, u.jersey_name), COALESCE(m.jersey_number, u.jersey_number), u.jersey_size ` +\n    `FROM team_members m JOIN app_users u ON u.id = m.user_id WHERE m.id = ${add(s.tgt_id)}`);\n  message = `${first} is in the squad.`;\n} else if (r.action === 'REJECT') {\n  if (s.tgt_status !== 'PENDING') return fail(`${first} is already in the squad. Use Remove instead.`, 409);\n  st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)} AND status = 'PENDING'`);\n  message = `${first}'s request was declined.`;\n} else {\n  if (s.tgt_status !== 'ACTIVE') return fail(`${first} is not in the squad.`, 409);\n  st.push(`DELETE FROM tournament_entry_players WHERE entry_id = ${add(s.eid)} AND team_member_id = ${add(s.tgt_id)}`);\n  st.push(`UPDATE team_members SET status = 'REMOVED' WHERE id = ${add(s.tgt_id)}`);\n  message = `${first} was removed from the squad.`;\n}\nreturn [{ json: { ok: true, mode: 'RUN', sql: st.join('; '), params: p, message } }];"
       },
       "name": "Plan",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "96e8b633-867b-4591-87a6-59e91d71637f"
+      "id": "dbdc2ca6-c545-4175-b89f-554e388892f1"
     },
     {
       "parameters": {
@@ -117,7 +117,7 @@
           },
           "conditions": [
             {
-              "id": "a22d5a1e-f79f-4e9e-83ae-965560c8841e",
+              "id": "69a1678f-c0f0-477a-a2c3-b46e93746d20",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -138,7 +138,124 @@
         1100,
         -100
       ],
-      "id": "b389e57a-d96f-4935-96d9-fb1539754094"
+      "id": "22661932-ec2f-449b-9a72-2963d9bb32b7"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5c26e995-6858-48a5-a885-0eccea943f5b",
+              "leftValue": "={{ $json.mode === 'LOAD' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Load?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1210,
+        -100
+      ],
+      "id": "3027d3a9-1b2e-4aca-bffc-24fec5d19451"
+    },
+    {
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nreturn $input.all().map(i => ({ json: { ...i.json, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: i.binary }));"
+      },
+      "name": "B2 Load Credentials",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -500
+      ],
+      "id": "d4ec708f-f28c-4721-b197-1ac2d3fd2923"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.backblazeb2.com/b2api/v4/b2_authorize_account",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.basicAuth }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Authorize B2 Load",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        -500
+      ],
+      "id": "85f13de3-23bf-4475-a5cb-ac887b3d54e8",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Authorize B2 Load').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_download_authorization",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2 Load').first().json.authorizationToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ bucketId: '57d8ff72a9534e199bf30918', fileNamePrefix: 'profile_photos/', validDurationInSeconds: 3600 }) }}"
+      },
+      "name": "Photos Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        -500
+      ],
+      "id": "d582e65c-7a23-4df7-a3e7-a313bd8ba561",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst d = $('Plan').first().json.data;\nconst b2 = $('Authorize B2 Load').first().json, t = $in.authorizationToken;\nconst dl = b2 && b2.apiInfo ? b2.apiInfo.storageApi.downloadUrl : null;\nconst sign = k => k && dl && t && k.startsWith('profile_photos/') ? `${dl}/file/mypaltan-profile-photos/${k.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null;\nconst members = d.members.map(({ photo_key, ...m }) => ({ ...m, photo_url: sign(photo_key) }));\nreturn [{ json: { status: 200, body: { success: true, ...d, members } } }];"
+      },
+      "name": "Build Load",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        -500
+      ],
+      "id": "3ac30566-4836-42b4-b3ff-ee8aecc57020"
     },
     {
       "parameters": {
@@ -155,7 +272,7 @@
         1320,
         -200
       ],
-      "id": "380bc869-eeeb-4a59-86c6-c12336f1de4a",
+      "id": "15004494-0db2-48e7-8b39-7fb582eba037",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -175,7 +292,7 @@
         1540,
         -200
       ],
-      "id": "8562b4a6-5420-4962-b251-565b26967fa4"
+      "id": "dc61ce85-abaa-4e33-b5cf-79f19f53f4d1"
     },
     {
       "parameters": {
@@ -192,7 +309,7 @@
         1760,
         0
       ],
-      "id": "24371ba6-0078-4ec9-8976-ceac7840057f"
+      "id": "1227f687-f5cd-4616-b60c-d66b54a43657"
     }
   ],
   "connections": {
@@ -262,11 +379,73 @@
       "main": [
         [
           {
-            "node": "Save",
+            "node": "Load?",
             "type": "main",
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load?": {
+      "main": [
+        [
+          {
+            "node": "B2 Load Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Load Credentials": {
+      "main": [
+        [
+          {
+            "node": "Authorize B2 Load",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorize B2 Load": {
+      "main": [
+        [
+          {
+            "node": "Photos Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photos Link": {
+      "main": [
+        [
+          {
+            "node": "Build Load",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Load": {
+      "main": [
         [
           {
             "node": "Respond",
