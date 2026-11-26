@@ -101,8 +101,8 @@ return [{ json: { ok: true, phone: '', code: slug, slug, _q: { slug } } }];"""
 
 WEB_TOURNAMENT = "WHERE t.id = (SELECT l.tournament_id FROM tournament_web_links l WHERE l.slug = $2) AND t.status <> 'DRAFT'"
 
-# Cricket Player of the Series (app and website): the app's player-of-the-match points over every match, 1 a run, 20 a
-# wicket, 10 a catch / stumping / run out; ties go to more runs, then more wickets. Catches and run outs aren't in the
+# Cricket Player of the Series (app and website): the app's player-of-the-match points (formula E) over the whole
+# tournament, with par = the division's runs per legal ball; ties go to more runs, then more wickets. Catches and run outs aren't in the
 # scorecards, so they come from the match events (replayed with UNDO, as the app does).
 SERIES_SQL = (
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('m', ev.match_id, 'd', xm.division_id, 's', ev.seq, 'type', ev.type, 'data', ev.data)) "
@@ -147,9 +147,14 @@ function seriesOf(div, players, leaders, done) {
     byId.set(id, { division_id: div, member_id: id, name: m.name || 'Player', entry_id: m.entry ?? null, runs: 0, wickets: 0 });
   }
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : w === 'catch' ? 'es' : 's'}`;
+  const balls = players.reduce((s, p) => s + (p.legal_balls || 0), 0);
+  const par = balls ? players.reduce((s, p) => s + (p.runs_conceded || 0), 0) / balls : 2;
   const rows = [...byId.values()].map(p => {
     const f = fielding.get(`${div}:${p.member_id}`) || { catches: 0, run_outs: 0 };
-    const points = (p.runs || 0) + 20 * (p.wickets || 0) + 10 * (f.catches + f.run_outs);
+    // Formula E (as the app's Player of the Match), par = the division's runs per legal ball.
+    const bat = p.innings ? (p.runs || 0) + 0.25 * ((p.runs || 0) - (p.balls || 0) * par) : 0;
+    const bowl = 4 * (p.wickets || 0) + (p.legal_balls ? 0.75 * (p.legal_balls * par - (p.runs_conceded || 0)) : 0);
+    const points = Math.round(bat + bowl + f.catches + f.run_outs);
     const reason = [p.innings && (p.runs || !p.wickets) ? `${p.runs} runs` : null, p.wickets ? plural(p.wickets, 'wicket') : null,
       f.catches ? plural(f.catches, 'catch') : null, f.run_outs ? plural(f.run_outs, 'run out') : null].filter(Boolean).join(' · ');
     return { member_id: p.member_id, name: p.name, entry_id: p.entry_id, runs: p.runs || 0, wickets: p.wickets || 0,

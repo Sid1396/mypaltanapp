@@ -384,7 +384,25 @@ void main() {
     final p2 = s2.toJson()['potm'] as Map;
     expect(s2.winner, 1);
     expect(p2['name'], 'A1');
-    expect(p2['points'], 10);
+    expect(p2['points'], 12); // formula E: 10 runs + a quarter of the 7.5 above par (10 runs in 12 balls) for 10 off 3
+  });
+
+  test('player of the match, formula E: a fast match-winning innings beats three wickets', () {
+    MatchEvent bowled(int id) => ball(0, wicket: {'how': 'BOWLED', 'out': id});
+    const one = CricketRules(overs: 1, playersPerSide: 6, oversPerBowler: 1);
+    // A1 makes 24 off 6; A2 then takes 3 wickets for 3. The old 20-a-wicket points gave it to A2 (60 vs 24).
+    final s = play([
+      start(11, 12, 21),
+      ball(6), ball(6), ball(6), ball(6), ball(0), ball(0),
+      start(21, 22, 12),
+      ball(1), bowled(22), ev('NEW_BATTER', {'id': 23}), ball(1), bowled(21), ev('NEW_BATTER', {'id': 24}), ball(1), bowled(23),
+    ], r: one);
+    expect(s.finished, true);
+    expect(s.winner, 1);
+    final potm = s.toJson()['potm'] as Map;
+    // Par is 27 runs in 12 balls: A1 24 + ¼ × (24 − 13.5) ≈ 27; A2 4 × 3 + ¾ × (13.5 − 3) ≈ 20.
+    expect(potm['name'], 'A1');
+    expect(potm['points'], 27);
   });
 
   test('box out: only when the match has it on; the bowler\'s wicket, like bowled', () {

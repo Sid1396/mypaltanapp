@@ -275,10 +275,14 @@ class CricketState implements EngineState {
     }).toList();
   }
 
-  /// Most points on the winning team when the match is over (anyone's, when there is no winner): 1 a run, 20 a wicket,
-  /// 10 a catch / stumping / run out. Ties go to more runs. Null when nobody earned points.
+  /// Most points on the winning team when the match is over (anyone's, when there is no winner). Formula E, fitted to
+  /// CricHeroes' MVP on VPL S7: runs + ¼ × (runs − balls × par) + 4 a wicket + ¾ × (balls bowled × par − runs conceded)
+  /// + 1 a catch / stumping / run out, where par is this match's runs per legal ball. Ties go to more runs. Null when
+  /// nobody earned points.
   Map<String, dynamic>? playerOfMatch() {
     final runs = <int, int>{}, balls = <int, int>{}, notOut = <int, bool>{}, wkts = <int, int>{};
+    final bowled = <int, int>{}, conceded = <int, int>{};
+    var totalRuns = 0, totalBalls = 0;
     for (final i in innings) {
       for (final b in i.batters.values) {
         runs[b.id] = (runs[b.id] ?? 0) + b.runs;
@@ -287,7 +291,11 @@ class CricketState implements EngineState {
       }
       for (final b in i.bowlers.values) {
         wkts[b.id] = (wkts[b.id] ?? 0) + b.wickets;
+        bowled[b.id] = (bowled[b.id] ?? 0) + b.legalBalls;
+        conceded[b.id] = (conceded[b.id] ?? 0) + b.runs;
       }
+      totalRuns += i.runs;
+      totalBalls += i.legalBalls;
     }
     int? teamOf(int id) {
       for (final e in setup.players.entries) {
@@ -297,11 +305,19 @@ class CricketState implements EngineState {
     }
 
     final ids = {...runs.keys, ...wkts.keys, ...catches.keys, ...runOuts.keys};
-    int points(int id) => (runs[id] ?? 0) + 20 * (wkts[id] ?? 0) + 10 * ((catches[id] ?? 0) + (runOuts[id] ?? 0));
-    var ranked = ids.where((id) => points(id) > 0).toList();
+    final par = totalBalls > 0 ? totalRuns / totalBalls : 2.0;
+    double score(int id) {
+      final r = runs[id] ?? 0, bb = bowled[id] ?? 0;
+      final bat = balls.containsKey(id) ? r + 0.25 * (r - (balls[id] ?? 0) * par) : 0.0;
+      final bowl = bb > 0 ? 4 * (wkts[id] ?? 0) + 0.75 * (bb * par - (conceded[id] ?? 0)) : 4.0 * (wkts[id] ?? 0);
+      return bat + bowl + (catches[id] ?? 0) + (runOuts[id] ?? 0);
+    }
+
+    int points(int id) => score(id).round();
+    var ranked = ids.where((id) => score(id) > 0).toList();
     if (winner != null && ranked.any((id) => teamOf(id) == winner)) ranked = ranked.where((id) => teamOf(id) == winner).toList();
     ranked.sort((a, b) {
-      final p = points(b).compareTo(points(a));
+      final p = score(b).compareTo(score(a));
       return p != 0 ? p : (runs[b] ?? 0).compareTo(runs[a] ?? 0);
     });
     if (ranked.isEmpty) return null;
