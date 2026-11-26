@@ -12,6 +12,7 @@ import '../widgets/home_widgets.dart';
 import '../../data/models/team.dart';
 import '../widgets/create_tournament_steps.dart' show fmtDateTime;
 import 'my_teams_page.dart' show showJoinTeamWithCode, TeamListCard;
+import 'rankings_page.dart' show PlayerAvatar;
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -413,7 +414,7 @@ class _StatsSnapshot extends StatelessWidget {
   }
 }
 
-/// One player on the Home leaderboard: rank, photo, name, area and their numbers. Tap for the full rankings.
+/// One player on the Home leaderboard: rank, photo, name, area and their numbers. Tap for the player's stats.
 class _LeaderCard extends StatelessWidget {
   final Map<String, dynamic> r;
   final bool cricket;
@@ -425,12 +426,11 @@ class _LeaderCard extends StatelessWidget {
     final rank = (r['rank'] as num?)?.toInt() ?? 0;
     final medal = switch (rank) { 1 => const Color(0xFFFFC94D), 2 => const Color(0xFFCFD6DE), 3 => const Color(0xFFD9935B), _ => AppColors.primary };
     final name = '${r['name'] ?? 'Player'}';
-    final initials = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
     final photo = r['photo_url'] as String?;
     final style = TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(11.5), color: Colors.white.withAlpha(140));
     return GestureDetector(
       key: ValueKey('leader-${r['user_id']}'),
-      onTap: () => Get.toNamed(AppRoutes.rankings, arguments: {'tab': 'RANKS', 'sport': sport}),
+      onTap: () => Get.toNamed(AppRoutes.player, arguments: {'user_id': r['user_id'], 'sport': sport, 'kind': 'TOURNAMENT'}),
       child: Container(
         width: SizeConfig.w(150),
         padding: EdgeInsets.all(SizeConfig.r(12)),
@@ -449,17 +449,7 @@ class _LeaderCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: SizeConfig.h(6)),
-          Container(
-            width: SizeConfig.r(64),
-            height: SizeConfig.r(64),
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: medal, width: 2), color: const Color(0xFF2A2A2A)),
-            clipBehavior: Clip.antiAlias,
-            child: photo != null
-                ? Image.network(photo, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Center(child: Text(initials, style: style)))
-                : Center(
-                    child: Text(initials,
-                        style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w800, fontSize: SizeConfig.sp(20), color: Colors.white))),
-          ),
+          PlayerAvatar(url: photo, name: name, size: 64, ring: medal),
           SizedBox(height: SizeConfig.h(8)),
           Text(name,
               maxLines: 1,

@@ -57,6 +57,7 @@ class AppRoutes {
   static const String teamForm = '/team/edit';
   static const String quickMatch = '/quick';
   static const String rankings = '/rankings';
+  static const String player = '/player';
   static const String createQuickMatch = '/quick/create';
 
   static List<GetPage> get pages => [
@@ -106,6 +107,7 @@ class AppRoutes {
           }),
           transition: Transition.rightToLeft,
         ),
+        GetPage(name: player, page: () => const PlayerStatsPage(), transition: Transition.rightToLeft),
         GetPage(
           name: rankings,
           page: () => const RankingsPage(),

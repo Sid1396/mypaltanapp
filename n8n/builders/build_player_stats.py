@@ -3,7 +3,7 @@
   python3 build_player_stats.py   → writes ../workflows/v2/player_stats.json
 
 GET v2/players/stats?sport=CRICKET|FOOTBALL&kind=TOURNAMENT|QUICK&period=ALL|YEAR|90D&city=&block=&age=ALL|U16|U19|19_35|35P
-                    &gender=ALL|MALE|FEMALE&ball=ALL|TENNIS|LEATHER&min=3&brief=1
+                    &gender=ALL|MALE|FEMALE&ball=ALL|TENNIS|LEATHER&min=3&brief=1&player=<user id>
 
 Every completed match of the sport and kind (tournament and quick-match stats are never mixed), each scorecard player
 mapped to their MyPaltan account (guest players have none and are left out). Batting, bowling and football numbers use
@@ -36,15 +36,20 @@ return [{ json: { ok: true, phone: auth.phone,
   sport: pick(q.sport, ['CRICKET', 'FOOTBALL'], 'CRICKET'), kind: pick(q.kind, ['TOURNAMENT', 'QUICK'], 'TOURNAMENT'),
   period: pick(q.period, ['ALL', 'YEAR', '90D'], 'ALL'), age: pick(q.age, ['ALL', 'U16', 'U19', '19_35', '35P'], 'ALL'),
   gender: pick(q.gender, ['ALL', 'MALE', 'FEMALE'], 'ALL'), ball: pick(q.ball, ['ALL', 'TENNIS', 'LEATHER'], 'ALL'),
-  city: text(q.city), block: text(q.block), min: Math.min(20, Math.max(1, Number(q.min) || 3)), brief: q.brief === '1' } }];
+  city: text(q.city), block: text(q.block), min: Math.min(20, Math.max(1, Number(q.min) || 3)), brief: q.brief === '1',
+  player: Number.isInteger(Number(q.player)) && Number(q.player) > 0 ? Number(q.player) : null } }];
 """
 
 LOAD_SQL = (
     "SELECT viewer.id AS viewer_id, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', m.id, 'at', DATE_FORMAT(COALESCE(m.ended_at, m.scheduled_at), '%Y-%m-%d'), "
+    "  'tid', t.id, 'tcode', t.code, 'tname', t.name, 'tstart', DATE_FORMAT(t.start_date, '%Y-%m-%d'), "
+    "  'teams', JSON_OBJECT(CAST(COALESCE(m.home_entry_id, 0) AS CHAR), th.name, CAST(COALESCE(m.away_entry_id, 0) AS CHAR), ta.name), "
     "  'ball', JSON_UNQUOTE(JSON_EXTRACT(d.match_rules, '$.ball_type')), 'innings', JSON_EXTRACT(m.live, '$.innings'), "
     "  'player_stats', JSON_EXTRACT(m.live, '$.player_stats'), 'potm', JSON_EXTRACT(m.live, '$.potm'))) "
     " FROM tournament_matches m JOIN tournaments t ON t.id = m.tournament_id JOIN tournament_divisions d ON d.id = m.division_id "
+    " LEFT JOIN tournament_entries he ON he.id = m.home_entry_id LEFT JOIN teams th ON th.id = he.team_id "
+    " LEFT JOIN tournament_entries ae ON ae.id = m.away_entry_id LEFT JOIN teams ta ON ta.id = ae.team_id "
     " WHERE m.status = 'COMPLETED' AND m.live IS NOT NULL AND t.sport = $2 AND t.kind = $3) AS matches, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('m', ev.match_id, 's', ev.seq, 'type', ev.type, 'data', ev.data)) "
     " FROM match_events ev JOIN tournament_matches xm ON xm.id = ev.match_id JOIN tournaments xt ON xt.id = xm.tournament_id "
@@ -53,7 +58,10 @@ LOAD_SQL = (
     "(SELECT JSON_OBJECTAGG(tm.id, tm.user_id) FROM team_members tm JOIN teams te ON te.id = tm.team_id "
     " WHERE tm.user_id IS NOT NULL AND te.sport = $2) AS members, "
     "(SELECT JSON_ARRAYAGG(JSON_OBJECT('id', u.id, 'name', u.name, 'gender', u.gender, "
-    "  'age', TIMESTAMPDIFF(YEAR, u.birthdate, CURDATE()), 'block', u.block, 'district', u.district, 'city', u.city, 'photo_key', u.photo_key)) "
+    "  'age', TIMESTAMPDIFF(YEAR, u.birthdate, CURDATE()), 'block', u.block, 'district', u.district, 'city', u.city, 'photo_key', u.photo_key, 'jersey_name', u.jersey_name, 'jersey_number', u.jersey_number, "
+    "  'role', (SELECT s.role FROM app_user_sports s WHERE s.user_id = u.id AND s.sport = $2 LIMIT 1), "
+    "  'batting_hand', (SELECT s.batting_hand FROM app_user_sports s WHERE s.user_id = u.id AND s.sport = $2 LIMIT 1), "
+    "  'bowling_style', (SELECT s.bowling_style FROM app_user_sports s WHERE s.user_id = u.id AND s.sport = $2 LIMIT 1))) "
     " FROM app_users u WHERE u.id IN (SELECT tm.user_id FROM team_members tm JOIN teams te ON te.id = tm.team_id "
     " WHERE tm.user_id IS NOT NULL AND te.sport = $2)) AS users "
     "FROM app_users viewer WHERE viewer.phone = $1"
@@ -88,7 +96,8 @@ const matches = raw.map(m => {
     return { ...inn, batting: mine(inn.batting), bowling: mine(inn.bowling) };
   });
   const potm = parseJ(m.potm);
-  return { id: m.id, division_id: 0, status: 'COMPLETED', innings,
+  return { id: m.id, tid: m.tid, tcode: m.tcode, tname: m.tname, tstart: m.tstart, at: m.at, teams: parseJ(m.teams) || {},
+    division_id: 0, status: 'COMPLETED', innings,
     player_stats: (parseJ(m.player_stats) || []).map(r => ({ ...r, id: userOf(r.id) })).filter(r => r.id != null),
     potm: potm ? { ...potm, id: userOf(potm.id) } : null };
 });
@@ -163,17 +172,52 @@ const sorts = cricket ? {
   assists: [r => r.assists > 0, (a, b) => b.assists - a.assists || b.goals - a.goals],
   clean_sheets: [r => r.clean_sheets > 0, (a, b) => b.clean_sheets - a.clean_sheets],
 };
-const lists = {}, myRanks = {};
+const lists = {}, myRanks = {}, theirRanks = {};
 for (const [k, [keep, sort]] of Object.entries(sorts)) {
   const all = ranked.filter(keep).sort(sort).map((r, i) => ({ rank: i + 1, ...r }));
   if (!f.brief) lists[k] = all.slice(0, 50);
   const mine = all.find(r => r.user_id === me);
   myRanks[k] = mine ? mine.rank : null;
+  const theirs = f.player ? all.find(r => r.user_id === f.player) : null;
+  theirRanks[k] = theirs ? theirs.rank : null;
+}
+// One player's page (?player=): their row and ranks, and who they are even without matches of this kind.
+let player = null;
+if (f.player) {
+  const u = users.get(f.player);
+  const row = rows.find(r => r.user_id === f.player) || null;
+  // The tournaments (or quick-match sessions) they played: team, matches and their numbers in each, latest first.
+  const byT = new Map();
+  for (const m of matches) {
+    let team = null, played = false;
+    const x = { runs: 0, balls: 0, wickets: 0, goals: 0, assists: 0 };
+    if (cricket) {
+      for (const inn of m.innings) {
+        for (const b of inn.batting || []) if (b.id === f.player) { played = true; x.runs += b.runs || 0; x.balls += b.balls || 0; team = inn.batting_entry_id; }
+        for (const b of inn.bowling || []) if (b.id === f.player) { played = true; x.wickets += b.wickets || 0; team = team ?? inn.bowling_entry_id; }
+      }
+    } else {
+      for (const r of m.player_stats) if (r.id === f.player) { played = true; x.goals += r.goals || 0; x.assists += r.assists || 0; team = r.team; }
+    }
+    if (!played) continue;
+    const k = m.tid;
+    if (!byT.has(k)) byT.set(k, { code: m.tcode, name: m.tname, start: m.tstart, last: m.at, team: null, matches: 0, runs: 0, balls: 0, wickets: 0, goals: 0, assists: 0, potm: 0 });
+    const tt = byT.get(k);
+    tt.matches++; for (const key of Object.keys(x)) tt[key] += x[key];
+    if (m.potm && m.potm.id === f.player) tt.potm++;
+    if (!tt.team && team != null) tt.team = m.teams[String(team)] || null;
+    if (String(m.at || '') > String(tt.last || '')) tt.last = m.at;
+  }
+  const played = [...byT.values()].sort((a, b) => String(b.last || '').localeCompare(String(a.last || '')));
+  player = u ? { user_id: f.player, tournaments: played, name: u.name || 'Player', area: [u.block, u.city || u.district].filter(Boolean).join(', ') || null,
+    photo_url: photoOf(u.photo_key), jersey_name: u.jersey_name || null, jersey_number: u.jersey_number ?? null, role: u.role || null,
+    batting_hand: u.batting_hand || null, bowling_style: u.bowling_style || null,
+    row, ranks: theirRanks, ranked: !!row && pass(row) && row.matches >= f.min } : null;
 }
 const mine = rows.find(r => r.user_id === me) || null;
 return [{ json: { status: 200, body: { success: true, sport: f.sport, kind: f.kind, min: f.min, par: Math.round(par * 100) / 100,
   matches: matches.length, ranked: ranked.length, filters: { cities, blocks },
-  me: { row: mine, ranks: myRanks, ranked: !!mine && pass(mine) && mine.matches >= f.min }, lists } } }];
+  me: { row: mine, ranks: myRanks, ranked: !!mine && pass(mine) && mine.matches >= f.min }, player, lists } } }];
 """
 
 n, c = [], {}
