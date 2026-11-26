@@ -6,6 +6,7 @@ import '../../config/sports.dart';
 import '../../config/tournament_options.dart';
 import '../../data/models/tournament.dart';
 import '../../utils/helpers/size_config.dart';
+import '../../utils/helpers/snackbar_helper.dart';
 import '../controllers/tournament_controller.dart';
 import '../widgets/create_tournament_steps.dart' show fmtDate, fmtDateTime, rupees;
 import '../widgets/form_widgets.dart';
@@ -598,7 +599,8 @@ class _StreamCard extends GetView<TournamentController> {
     final has = t.streamUrl != null;
     return FormCard(
       padding: EdgeInsets.all(SizeConfig.r(14)),
-      child: Row(children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
         Container(
           padding: EdgeInsets.all(SizeConfig.r(8)),
           decoration: BoxDecoration(color: const Color(0xFFFF0000).withAlpha(35), borderRadius: BorderRadius.circular(SizeConfig.r(12))),
@@ -616,6 +618,26 @@ class _StreamCard extends GetView<TournamentController> {
           key: const ValueKey('stream-edit'),
           onPressed: () => _sheet(context),
           child: Text(has ? 'Change' : 'Add link', style: tfStyle(13, weight: FontWeight.w800, color: AppColors.primary)),
+        ),
+        ]),
+        // The live score bar for the stream itself (OBS / Prism Live: add it as a web / browser source).
+        gapH(6),
+        GestureDetector(
+          key: const ValueKey('overlay-copy'),
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: 'https://mypaltan.com/overlay/${t.code}?delay=15'));
+            AppSnackbar.success('Score overlay link copied',
+                'In Prism Live / OBS add it as a web (browser) source, full width. Open it with ?demo=1 to place it before the match.');
+          },
+          child: Row(children: [
+            Icon(Icons.scoreboard_rounded, size: SizeConfig.r(16), color: Colors.white.withAlpha(170)),
+            SizedBox(width: SizeConfig.w(8)),
+            Expanded(
+              child: Text('Live score bar on your stream: copy overlay link',
+                  style: tfStyle(12.5, weight: FontWeight.w700, color: Colors.white.withAlpha(200))),
+            ),
+            Icon(Icons.copy_rounded, size: SizeConfig.r(16), color: AppColors.primary),
+          ]),
         ),
       ]),
     );

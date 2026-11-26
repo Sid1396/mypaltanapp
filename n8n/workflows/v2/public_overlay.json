@@ -1,0 +1,341 @@
+{
+  "id": "PubOverlay026mP",
+  "name": "MyPaltan v2 - Public Overlay",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "v2/public/overlay",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://mypaltan.com,https://www.mypaltan.com,http://localhost:5180"
+        }
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2d2236be-ce74-4afe-b455-65993106884d",
+      "webhookId": "7f8cbdf8-831e-42da-be36-c23071eeec2c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\n\nconst q = $in.query || {};\nconst code = String(q.code || '').trim().toUpperCase();\nconst match = Number(q.match || 0);\nif (!/^[A-Z0-9]{6}$/.test(code) || !(Number.isInteger(match) && match >= 0))\n  return [{ json: { ok: false, status: 404, body: { success: false, message: 'Tournament not found.' } } }];\nreturn [{ json: { ok: true, code, match } }];\n"
+      },
+      "name": "Check Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "fd8fde6e-240a-4d88-b805-680f2219bfb0"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "862d6e6e-078c-44bb-b8e4-3d9acbdf4a97",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "22eeed74-da61-4265-b706-ea25baaed069"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.name AS tname, t.logo_key AS tlogo, t.sport, m.id, m.status, m.label, m.live, eh.id AS hid, th.name AS hname, th.short_name AS hshort, th.logo_key AS hlogo, ea.id AS aid, ta.name AS aname, ta.short_name AS ashort, ta.logo_key AS alogo FROM tournaments t JOIN tournament_matches m ON m.tournament_id = t.id LEFT JOIN tournament_entries eh ON eh.id = m.home_entry_id LEFT JOIN teams th ON th.id = eh.team_id LEFT JOIN tournament_entries ea ON ea.id = m.away_entry_id LEFT JOIN teams ta ON ta.id = ea.team_id WHERE t.code = $1 AND t.status <> 'DRAFT' AND m.live IS NOT NULL AND (($2 = 0 AND m.status IN ('LIVE', 'COMPLETED')) OR m.id = $2) ORDER BY (m.status = 'LIVE') DESC, m.updated_at DESC LIMIT 1",
+        "options": {
+          "queryReplacement": "={{ [$json.code, $json.match] }}"
+        }
+      },
+      "name": "Load",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -100
+      ],
+      "id": "0a15dde0-1cce-494c-81a9-5218e5435a6c",
+      "credentials": {
+        "mySql": {
+          "id": "cJO42PjVTTGgCHL1",
+          "name": "MyPaltanDB"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const $in = $input.first().json;\nreturn $input.all().map(i => ({ json: { ...i.json, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: i.binary }));"
+      },
+      "name": "B2 Credentials",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "id": "4f767e1d-e9e7-4b11-9927-daa77d3da456"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.backblazeb2.com/b2api/v4/b2_authorize_account",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.basicAuth }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Authorize B2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "id": "8212737b-9cad-401a-990a-3e4fa09e35da",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_download_authorization",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ bucketId: '57d8ff72a9534e199bf30918', fileNamePrefix: 'tournament_assets/', validDurationInSeconds: 86400 }) }}"
+      },
+      "name": "Assets Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        -100
+      ],
+      "id": "892f7cfc-a854-403c-b5e9-936ac924566a",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_download_authorization",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('Authorize B2').first().json.authorizationToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ bucketId: '57d8ff72a9534e199bf30918', fileNamePrefix: 'team_assets/', validDurationInSeconds: 86400 }) }}"
+      },
+      "name": "Team Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        60
+      ],
+      "id": "3d9c1d2c-dee8-40ce-a614-ce4ff01818ad",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst r = $('Load').all().map(i => i.json).find(x => x && x.id);\nif (!r) return [{ json: { status: 200, body: { success: true, match: null } } }];\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst tokens = { 'tournament_assets/': tokenOf('Assets Link'), 'team_assets/': tokenOf('Team Link') };\nconst sign = k => {\n  const tok = k && tokens[Object.keys(tokens).find(p => k.startsWith(p))];\n  return dl && tok ? `${dl}/file/mypaltan-profile-photos/${k.split('/').map(encodeURIComponent).join('/')}?Authorization=${tok}` : null;\n};\nconst live = typeof r.live === 'string' ? JSON.parse(r.live) : (r.live || {});\nconst team = (id, name, short, logo) => id ? { entry_id: id, name, short: short || String(name || '').slice(0, 3).toUpperCase(), logo_url: sign(logo) } : null;\nconst bat = b => b ? { name: b.name, runs: b.runs, balls: b.balls } : null;\nconst c = live.current || null;\nconst match = {\n  id: r.id, status: r.status, label: r.label || null, sport: r.sport,\n  tournament: { name: r.tname, logo_url: sign(r.tlogo) },\n  home: team(r.hid, r.hname, r.hshort, r.hlogo), away: team(r.aid, r.aname, r.ashort, r.alogo),\n  overs_limit: live.overs_limit ?? null,\n  innings: (live.innings || []).map(i => ({ no: i.no, batting: i.batting_entry_id, runs: i.runs, wickets: i.wickets, overs: i.overs,\n    target: i.target ?? null, run_rate: i.run_rate ?? null, complete: !!i.complete })),\n  current: c ? {\n    innings: c.innings, striker: bat(c.striker), non_striker: bat(c.non_striker),\n    bowler: c.bowler ? { name: c.bowler.name, wickets: c.bowler.wickets, runs: c.bowler.runs, overs: c.bowler.overs } : null,\n    this_over: c.this_over || [], free_hit: !!c.free_hit, need: c.need ?? null, balls_left: c.balls_left ?? null, required_rate: c.required_rate ?? null,\n  } : null,\n  last: (live.commentary || [])[0] ? { symbol: live.commentary[0].symbol, text: live.commentary[0].text } : null,\n  result: live.result || null,\n  potm: live.potm ? { name: live.potm.name, reason: live.potm.reason || null } : null,\n  // Football: the score line (the bar shows it when the sport is football).\n  score: live.score || null, phase: live.phase || null,\n};\nreturn [{ json: { status: 200, body: { success: true, match } } }];\n"
+      },
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -100
+      ],
+      "id": "8d377ae1-8a87-4d3f-a3ea-62d969d4cd11"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.status }}"
+        }
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        0
+      ],
+      "id": "30e8df83-b778-4615-b3aa-57dac884bf09"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Request": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Load",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load": {
+      "main": [
+        [
+          {
+            "node": "B2 Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Credentials": {
+      "main": [
+        [
+          {
+            "node": "Authorize B2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorize B2": {
+      "main": [
+        [
+          {
+            "node": "Assets Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assets Link": {
+      "main": [
+        [
+          {
+            "node": "Team Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Team Link": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

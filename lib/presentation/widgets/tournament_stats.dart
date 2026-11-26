@@ -4,6 +4,7 @@ import '../../config/app_colors.dart';
 import '../../data/models/tournament.dart';
 import '../../utils/helpers/size_config.dart';
 import '../controllers/tournament_controller.dart';
+import 'match_awards.dart' show AwardPlayerCard, AwardStrip;
 import 'tournament_form_widgets.dart';
 
 List<Map<String, dynamic>> _maps(dynamic v) => (v as List? ?? []).whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
@@ -18,7 +19,13 @@ final _boards = <(String, String, String Function(Map<String, dynamic>), String 
   ('most_sixes', 'Most sixes', (p) => '${p['sixes']}', null),
   ('best_strike_rate', 'Best strike rate', (p) => '${p['strike_rate']}', (p) => '${p['runs']} off ${p['balls']}'),
   ('best_economy', 'Best economy', (p) => '${p['economy']}', (p) => '${p['overs']} overs'),
+  ('best_fielding', 'Best fielding', (p) => '${(p['catches'] as num? ?? 0) + (p['run_outs'] as num? ?? 0)}', (p) => _fieldingLine(p)),
 ];
+
+String _fieldingLine(Map<String, dynamic> p) {
+  final c = (p['catches'] as num? ?? 0).toInt(), r = (p['run_outs'] as num? ?? 0).toInt();
+  return [if (c > 0) '$c catch${c == 1 ? '' : 'es'}', if (r > 0) '$r run out${r == 1 ? '' : 's'}'].join(' · ');
+}
 
 final _footballBoards = <(String, String, String Function(Map<String, dynamic>), String Function(Map<String, dynamic>)?)>[
   ('mvp', 'MVP points', (p) => '${p['points']}', (p) => '${p['goals']} G · ${p['assists']} A · ${p['potm']} POTM'),
@@ -100,9 +107,11 @@ class PlayerStatsView extends StatelessWidget {
           ),
           gapH(14),
         ],
-        if (selected['player_of_tournament'] is Map) ...[
-          _AwardCard(p: Map<String, dynamic>.from(selected['player_of_tournament'] as Map), teams: teams, football: football, session: session),
-          gapH(12),
+        if (_awards(selected, leaders, teams, Map<String, dynamic>.from(s['people'] as Map? ?? {}), football, session: session).isNotEmpty) ...[
+          AwardStrip(
+              heading: session ? 'SESSION AWARDS' : 'SERIES AWARDS',
+              cards: _awards(selected, leaders, teams, Map<String, dynamic>.from(s['people'] as Map? ?? {}), football, session: session)),
+          gapH(16),
         ],
         for (final (key, title, value, detail) in football ? _footballBoards : _boards)
           if (_maps(leaders[key]).isNotEmpty) ...[
@@ -138,54 +147,52 @@ class PlayerStatsView extends StatelessWidget {
       );
 }
 
-/// Player of the Tournament (football) / Player of the Series (cricket): official once every match in the division is
-/// finished; until then the leader of the race.
-class _AwardCard extends StatelessWidget {
-  final Map<String, dynamic> p;
-  final Map<int, Map<String, dynamic>> teams;
-  final bool football, session;
-  const _AwardCard({required this.p, required this.teams, required this.football, this.session = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final official = p['final'] == true;
-    final team = teams[p['entry_id']];
-    return Container(
-      key: const ValueKey('player-of-tournament'),
-      padding: EdgeInsets.all(SizeConfig.r(16)),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.primary.withAlpha(official ? 110 : 50), AppColors.primary.withAlpha(15)]),
-        borderRadius: BorderRadius.circular(SizeConfig.r(16)),
-        border: Border.all(color: AppColors.primary.withAlpha(official ? 160 : 70)),
-      ),
-      child: Row(children: [
-        Icon(official ? Icons.emoji_events_rounded : Icons.trending_up_rounded, color: AppColors.primary, size: SizeConfig.r(34)),
-        SizedBox(width: SizeConfig.w(12)),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-                football
-                    ? (official ? 'PLAYER OF THE TOURNAMENT' : 'MVP RACE · LEADING NOW')
-                    : session
-                        ? (official ? 'PLAYER OF THE SESSION' : 'PLAYER OF THE SESSION · LEADING NOW')
-                        : (official ? 'PLAYER OF THE SERIES' : 'PLAYER OF THE SERIES · LEADING NOW'),
-                style: tfStyle(11, weight: FontWeight.w800, color: AppColors.primary).copyWith(letterSpacing: 0.6)),
-            gapH(2),
-            Text('${p['name']}', style: tfStyle(18, weight: FontWeight.w900)),
-            Text(
-                football
-                    ? '${team?['name'] ?? ''} · ${p['goals']} goal${p['goals'] == 1 ? '' : 's'} · ${p['assists']} assist${p['assists'] == 1 ? '' : 's'} · ${p['potm']} POTM'
-                    : [team?['name'] ?? '', p['reason'] ?? ''].where((x) => '$x'.isNotEmpty).join(' · '),
-                style: tfStyle(12, color: Colors.white.withAlpha(170))),
-          ]),
-        ),
-        Column(children: [
-          Text('${p['points']}', style: tfStyle(24, weight: FontWeight.w900)),
-          Text('pts', style: tfStyle(11, color: Colors.white.withAlpha(150))),
-        ]),
-      ]),
+/// The series' award cards: Player of the Series (or the race leader until every match is played), best batter,
+/// bowler and fielder (football: top scorer, most assists, best keeper). Each opens the player's page.
+List<Widget> _awards(Map<String, dynamic> division, Map<String, dynamic> leaders, Map<int, Map<String, dynamic>> teams,
+    Map<String, dynamic> people, bool football, {bool session = false}) {
+  Map<String, dynamic>? top(String key) => _maps(leaders[key]).firstOrNull;
+  Widget card(String title, IconData icon, Color color, Map<String, dynamic> p, String stat) {
+    final who = people['${p['member_id']}'] as Map?;
+    return AwardPlayerCard(
+      title: title,
+      icon: icon,
+      color: color,
+      name: p['name']?.toString() ?? 'Player',
+      team: teams[p['entry_id']]?['name']?.toString() ?? '',
+      photoUrl: who?['photo_url']?.toString(),
+      userId: (who?['user_id'] as num?)?.toInt(),
+      stat: stat,
+      sport: football ? 'FOOTBALL' : 'CRICKET',
+      kind: session ? 'QUICK' : 'TOURNAMENT',
     );
   }
+
+  final pot = division['player_of_tournament'] is Map ? Map<String, dynamic>.from(division['player_of_tournament'] as Map) : null;
+  final potTitle = pot?['final'] != true
+      ? 'LEADING THE RACE'
+      : session
+          ? 'PLAYER OF THE SESSION'
+          : football
+              ? 'PLAYER OF THE TOURNAMENT'
+              : 'PLAYER OF THE SERIES';
+  if (football) {
+    final scorer = top('top_scorers'), assists = top('most_assists'), keeper = top('clean_sheets');
+    return [
+      if (pot != null) card(potTitle, Icons.workspace_premium_rounded, AwardPlayerCard.gold, pot, '${pot['points']} MVP points'),
+      if (scorer != null) card('TOP SCORER', Icons.sports_soccer_rounded, AwardPlayerCard.amber, scorer, '${scorer['goals']} goals'),
+      if (assists != null) card('MOST ASSISTS', Icons.handshake_rounded, AwardPlayerCard.sky, assists, '${assists['assists']} assists'),
+      if (keeper != null) card('BEST KEEPER', Icons.back_hand_rounded, AwardPlayerCard.green, keeper, '${keeper['clean_sheets']} clean sheets'),
+    ];
+  }
+  final bat = top('most_runs'), bowl = top('most_wickets'), field = top('best_fielding');
+  return [
+    if (pot != null) card(potTitle, Icons.workspace_premium_rounded, AwardPlayerCard.gold, pot, '${pot['reason'] ?? ''}\n${pot['points']} points'),
+    if (bat != null) card('BEST BATTER', Icons.sports_cricket_rounded, AwardPlayerCard.amber, bat, '${bat['runs']} runs · SR ${bat['strike_rate'] ?? '-'}'),
+    if (bowl != null && (bowl['wickets'] as num? ?? 0) > 0)
+      card('BEST BOWLER', Icons.track_changes_rounded, AwardPlayerCard.sky, bowl, '${bowl['wickets']} wickets · Econ ${bowl['economy'] ?? '-'}'),
+    if (field != null) card('BEST FIELDER', Icons.back_hand_rounded, AwardPlayerCard.green, field, _fieldingLine(field)),
+  ];
 }
 
 class _Board extends StatelessWidget {

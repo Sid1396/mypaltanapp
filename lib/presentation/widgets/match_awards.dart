@@ -12,7 +12,7 @@ class MatchAwards extends StatelessWidget {
   final MatchDetail m;
   const MatchAwards({super.key, required this.m});
 
-  static const _gold = Color(0xFFFFC94D), _amber = Color(0xFFFFB74D), _sky = Color(0xFF4FC3F7), _green = Color(0xFF66BB6A);
+  static const _gold = AwardPlayerCard.gold, _amber = AwardPlayerCard.amber, _sky = AwardPlayerCard.sky, _green = AwardPlayerCard.green;
 
   @override
   Widget build(BuildContext context) {
@@ -67,30 +67,54 @@ class MatchAwards extends StatelessWidget {
       ];
       cards.add(_card('BEST FIELDER', Icons.back_hand_rounded, _green, f['member_id'], parts.join(' · ')));
     }
-    if (cards.isEmpty) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('MATCH AWARDS', style: tfStyle(12, weight: FontWeight.w900, color: Colors.white.withAlpha(160)).copyWith(letterSpacing: 1)),
-      gapH(10),
-      SizedBox(
-        height: SizeConfig.h(206),
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: cards.length,
-          separatorBuilder: (_, __) => SizedBox(width: SizeConfig.w(10)),
-          itemBuilder: (_, i) => cards[i],
-        ),
-      ),
-    ]);
+    return AwardStrip(heading: 'MATCH AWARDS', cards: cards);
   }
 
   Widget _card(String title, IconData icon, Color color, Object? memberId, String stat) {
     final id = memberId is num ? memberId.toInt() : int.tryParse('$memberId');
     final p = m.lineups.firstWhereOrNull((x) => x.memberId == id);
-    final name = p?.name ?? 'Player';
-    final team = p == null ? '' : (m.home?.entryId == p.entryId ? m.home?.name : m.away?.name) ?? '';
+    return AwardPlayerCard(
+      title: title,
+      icon: icon,
+      color: color,
+      name: p?.name ?? 'Player',
+      team: p == null ? '' : (m.home?.entryId == p.entryId ? m.home?.name : m.away?.name) ?? '',
+      photoUrl: p?.photoUrl,
+      stat: stat,
+      userId: p?.userId,
+      sport: m.sport,
+    );
+  }
+}
+
+/// One award as a player card: title, photo with a coloured ring, name, team and their numbers. Tap for the player page.
+class AwardPlayerCard extends StatelessWidget {
+  final String title, name, team, stat, sport;
+  final IconData icon;
+  final Color color;
+  final String? photoUrl;
+  final int? userId;
+  final String kind;
+  const AwardPlayerCard(
+      {super.key,
+      required this.title,
+      required this.icon,
+      required this.color,
+      required this.name,
+      required this.team,
+      required this.stat,
+      required this.sport,
+      this.photoUrl,
+      this.userId,
+      this.kind = 'TOURNAMENT'});
+
+  static const gold = Color(0xFFFFC94D), amber = Color(0xFFFFB74D), sky = Color(0xFF4FC3F7), green = Color(0xFF66BB6A);
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       key: ValueKey('award-$title'),
-      onTap: p?.userId == null ? null : () => Get.toNamed(AppRoutes.player, arguments: {'user_id': p!.userId, 'sport': m.sport, 'kind': 'TOURNAMENT'}),
+      onTap: userId == null ? null : () => Get.toNamed(AppRoutes.player, arguments: {'user_id': userId, 'sport': sport, 'kind': kind}),
       child: Container(
         width: SizeConfig.w(150),
         padding: EdgeInsets.all(SizeConfig.r(12)),
@@ -109,7 +133,7 @@ class MatchAwards extends StatelessWidget {
             ),
           ]),
           gapH(10),
-          PlayerAvatar(url: p?.photoUrl, name: name, size: 64, ring: color),
+          PlayerAvatar(url: photoUrl, name: name, size: 64, ring: color),
           gapH(8),
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(14, weight: FontWeight.w800)),
           Text(team, maxLines: 1, overflow: TextOverflow.ellipsis, style: tfStyle(11, color: Colors.white.withAlpha(140))),
@@ -118,5 +142,30 @@ class MatchAwards extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+/// A row of award cards with a heading ("MATCH AWARDS", "SERIES AWARDS").
+class AwardStrip extends StatelessWidget {
+  final String heading;
+  final List<Widget> cards;
+  const AwardStrip({super.key, required this.heading, required this.cards});
+
+  @override
+  Widget build(BuildContext context) {
+    if (cards.isEmpty) return const SizedBox.shrink();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(heading, style: tfStyle(12, weight: FontWeight.w900, color: Colors.white.withAlpha(160)).copyWith(letterSpacing: 1)),
+      gapH(10),
+      SizedBox(
+        height: SizeConfig.h(206),
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: cards.length,
+          separatorBuilder: (_, __) => SizedBox(width: SizeConfig.w(10)),
+          itemBuilder: (_, i) => cards[i],
+        ),
+      ),
+    ]);
   }
 }
