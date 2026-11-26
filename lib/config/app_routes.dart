@@ -5,6 +5,7 @@ import '../presentation/controllers/fixtures_setup_controller.dart';
 import '../presentation/controllers/match_controller.dart';
 import '../presentation/controllers/match_setup_controller.dart';
 import '../presentation/controllers/quick_match_controller.dart';
+import '../presentation/controllers/rankings_controller.dart';
 import '../presentation/controllers/scoring_controller.dart';
 import '../presentation/controllers/team_controllers.dart';
 import '../presentation/controllers/register_team_controller.dart';
@@ -16,6 +17,7 @@ import '../presentation/pages/fixtures_setup_page.dart';
 import '../presentation/pages/match_page.dart';
 import '../presentation/pages/match_setup_page.dart';
 import '../presentation/pages/quick_match_pages.dart';
+import '../presentation/pages/rankings_page.dart';
 import '../presentation/pages/scoring_page.dart';
 import '../presentation/pages/team_form_page.dart';
 import '../presentation/pages/team_page.dart';
@@ -54,6 +56,7 @@ class AppRoutes {
   static const String team = '/team';
   static const String teamForm = '/team/edit';
   static const String quickMatch = '/quick';
+  static const String rankings = '/rankings';
   static const String createQuickMatch = '/quick/create';
 
   static List<GetPage> get pages => [
@@ -100,6 +103,14 @@ class AppRoutes {
           page: () => const TeamPage(),
           binding: BindingsBuilder(() {
             Get.put(TeamController());
+          }),
+          transition: Transition.rightToLeft,
+        ),
+        GetPage(
+          name: rankings,
+          page: () => const RankingsPage(),
+          binding: BindingsBuilder(() {
+            Get.put(RankingsController());
           }),
           transition: Transition.rightToLeft,
         ),

@@ -101,6 +101,25 @@ class HomePage extends StatelessWidget {
                       ),
                     ),
 
+                  // MyPaltan leaderboard: top players with photos and their numbers.
+                  if (c.leaders.isNotEmpty) ...[
+                    SectionHeader(
+                      title: c.leadersCity.value.isNotEmpty ? 'Top players in ${c.leadersCity.value}' : 'MyPaltan Leaderboard',
+                      actionLabel: 'See all',
+                      onAction: () => Get.toNamed(AppRoutes.rankings, arguments: {'tab': 'RANKS', 'sport': c.leadersSport.value}),
+                    ),
+                    SizedBox(
+                      height: SizeConfig.h(214),
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
+                        itemCount: c.leaders.length,
+                        separatorBuilder: (_, __) => SizedBox(width: SizeConfig.w(10)),
+                        itemBuilder: (_, i) => _LeaderCard(r: c.leaders[i], cricket: c.leadersSport.value == 'CRICKET', sport: c.leadersSport.value),
+                      ),
+                    ),
+                  ],
+
                   // My teams
                   SectionHeader(title: 'My teams', actionLabel: 'See all', onAction: () => nav.go(MainNavController.myTeams)),
                   if (c.myTeams.isNotEmpty)
@@ -127,7 +146,11 @@ class HomePage extends StatelessWidget {
                     ),
 
                   // Stats snapshot
-                  const SectionHeader(title: 'My stats'),
+                  SectionHeader(
+                    title: 'My stats',
+                    actionLabel: 'Rankings',
+                    onAction: () => Get.toNamed(AppRoutes.rankings, arguments: {'tab': 'RANKS'}),
+                  ),
                   _StatsSnapshot(user: user),
                 ],
               ],
@@ -318,52 +341,141 @@ class _StatsSnapshot extends StatelessWidget {
   final AppUser? user;
   const _StatsSnapshot({required this.user});
 
-  static const _metrics = {
-    'CRICKET': [('Runs', '0'), ('Wickets', '0')],
-    'FOOTBALL': [('Goals', '0'), ('Assists', '0')],
-    'BADMINTON': [('Wins', '0'), ('Win %', '—')],
-    'PICKLEBALL': [('Wins', '0'), ('Win %', '—')],
-  };
-
   @override
   Widget build(BuildContext context) {
     final sports = user?.sports ?? const [];
-    return Column(
-      children: [
-        for (final s in sports)
-          if (Sports.byCode(s.sport) case final sport?)
-            Container(
-              margin: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(10)),
-              padding: EdgeInsets.all(SizeConfig.r(14)),
-              decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(SizeConfig.r(16))),
-              child: Row(
-                children: [
-                  Image.asset(sport.asset, width: SizeConfig.r(34), height: SizeConfig.r(34)),
-                  SizedBox(width: SizeConfig.w(12)),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(sport.label,
-                            style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(15), color: Colors.white)),
-                        Text(Sports.labelOf(sport.roles, s.role),
-                            style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(12), color: Colors.white.withAlpha(130))),
-                      ],
-                    ),
+    final home = Get.find<HomeController>();
+    return Obx(() => Column(
+          children: [
+            for (final s in sports)
+              if (Sports.byCode(s.sport) case final sport?)
+                GestureDetector(
+                  key: ValueKey('my-stats-${s.sport}'),
+                  onTap: s.sport == 'CRICKET' || s.sport == 'FOOTBALL' ? () => Get.toNamed(AppRoutes.rankings, arguments: {'sport': s.sport}) : null,
+                  child: Container(
+                    margin: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(10)),
+                    padding: EdgeInsets.all(SizeConfig.r(14)),
+                    decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(SizeConfig.r(16))),
+                    child: _sportStats(sport, s, home.myStats['${s.sport}:TOURNAMENT'], home.myStats['${s.sport}:QUICK']),
                   ),
-                  _Metric(label: 'Matches', value: '0'),
-                  for (final (label, value) in _metrics[sport.code] ?? const <(String, String)>[]) _Metric(label: label, value: value),
-                ],
+                ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
+              child: Text(
+                'Tournament and quick match stats are kept separately. Tap a sport for your full stats.',
+                style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(12), color: Colors.white.withAlpha(110)),
               ),
             ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
-          child: Text(
-            'Your stats update automatically after every scored match.',
-            style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(12), color: Colors.white.withAlpha(110)),
+          ],
+        ));
+  }
+
+  Widget _sportStats(SportOption sport, SportRole s, Map<String, dynamic>? tour, Map<String, dynamic>? quick) {
+    Map<String, dynamic>? rowOf(Map<String, dynamic>? x) => x?['row'] is Map ? Map<String, dynamic>.from(x!['row'] as Map) : null;
+    final t = rowOf(tour), q = rowOf(quick);
+    final cricket = s.sport == 'CRICKET';
+    final style = TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(12), color: Colors.white.withAlpha(130));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(
+        children: [
+          Image.asset(sport.asset, width: SizeConfig.r(34), height: SizeConfig.r(34)),
+          SizedBox(width: SizeConfig.w(12)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(sport.label, style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w700, fontSize: SizeConfig.sp(15), color: Colors.white)),
+                Text(Sports.labelOf(sport.roles, s.role), style: style),
+              ],
+            ),
           ),
+          _Metric(label: 'Matches', value: '${t?['matches'] ?? 0}'),
+          if (cricket) ...[
+            _Metric(label: 'Runs', value: '${t?['runs'] ?? 0}'),
+            _Metric(label: 'Wickets', value: '${t?['wickets'] ?? 0}'),
+          ] else if (s.sport == 'FOOTBALL') ...[
+            _Metric(label: 'Goals', value: '${t?['goals'] ?? 0}'),
+            _Metric(label: 'Assists', value: '${t?['assists'] ?? 0}'),
+          ],
+        ],
+      ),
+      if (cricket || s.sport == 'FOOTBALL') ...[
+        SizedBox(height: SizeConfig.h(8)),
+        Text(
+          q == null
+              ? 'Tournaments above · no quick matches yet'
+              : 'Tournaments above · Quick matches: ${q['matches']} played, '
+                  '${cricket ? '${q['runs']} runs, ${q['wickets']} wkts' : '${q['goals']} goals, ${q['assists']} assists'}',
+          style: style,
         ),
       ],
+    ]);
+  }
+}
+
+/// One player on the Home leaderboard: rank, photo, name, area and their numbers. Tap for the full rankings.
+class _LeaderCard extends StatelessWidget {
+  final Map<String, dynamic> r;
+  final bool cricket;
+  final String sport;
+  const _LeaderCard({required this.r, required this.cricket, required this.sport});
+
+  @override
+  Widget build(BuildContext context) {
+    final rank = (r['rank'] as num?)?.toInt() ?? 0;
+    final medal = switch (rank) { 1 => const Color(0xFFFFC94D), 2 => const Color(0xFFCFD6DE), 3 => const Color(0xFFD9935B), _ => AppColors.primary };
+    final name = '${r['name'] ?? 'Player'}';
+    final initials = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2).map((p) => p[0].toUpperCase()).join();
+    final photo = r['photo_url'] as String?;
+    final style = TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(11.5), color: Colors.white.withAlpha(140));
+    return GestureDetector(
+      key: ValueKey('leader-${r['user_id']}'),
+      onTap: () => Get.toNamed(AppRoutes.rankings, arguments: {'tab': 'RANKS', 'sport': sport}),
+      child: Container(
+        width: SizeConfig.w(150),
+        padding: EdgeInsets.all(SizeConfig.r(12)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [medal.withAlpha(45), const Color(0xFF1A1A1A)]),
+          borderRadius: BorderRadius.circular(SizeConfig.r(18)),
+          border: Border.all(color: medal.withAlpha(90)),
+        ),
+        child: Column(children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(8), vertical: SizeConfig.h(2)),
+              decoration: BoxDecoration(color: medal, borderRadius: BorderRadius.circular(SizeConfig.r(100))),
+              child: Text('#$rank', style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w900, fontSize: SizeConfig.sp(12), color: Colors.black)),
+            ),
+          ),
+          SizedBox(height: SizeConfig.h(6)),
+          Container(
+            width: SizeConfig.r(64),
+            height: SizeConfig.r(64),
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: medal, width: 2), color: const Color(0xFF2A2A2A)),
+            clipBehavior: Clip.antiAlias,
+            child: photo != null
+                ? Image.network(photo, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Center(child: Text(initials, style: style)))
+                : Center(
+                    child: Text(initials,
+                        style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w800, fontSize: SizeConfig.sp(20), color: Colors.white))),
+          ),
+          SizedBox(height: SizeConfig.h(8)),
+          Text(name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w800, fontSize: SizeConfig.sp(14), color: Colors.white)),
+          Text(r['area'] as String? ?? '${r['matches']} matches', maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
+          const Spacer(),
+          Text('${r['points']}', style: TextStyle(fontFamily: 'Gilroy', fontWeight: FontWeight.w900, fontSize: SizeConfig.sp(22), color: medal)),
+          Text(
+            cricket ? '${r['runs']} runs · ${r['wickets']} wkts' : '${r['goals']} goals · ${r['assists']} ast',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ]),
+      ),
     );
   }
 }

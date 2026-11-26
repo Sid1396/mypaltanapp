@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:get/get.dart';
+import '../../data/services/session_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_routes.dart';
 import '../../data/models/home_models.dart';
@@ -22,6 +23,12 @@ class HomeController extends GetxController with LoggerMixin {
   final liveMatches = <Map<String, dynamic>>[].obs;
   final myTeams = <Map<String, dynamic>>[].obs;
   final myTournaments = <Map<String, dynamic>>[].obs;
+  /// My stats card: '{sport}:{kind}' → {row, ranks, ranked} from the player stats (tournament and quick kept apart).
+  final myStats = <String, Map<String, dynamic>>{}.obs;
+  /// Home leaderboard: top players (tournaments) for the player's main sport, in their city when there are any there.
+  final leaders = <Map<String, dynamic>>[].obs;
+  final leadersSport = 'CRICKET'.obs;
+  final leadersCity = ''.obs;
   final nextMatch = Rx<Map<String, dynamic>?>(null);
 
   @override
@@ -49,10 +56,56 @@ class HomeController extends GetxController with LoggerMixin {
       myTeams.assignAll(_list(res['my_teams']));
       myTournaments.assignAll(_list(res['my_tournaments']));
       nextMatch.value = res['next_match'] is Map ? Map<String, dynamic>.from(res['next_match'] as Map) : null;
+      loadMyStats();
+      loadLeaders();
     } on ApiException catch (e) {
       errorMessage.value = e.message;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> loadLeaders() async {
+    final user = Get.find<SessionService>().user.value;
+    final mine = user?.sports.map((s) => s.sport).where((s) => s == 'CRICKET' || s == 'FOOTBALL').toList() ?? const <String>[];
+    final sport = mine.isEmpty ? 'CRICKET' : mine.first;
+    List<Map<String, dynamic>> top(Map<String, dynamic> res) => ((res['lists'] as Map?)?['overall'] as List? ?? [])
+        .whereType<Map>()
+        .take(10)
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+    try {
+      final api = Get.find<ApiService>();
+      final city = user?.city ?? '';
+      var rows = <Map<String, dynamic>>[];
+      if (city.isNotEmpty) {
+        final res = await api.getPlayerStats({'sport': sport, 'kind': 'TOURNAMENT', 'city': city});
+        if (res['success'] == true) rows = top(res);
+      }
+      var inCity = rows.isNotEmpty;
+      if (!inCity) {
+        final res = await api.getPlayerStats({'sport': sport, 'kind': 'TOURNAMENT'});
+        if (res['success'] == true) rows = top(res);
+      }
+      leadersSport.value = sport;
+      leadersCity.value = inCity ? city : '';
+      leaders.assignAll(rows);
+    } on ApiException catch (e) {
+      logError('Leaderboard failed', e);
+    }
+  }
+
+  Future<void> loadMyStats() async {
+    final sports = Get.find<SessionService>().user.value?.sports.map((s) => s.sport).where((s) => s == 'CRICKET' || s == 'FOOTBALL') ?? const [];
+    for (final s in sports) {
+      for (final k in const ['TOURNAMENT', 'QUICK']) {
+        try {
+          final res = await Get.find<ApiService>().getPlayerStats({'sport': s, 'kind': k, 'brief': '1'});
+          if (res['success'] == true && res['me'] is Map) myStats['$s:$k'] = Map<String, dynamic>.from(res['me'] as Map);
+        } on ApiException catch (e) {
+          logError('My stats failed', e);
+        }
+      }
     }
   }
 

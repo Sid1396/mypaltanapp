@@ -265,6 +265,12 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  /// Career stats and rankings for one sport and kind (TOURNAMENT or QUICK), with filters; brief=1 for the Home card.
+  Future<Map<String, dynamic>> getPlayerStats(Map<String, String> query) => _send(
+        () => http.get(Uri.parse('$_base/players/stats').replace(queryParameters: query), headers: _authHeaders),
+        authed: true,
+      );
+
   // ─── Fixtures ─────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getFixtures(String tournamentCode) => _send(
