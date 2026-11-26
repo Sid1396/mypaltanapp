@@ -42,7 +42,10 @@ class LineupPlayer {
   final String name;
   final bool captain;
   final bool keeper;
-  const LineupPlayer({required this.entryId, required this.memberId, required this.name, this.captain = false, this.keeper = false});
+  final int? userId; // the player's account (null for a guest player)
+  final String? photoUrl;
+  const LineupPlayer(
+      {required this.entryId, required this.memberId, required this.name, this.captain = false, this.keeper = false, this.userId, this.photoUrl});
 
   factory LineupPlayer.fromJson(Map<String, dynamic> j) => LineupPlayer(
         entryId: _int(j['entry_id']),
@@ -50,6 +53,8 @@ class LineupPlayer {
         name: j['name']?.toString() ?? 'Player',
         captain: j['captain'] == true,
         keeper: j['keeper'] == true,
+        userId: j['user_id'] is num ? (j['user_id'] as num).toInt() : null,
+        photoUrl: j['photo_url']?.toString(),
       );
 }
 
@@ -75,6 +80,8 @@ class MatchDetail {
   final MatchTeam? home;
   final MatchTeam? away;
   final List<LineupPlayer> lineups;
+  /// Cricket: catches and run outs per player [{member_id, catches, run_outs}] (match awards).
+  final List<Map<String, dynamic>> fielding;
   final Map<String, dynamic>? live;
   final int eventCount;
   final bool isOwner;
@@ -103,6 +110,7 @@ class MatchDetail {
     this.home,
     this.away,
     this.lineups = const [],
+    this.fielding = const [],
     this.live,
     required this.eventCount,
     required this.isOwner,
@@ -194,6 +202,7 @@ class MatchDetail {
         home: j['home'] is Map ? MatchTeam.fromJson(Map<String, dynamic>.from(j['home'] as Map)) : null,
         away: j['away'] is Map ? MatchTeam.fromJson(Map<String, dynamic>.from(j['away'] as Map)) : null,
         lineups: _maps(j['lineups']).map(LineupPlayer.fromJson).toList(),
+        fielding: _maps(j['fielding']),
         live: j['live'] is Map ? Map<String, dynamic>.from(j['live'] as Map) : null,
         eventCount: _int(j['event_count']),
         isOwner: j['is_owner'] == true,

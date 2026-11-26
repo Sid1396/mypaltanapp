@@ -11,7 +11,8 @@ import '../widgets/create_tournament_steps.dart' show fmtDate, fmtDateTime, rupe
 import '../widgets/form_widgets.dart';
 import '../widgets/home_widgets.dart';
 import '../widgets/tournament_form_widgets.dart';
-import '../widgets/tournament_media_editors.dart' show fileSizeLabel;
+import '../widgets/tournament_live_tab.dart';
+import '../widgets/tournament_media_editors.dart' show fileSizeLabel, SmallButtonLarge;
 import '../widgets/tournament_entries.dart';
 import '../widgets/tournament_fixtures.dart';
 import '../widgets/tournament_stats.dart';
@@ -69,6 +70,7 @@ class TournamentPage extends GetView<TournamentController> {
                           2 => FixturesTabBody(t: t),
                           3 => StatsTabBody(t: t),
                           4 => _SponsorsTab(t: t),
+                          6 when t.streamUrl != null => TournamentLiveTab(url: t.streamUrl!),
                           _ => _DocumentsTab(t: t),
                         },
                       ),
@@ -211,7 +213,8 @@ class _Header extends GetView<TournamentController> {
                   runSpacing: SizeConfig.h(6),
                   children: [
                     _Pill(t.statusLabel.toUpperCase(), color: t.isDraft ? Colors.white.withAlpha(160) : AppColors.primary),
-                    if (!t.isDraft && t.visibility == 'PRIVATE') _Pill('PRIVATE', color: Colors.white.withAlpha(160)),
+                    if (!t.isDraft && t.isInHouse) _Pill('IN-HOUSE', color: Colors.white.withAlpha(160)),
+                    if (!t.isDraft && t.isOwner && t.visibility == 'PRIVATE') _Pill('NOT LISTED', color: Colors.white.withAlpha(160)),
                   ],
                 ),
               ),
@@ -333,10 +336,12 @@ class _OwnerCard extends GetView<TournamentController> {
       body = 'Only you can see this tournament. Publish it to open registration and get a link to share.';
     } else if (t.visibility == 'PUBLIC_PENDING') {
       title = 'Waiting for approval';
-      body = 'The MyPaltan team will list it publicly within 24 hours. Captains can already join with the code.';
+      body = t.isInHouse
+          ? 'The MyPaltan team will list it for everyone within 24 hours. Invited teams can already register with your invite code.'
+          : 'The MyPaltan team will list it for everyone within 24 hours. Captains can already register with the link.';
     } else if (t.visibility == 'PRIVATE') {
-      title = 'Private tournament';
-      body = 'Not listed publicly. Share the code with captains so they can register.';
+      title = 'Not listed';
+      body = 'Hidden from Tournaments for now. Captains can still open it with the link.';
     } else {
       title = 'Live on MyPaltan';
       body = 'Your tournament is listed for everyone in ${t.city}.';
@@ -420,7 +425,16 @@ class _Tabs extends GetView<TournamentController> {
 
   @override
   Widget build(BuildContext context) {
-    final labels = ['About', 'Teams', 'Fixtures', 'Stats', 'Sponsors${t.sponsors.isEmpty ? '' : ' ${t.sponsors.length}'}', 'Documents${t.documents.isEmpty ? '' : ' ${t.documents.length}'}'];
+    // Tab 6 (Live) comes first, and only when the organiser has set a YouTube live link.
+    final labels = [
+      if (t.streamUrl != null) (6, '🔴 Live'),
+      (0, 'About'),
+      (1, 'Teams'),
+      (2, 'Fixtures'),
+      (3, 'Stats'),
+      (4, 'Sponsors${t.sponsors.isEmpty ? '' : ' ${t.sponsors.length}'}'),
+      (5, 'Documents${t.documents.isEmpty ? '' : ' ${t.documents.length}'}'),
+    ];
     return Padding(
       padding: EdgeInsets.only(top: SizeConfig.h(18)),
       child: SingleChildScrollView(
@@ -428,7 +442,7 @@ class _Tabs extends GetView<TournamentController> {
         padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
         child: Row(
           children: [
-            for (var i = 0; i < labels.length; i++)
+            for (final (i, label) in labels)
               Padding(
                 padding: EdgeInsets.only(right: SizeConfig.w(8)),
                 child: GestureDetector(
@@ -441,7 +455,7 @@ class _Tabs extends GetView<TournamentController> {
                       color: controller.tab.value == i ? AppColors.primary : const Color(0xFF1A1A1A),
                       borderRadius: BorderRadius.circular(SizeConfig.r(100)),
                     ),
-                    child: Text(labels[i],
+                    child: Text(label,
                         style: tfStyle(13, weight: FontWeight.w700, color: controller.tab.value == i ? Colors.white : Colors.white.withAlpha(150))),
                   ),
                 ),
@@ -491,6 +505,168 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+/// Organiser, in About: who can register. Open (any team) or In-house (invite code, with Share / New code).
+class _EntryTypeCard extends GetView<TournamentController> {
+  final Tournament t;
+  const _EntryTypeCard({required this.t});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget choice(String type, String label, IconData icon) {
+      final on = t.entryType == type;
+      return Expanded(
+        child: GestureDetector(
+          key: ValueKey('entry-type-$type'),
+          onTap: on ? null : () => controller.setEntryType(type),
+          child: Container(
+            padding: EdgeInsets.symmetric(vertical: SizeConfig.h(10)),
+            decoration: BoxDecoration(
+              color: on ? AppColors.primary : const Color(0xFF262626),
+              borderRadius: BorderRadius.circular(SizeConfig.r(12)),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(icon, size: SizeConfig.r(16), color: Colors.white),
+              SizedBox(width: SizeConfig.w(6)),
+              Text(label, style: tfStyle(13, weight: FontWeight.w800)),
+            ]),
+          ),
+        ),
+      );
+    }
+
+    return FormCard(
+      padding: EdgeInsets.all(SizeConfig.r(14)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Who can register', style: tfStyle(14, weight: FontWeight.w800)),
+        gapH(4),
+        Text(t.isInHouse ? 'Only teams with your invite code. Everyone can still see the tournament.' : 'Any team can register.',
+            style: tfStyle(12, color: Colors.white.withAlpha(150), height: 1.3)),
+        gapH(12),
+        Row(children: [
+          choice('OPEN', 'Open', Icons.public_rounded),
+          SizedBox(width: SizeConfig.w(8)),
+          choice('IN_HOUSE', 'In-house', Icons.lock_rounded),
+        ]),
+        if (t.isInHouse && t.inviteCode != null) ...[
+          gapH(14),
+          Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('INVITE CODE', style: tfStyle(10.5, weight: FontWeight.w900, color: Colors.white.withAlpha(140)).copyWith(letterSpacing: 1)),
+                Text(t.inviteCode!, style: tfStyle(22, weight: FontWeight.w900).copyWith(letterSpacing: 3)),
+              ]),
+            ),
+            TextButton(
+              key: const ValueKey('invite-reset'),
+              onPressed: () => Get.dialog(AlertDialog(
+                backgroundColor: const Color(0xFF1A1A1A),
+                title: Text('Make a new invite code?', style: tfStyle(16, weight: FontWeight.w800)),
+                content: Text('The old code and links stop working. Teams already registered are not affected.',
+                    style: tfStyle(13.5, color: Colors.white.withAlpha(180), height: 1.4)),
+                actions: [
+                  TextButton(onPressed: Get.back, child: Text('Cancel', style: tfStyle(14, color: Colors.white.withAlpha(170)))),
+                  TextButton(
+                    onPressed: () {
+                      Get.back();
+                      controller.resetInvite();
+                    },
+                    child: Text('New code', style: tfStyle(14, weight: FontWeight.w800, color: AppColors.primary)),
+                  ),
+                ],
+              )),
+              child: Text('New code', style: tfStyle(13, weight: FontWeight.w700, color: Colors.white.withAlpha(170))),
+            ),
+          ]),
+          gapH(10),
+          SizedBox(
+            width: double.infinity,
+            child: SmallButtonLarge(key: const ValueKey('invite-share'), label: 'Share invite', onTap: controller.shareInvite),
+          ),
+        ],
+      ]),
+    );
+  }
+}
+
+/// Organiser, in About: "Streaming on YouTube? Add the live link", or the link with Change / Remove.
+class _StreamCard extends GetView<TournamentController> {
+  final Tournament t;
+  const _StreamCard({required this.t});
+
+  @override
+  Widget build(BuildContext context) {
+    final has = t.streamUrl != null;
+    return FormCard(
+      padding: EdgeInsets.all(SizeConfig.r(14)),
+      child: Row(children: [
+        Container(
+          padding: EdgeInsets.all(SizeConfig.r(8)),
+          decoration: BoxDecoration(color: const Color(0xFFFF0000).withAlpha(35), borderRadius: BorderRadius.circular(SizeConfig.r(12))),
+          child: Icon(Icons.smart_display_rounded, color: const Color(0xFFFF4444), size: SizeConfig.r(22)),
+        ),
+        SizedBox(width: SizeConfig.w(12)),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(has ? 'Live on YouTube' : 'Streaming on YouTube?', style: tfStyle(14, weight: FontWeight.w800)),
+            Text(has ? 'Players see it first, in the Live tab.' : 'Add the live link and players can watch it here, in a Live tab.',
+                style: tfStyle(12, color: Colors.white.withAlpha(150), height: 1.3)),
+          ]),
+        ),
+        TextButton(
+          key: const ValueKey('stream-edit'),
+          onPressed: () => _sheet(context),
+          child: Text(has ? 'Change' : 'Add link', style: tfStyle(13, weight: FontWeight.w800, color: AppColors.primary)),
+        ),
+      ]),
+    );
+  }
+
+  void _sheet(BuildContext context) {
+    final ctrl = TextEditingController(text: t.streamUrl ?? '');
+    final busy = false.obs;
+    Get.bottomSheet(
+      Builder(
+          builder: (sheet) => Obx(() => SheetFrame(title: 'YouTube live link', children: [
+                Text('Paste the link of the live stream from YouTube (Share → Copy link).',
+                    style: tfStyle(13, color: Colors.white.withAlpha(170), height: 1.4)),
+                gapH(12),
+                FieldTextInput(controller: ctrl, hint: 'youtube.com/live/… or youtu.be/…', keyboardType: TextInputType.url),
+                gapH(16),
+                SizedBox(
+                  width: double.infinity,
+                  child: SmallButtonLarge(
+                    key: const ValueKey('stream-save'),
+                    label: busy.value ? 'Saving…' : 'Save link',
+                    onTap: busy.value
+                        ? null
+                        : () async {
+                            busy.value = true;
+                            final ok = await controller.saveStream(ctrl.text);
+                            busy.value = false;
+                            if (ok && sheet.mounted) Navigator.of(sheet).pop();
+                          },
+                  ),
+                ),
+                if (t.streamUrl != null)
+                  Center(
+                    child: TextButton(
+                      onPressed: busy.value
+                          ? null
+                          : () async {
+                              busy.value = true;
+                              final ok = await controller.saveStream('');
+                              busy.value = false;
+                              if (ok && sheet.mounted) Navigator.of(sheet).pop();
+                            },
+                      child: Text('Remove link', style: tfStyle(13.5, weight: FontWeight.w700, color: AppColors.negative)),
+                    ),
+                  ),
+              ]))),
+      isScrollControlled: true,
+    );
+  }
+}
+
 class _AboutTab extends StatelessWidget {
   final Tournament t;
   const _AboutTab({required this.t});
@@ -502,6 +678,8 @@ class _AboutTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (t.isOwner && !t.isDraft) Padding(padding: EdgeInsets.only(bottom: SizeConfig.h(16)), child: _EntryTypeCard(t: t)),
+        if (t.isOwner) Padding(padding: EdgeInsets.only(bottom: SizeConfig.h(16)), child: _StreamCard(t: t)),
         const NextMatchCard(),
         if (t.officials != null && (t.isOwner ? t.officials!.needsAny : t.officials!.status == 'CONFIRMED' && t.officials!.people.isNotEmpty))
           Padding(padding: EdgeInsets.only(bottom: SizeConfig.h(16)), child: _OfficialsCard(t: t)),
@@ -891,7 +1069,11 @@ class _BottomBar extends GetView<TournamentController> {
       onTap = () => showTournamentShareSheet(t);
     } else if (t.registrationOpen) {
       final mine = controller.myEntry;
-      label = mine != null && mine.isActive ? 'Register another team' : 'Register my team';
+      label = mine != null && mine.isActive
+          ? 'Register another team'
+          : t.isInHouse && controller.invite.value.isEmpty && controller.myEntries.isEmpty
+              ? 'In-house · Register with invite code'
+              : 'Register my team';
       onTap = controller.register;
     } else if (controller.fixtures.value?.published == true) {
       label = 'View fixtures';

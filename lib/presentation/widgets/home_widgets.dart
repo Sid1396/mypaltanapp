@@ -345,6 +345,7 @@ class TournamentCard extends StatelessWidget {
                               children: [
                                 Text(t.dayLabel!, style: _gilroy(18, weight: FontWeight.w800, height: 1)),
                                 Text(t.monthLabel!.toUpperCase(), style: _gilroy(10, weight: FontWeight.w700, color: AppColors.primary)),
+                                Text('${t.startDate!.year}', style: _gilroy(9, weight: FontWeight.w700, color: Colors.white.withAlpha(170))),
                               ],
                             ),
                           )
@@ -373,7 +374,40 @@ class TournamentCard extends StatelessWidget {
                   SizedBox(height: SizeConfig.h(2)),
                   Text(t.location, maxLines: 1, overflow: TextOverflow.ellipsis, style: _gilroy(12, color: Colors.white.withAlpha(140))),
                   SizedBox(height: SizeConfig.h(10)),
-                  Text(t.statusLabel, style: _gilroy(11, weight: FontWeight.w700, color: AppColors.primary)),
+                  if (t.champions.isEmpty)
+                    Text(t.statusLabel, style: _gilroy(11, weight: FontWeight.w700, color: AppColors.primary))
+                  else
+                    for (final c in t.champions)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: SizeConfig.h(4)),
+                        child: Row(children: [
+                          const Text('🏆'),
+                          SizedBox(width: SizeConfig.w(6)),
+                          ClipOval(
+                            child: Container(
+                              width: SizeConfig.r(22),
+                              height: SizeConfig.r(22),
+                              color: Colors.white.withAlpha(20),
+                              child: c.logoUrl != null
+                                  ? Image.network(c.logoUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox())
+                                  : Icon(Icons.shield_rounded, size: SizeConfig.r(14), color: Colors.white54),
+                            ),
+                          ),
+                          SizedBox(width: SizeConfig.w(8)),
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(children: [
+                                TextSpan(text: c.team, style: _gilroy(13, weight: FontWeight.w800, color: const Color(0xFFFFC94D))),
+                                TextSpan(
+                                    text: t.champions.length > 1 && c.division != null ? ' · ${c.division} champions' : ' · Champions',
+                                    style: _gilroy(12, weight: FontWeight.w600, color: Colors.white.withAlpha(150))),
+                              ]),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ]),
+                      ),
                 ],
               ),
             ),

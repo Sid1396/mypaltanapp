@@ -10,6 +10,9 @@ class DeepLinkService extends GetxService with LoggerMixin {
   static const host = 'mypaltan.com';
   static String tournamentUrl(String code) => 'https://$host/tournament/$code';
 
+  /// An in-house tournament's invite link: opens the tournament ready to register with the code.
+  static String inviteUrl(String code, String invite) => 'https://$host/tournament/$code?invite=$invite';
+
   /// The captain's link for players to join the team's squad in a tournament.
   static String squadUrl(String teamCode, String tournamentCode) => 'https://$host/team/$teamCode?t=$tournamentCode';
 
@@ -79,12 +82,13 @@ class DeepLinkService extends GetxService with LoggerMixin {
       final tournament = squadTournamentFrom(uri);
       Get.toNamed(AppRoutes.team, arguments: {'code': target.$2, if (tournament != null) 'tournament': tournament});
     } else {
-      openTournament(target.$2);
+      final invite = uri.queryParameters['invite']?.toUpperCase();
+      openTournament(target.$2, invite: invite != null && RegExp(r'^[A-Z0-9]{6}$').hasMatch(invite) ? invite : null);
     }
   }
 
-  void openTournament(String code) {
-    if (Get.currentRoute == AppRoutes.tournament && (Get.arguments is Map) && (Get.arguments as Map)['code'] == code) return;
-    Get.toNamed(AppRoutes.tournament, arguments: {'code': code});
+  void openTournament(String code, {String? invite}) {
+    if (invite == null && Get.currentRoute == AppRoutes.tournament && (Get.arguments is Map) && (Get.arguments as Map)['code'] == code) return;
+    Get.toNamed(AppRoutes.tournament, arguments: {'code': code, if (invite != null) 'invite': invite}, preventDuplicates: false);
   }
 }

@@ -55,6 +55,7 @@ class FeaturedTournament {
   final List<String> tags;
   final String status;
   final bool interested; // the viewer tapped "Notify me when registration opens"
+  final List<({String team, String? logoUrl, String? division})> champions; // completed: each division's final winner
 
   const FeaturedTournament({
     required this.slug,
@@ -68,6 +69,7 @@ class FeaturedTournament {
     this.tags = const [],
     this.status = 'COMING_SOON',
     this.interested = false,
+    this.champions = const [],
   });
 
   static const _statusLabels = {
@@ -87,6 +89,10 @@ class FeaturedTournament {
   String get dateLabel => startDate == null ? 'Coming soon' : '${startDate!.day} ${_months[startDate!.month - 1]} ${startDate!.year}';
 
   factory FeaturedTournament.fromJson(Map<String, dynamic> j) => FeaturedTournament(
+        champions: [
+          for (final c in (j['champions'] as List? ?? []).whereType<Map>())
+            (team: c['team']?.toString() ?? '', logoUrl: c['logo_url']?.toString(), division: c['division']?.toString()),
+        ],
         slug: j['slug']?.toString() ?? '',
         code: j['code']?.toString(),
         name: j['name']?.toString() ?? '',

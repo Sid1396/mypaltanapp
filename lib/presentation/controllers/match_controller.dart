@@ -53,10 +53,13 @@ class MatchController extends GetxController {
                 'away': {'entry_id': old.away?.entryId, 'name': old.away?.name, 'short': old.away?.short, 'logo_url': old.away?.logoUrl},
                 // Without these the match looks un-set-up and "Continue scoring" would open the toss / Playing XI again.
                 'lineups': [
-                  for (final p in old.lineups) {'entry_id': p.entryId, 'member_id': p.memberId, 'name': p.name, 'captain': p.captain, 'keeper': p.keeper},
+                  for (final p in old.lineups)
+                    {'entry_id': p.entryId, 'member_id': p.memberId, 'name': p.name, 'captain': p.captain, 'keeper': p.keeper, 'user_id': p.userId, 'photo_url': p.photoUrl},
                 ],
               })
             : m;
+        // Just finished: load it all once (the match awards need the fielding, which light refreshes leave out).
+        if (quiet && old?.status == 'LIVE' && m.status == 'COMPLETED') load();
       } else if (!quiet) {
         error.value = res['message']?.toString() ?? 'Could not load the match.';
       }

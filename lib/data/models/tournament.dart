@@ -176,6 +176,7 @@ class Tournament {
   final String? description;
   final String? logoUrl;
   final String? bannerUrl;
+  final String? streamUrl; // YouTube live link; the Live tab shows only when set
   final String category;
   final String city;
   final String area;
@@ -201,6 +202,8 @@ class Tournament {
   final DateTime? registrationDeadline;
   final DateTime? checklistDeadline;
   final String visibility;
+  final String entryType; // OPEN (any team) or IN_HOUSE (teams with the organiser's invite code)
+  final String? inviteCode; // organiser only
   final String status;
   final int approvedTeams;
   final Map<String, dynamic> matchRules;
@@ -226,6 +229,7 @@ class Tournament {
     this.description,
     this.logoUrl,
     this.bannerUrl,
+    this.streamUrl,
     required this.category,
     required this.city,
     required this.area,
@@ -250,6 +254,8 @@ class Tournament {
     this.registrationDeadline,
     this.checklistDeadline,
     required this.visibility,
+    this.entryType = 'OPEN',
+    this.inviteCode,
     required this.status,
     required this.approvedTeams,
     required this.matchRules,
@@ -271,6 +277,7 @@ class Tournament {
   });
 
   bool get isDraft => status == 'DRAFT';
+  bool get isInHouse => entryType == 'IN_HOUSE';
   bool get isQuick => kind == 'QUICK';
   /// Registration is open only until the deadline, even if the organiser hasn't closed it yet (same as the website).
   bool get registrationOpen => status == 'REGISTRATION_OPEN' && (registrationDeadline == null || DateTime.now().isBefore(registrationDeadline!));
@@ -292,6 +299,7 @@ class Tournament {
       description: _str(j['description']),
       logoUrl: _str(j['logo_url']),
       bannerUrl: _str(j['banner_url']),
+      streamUrl: _str(j['stream_url']),
       category: j['category']?.toString() ?? 'OPEN',
       city: j['city']?.toString() ?? 'Mumbai',
       area: j['area']?.toString() ?? '',
@@ -317,6 +325,8 @@ class Tournament {
       registrationDeadline: _date(j['registration_deadline']),
       checklistDeadline: _date(j['checklist_deadline']),
       visibility: j['visibility']?.toString() ?? 'PRIVATE',
+      entryType: j['entry_type']?.toString() ?? 'OPEN',
+      inviteCode: _str(j['invite_code']),
       status: j['status']?.toString() ?? 'DRAFT',
       approvedTeams: _int(j['approved_teams']),
       matchRules: Map<String, dynamic>.from(j['match_rules'] as Map? ?? {}),

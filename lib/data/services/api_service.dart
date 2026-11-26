@@ -82,6 +82,12 @@ class ApiService extends GetxService {
         authed: true,
       );
 
+  /// Every listed tournament (live, upcoming, completed), 20 a page. [status] ALL | LIVE | OPEN | DONE.
+  Future<Map<String, dynamic>> getAllTournaments({String sport = 'ALL', String status = 'ALL', int offset = 0}) => _send(
+        () => http.get(Uri.parse('$_base/tournaments/all?sport=$sport&status=$status&offset=$offset'), headers: _authHeaders),
+        authed: true,
+      );
+
   Future<Map<String, dynamic>> getHome() => _send(
         () => http.get(Uri.parse('$_base/home'), headers: _authHeaders),
         authed: true,
@@ -114,9 +120,17 @@ class ApiService extends GetxService {
         authed: true,
       );
 
-  Future<Map<String, dynamic>> publishTournament(String code, {required bool public}) => _send(
+  /// [entryType] OPEN (any team can register) or IN_HOUSE (invite code only). Listed for everyone once approved.
+  Future<Map<String, dynamic>> publishTournament(String code, {required String entryType}) => _send(
         () => http.post(Uri.parse('$_base/tournaments/publish'),
-            headers: _authHeaders, body: jsonEncode({'code': code, 'public': public})),
+            headers: _authHeaders, body: jsonEncode({'code': code, 'entry_type': entryType})),
+        authed: true,
+      );
+
+  /// Organiser: switch Open / In-house, or [reset] the invite code (the old one stops working).
+  Future<Map<String, dynamic>> setTournamentInvite(String code, {String? entryType, bool reset = false}) => _send(
+        () => http.post(Uri.parse('$_base/tournaments/invite'),
+            headers: _authHeaders, body: jsonEncode({'code': code, if (entryType != null) 'entry_type': entryType, 'reset': reset})),
         authed: true,
       );
 
@@ -199,8 +213,11 @@ class ApiService extends GetxService {
 
   // ─── Team registration for tournaments ───────────────────────
 
-  Future<Map<String, dynamic>> getRegistrationOptions(String tournamentCode) => _send(
-        () => http.get(Uri.parse('$_base/entries/options?code=${Uri.encodeQueryComponent(tournamentCode)}'), headers: _authHeaders),
+  Future<Map<String, dynamic>> getRegistrationOptions(String tournamentCode, {String invite = ''}) => _send(
+        () => http.get(
+            Uri.parse('$_base/entries/options?code=${Uri.encodeQueryComponent(tournamentCode)}'
+                '${invite.isEmpty ? '' : '&invite=${Uri.encodeQueryComponent(invite)}'}'),
+            headers: _authHeaders),
         authed: true,
       );
 
@@ -256,6 +273,12 @@ class ApiService extends GetxService {
 
   Future<Map<String, dynamic>> joinScoring(String code, String pin) => _send(
         () => http.post(Uri.parse('$_base/scoring/join'), headers: _authHeaders, body: jsonEncode({'code': code, 'pin': pin})),
+        authed: true,
+      );
+
+  /// Organiser: sets, changes or (empty url) removes the tournament's YouTube live link.
+  Future<Map<String, dynamic>> setTournamentStream(String code, String url) => _send(
+        () => http.post(Uri.parse('$_base/tournaments/stream'), headers: _authHeaders, body: jsonEncode({'code': code, 'url': url})),
         authed: true,
       );
 

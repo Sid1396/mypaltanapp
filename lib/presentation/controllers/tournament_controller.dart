@@ -14,6 +14,7 @@ import '../../data/services/deep_link_service.dart';
 import '../../utils/helpers/size_config.dart';
 import '../../utils/helpers/snackbar_helper.dart';
 import '../../utils/mixins/logger_mixin.dart';
+import '../widgets/form_widgets.dart';
 import '../widgets/tournament_form_widgets.dart';
 import '../widgets/tournament_media_editors.dart';
 
@@ -22,6 +23,8 @@ class TournamentController extends GetxController with LoggerMixin {
   ApiService get _api => Get.find<ApiService>();
 
   late final String code;
+  /// In-house tournaments: invite code from the invite link (or typed in) to register a team.
+  final invite = ''.obs;
   final tournament = Rx<Tournament?>(null);
   final isLoading = true.obs;
   final error = Rx<String?>(null);
@@ -66,6 +69,7 @@ class TournamentController extends GetxController with LoggerMixin {
     });
     final args = Get.arguments;
     code = (args is Map ? args['code'] as String? : null) ?? '';
+    invite.value = (args is Map ? args['invite'] as String? : null) ?? '';
     load();
     _flushTimer = Timer.periodic(const Duration(seconds: 30), (_) => _flush());
   }
@@ -87,7 +91,11 @@ class TournamentController extends GetxController with LoggerMixin {
           Get.offNamed(AppRoutes.quickMatch, arguments: {'code': code});
           return;
         }
+        final first = tournament.value == null;
         tournament.value = t;
+        // Tab 6 is Live (shown first): open on it when the organiser has set a YouTube live link.
+        if (first && t.streamUrl != null) tab.value = 6;
+        if (tab.value == 6 && t.streamUrl == null) tab.value = 0;
         if (!tournament.value!.isDraft) {
           loadEntries();
           loadFixtures();
@@ -101,6 +109,24 @@ class TournamentController extends GetxController with LoggerMixin {
       AppSnackbar.error('Tournament', e.message);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  // ─── Live stream ──────────────────────────────────────────────
+
+  Future<bool> saveStream(String url) async {
+    try {
+      final res = await _api.setTournamentStream(code, url.trim());
+      if (res['success'] != true) {
+        AppSnackbar.error('Live link', res['message']?.toString() ?? 'Please try again.');
+        return false;
+      }
+      AppSnackbar.success('Live link', res['message']?.toString() ?? 'Saved.');
+      await load();
+      return true;
+    } on ApiException catch (e) {
+      AppSnackbar.error('Live link', e.message);
+      return false;
     }
   }
 
@@ -290,7 +316,15 @@ class TournamentController extends GetxController with LoggerMixin {
   }
 
   Future<void> register() async {
-    final done = await Get.toNamed(AppRoutes.registerTeam, arguments: {'code': code});
+    final t = tournament.value;
+    // In-house: teams need the organiser's invite code (teams already in can manage or add more as before).
+    if (t != null && t.isInHouse && invite.value.isEmpty && myEntries.isEmpty) {
+      final typed = await _askInvite();
+      if (typed == null) return;
+      invite.value = typed;
+    }
+    final done = await Get.toNamed(AppRoutes.registerTeam, arguments: {'code': code, 'invite': invite.value});
+    if (done == null && t != null && t.isInHouse && myEntries.isEmpty) invite.value = ''; // wrong code: ask again next time
     if (done is Map) {
       await Future.wait([load(), loadMine()]);
       // Website tournaments: the player link opens only after MyPaltan approves the team.
@@ -556,33 +590,99 @@ class TournamentController extends GetxController with LoggerMixin {
     AppSnackbar.success('Copied', 'Tournament code $code copied. Share it with captains.');
   }
 
+  /// "In-house tournament · enter the invite code from the organiser". Returns the code, or null.
+  Future<String?> _askInvite() {
+    final ctrl = TextEditingController();
+    return Get.bottomSheet<String>(
+      Builder(
+          builder: (sheet) => SheetFrame(title: 'Invite only', children: [
+                Text('${tournament.value?.name ?? 'This'} is an in-house tournament. Enter the invite code you got from the organiser to register your team.',
+                    style: tfStyle(13.5, color: Colors.white.withAlpha(170), height: 1.4)),
+                gapH(14),
+                FieldTextInput(controller: ctrl, hint: 'Invite code, e.g. K7M2QX', textCapitalization: TextCapitalization.characters),
+                gapH(16),
+                SizedBox(
+                  width: double.infinity,
+                  child: SmallButtonLarge(
+                    key: const ValueKey('invite-continue'),
+                    label: 'Continue',
+                    onTap: () {
+                      final c = ctrl.text.trim().toUpperCase();
+                      if (!RegExp(r'^[A-Z0-9]{6}$').hasMatch(c)) {
+                        AppSnackbar.error('Invite code', 'The invite code has 6 letters and numbers.');
+                        return;
+                      }
+                      Navigator.of(sheet).pop(c);
+                    },
+                  ),
+                ),
+              ])),
+      isScrollControlled: true,
+    );
+  }
+
+  // ─── Open / In-house and the invite code (organiser) ─────────
+
+  Future<void> setEntryType(String type) => _invite(entryType: type);
+  Future<void> resetInvite() => _invite(reset: true);
+
+  Future<void> _invite({String? entryType, bool reset = false}) async {
+    try {
+      final res = await _api.setTournamentInvite(code, entryType: entryType, reset: reset);
+      if (res['success'] != true) {
+        AppSnackbar.error('Registration', res['message']?.toString() ?? 'Please try again.');
+        return;
+      }
+      AppSnackbar.success('Registration', res['message']?.toString() ?? 'Saved.');
+      await load();
+    } on ApiException catch (e) {
+      AppSnackbar.error('Registration', e.message);
+    }
+  }
+
+  void shareInvite() {
+    final t = tournament.value;
+    if (t == null || t.inviteCode == null) return;
+    final text = [
+      '🏆 *${t.name}*',
+      'You are invited to register your team.',
+      '',
+      'Open this link in MyPaltan 👇',
+      DeepLinkService.inviteUrl(t.code, t.inviteCode!),
+      '',
+      'Or open ${t.code} in the app, tap Register and enter invite code *${t.inviteCode}*',
+    ].join('\n');
+    SharePlus.instance.share(ShareParams(text: text, subject: t.name));
+  }
+
   void showPublishSheet() {
     final t = tournament.value;
     if (t == null) return;
-    final public = true.obs;
+    final inHouse = false.obs;
     Get.bottomSheet(
       Obx(() => SheetFrame(
             title: 'Publish tournament',
             children: [
-              Text('Registration opens as soon as you publish. Captains can then register their teams.',
+              Text(
+                  'Everyone in ${t.city} can see your tournament, its fixtures, live scores and stats once the MyPaltan team approves it (usually within 24 hours). Choose who can register:',
                   style: tfStyle(13.5, color: Colors.white.withAlpha(160), height: 1.4)),
               gapH(16),
               OptionCard(
-                key: const ValueKey('publish-public'),
-                title: 'Public',
-                subtitle: 'Listed in Tournaments for everyone in ${t.city} after the MyPaltan team approves it (usually within 24 hours).',
+                key: const ValueKey('publish-open'),
+                title: 'Open',
+                subtitle: 'Any team can register.',
                 icon: Icons.public_rounded,
-                selected: public.value,
-                onTap: () => public.value = true,
+                selected: !inHouse.value,
+                onTap: () => inHouse.value = false,
               ),
               gapH(10),
               OptionCard(
-                key: const ValueKey('publish-private'),
-                title: 'Private',
-                subtitle: 'Not listed. Only people you share the code with can find it.',
+                key: const ValueKey('publish-inhouse'),
+                title: 'In-house',
+                subtitle: 'Only teams you invite can register (society, company or club league). You get an invite code to share.',
                 icon: Icons.lock_rounded,
-                selected: !public.value,
-                onTap: () => public.value = false,
+                selected: inHouse.value,
+                onTap: () => inHouse.value = true,
               ),
               gapH(20),
               SizedBox(
@@ -590,7 +690,7 @@ class TournamentController extends GetxController with LoggerMixin {
                 child: SmallButtonLarge(
                   key: const ValueKey('publish-confirm'),
                   label: isPublishing.value ? 'Publishing…' : 'Publish now',
-                  onTap: isPublishing.value ? null : () => _publish(public.value),
+                  onTap: isPublishing.value ? null : () => _publish(inHouse.value ? 'IN_HOUSE' : 'OPEN'),
                 ),
               ),
             ],
@@ -599,10 +699,10 @@ class TournamentController extends GetxController with LoggerMixin {
     );
   }
 
-  Future<void> _publish(bool public) async {
+  Future<void> _publish(String entryType) async {
     isPublishing.value = true;
     try {
-      final res = await _api.publishTournament(code, public: public);
+      final res = await _api.publishTournament(code, entryType: entryType);
       if (Get.isBottomSheetOpen == true) Get.back();
       if (res['success'] == true) {
         AppSnackbar.success('Published', res['message']?.toString() ?? 'Registration is open.');

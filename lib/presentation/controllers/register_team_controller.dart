@@ -18,6 +18,8 @@ class RegisterTeamController extends GetxController {
   ApiService get _api => Get.find<ApiService>();
 
   late final String code;
+  /// In-house tournaments: the organiser's invite code (from the invite link or typed in).
+  late final String invite;
   final options = Rx<RegOptions?>(null);
   final isLoading = true.obs;
   final error = Rx<String?>(null);
@@ -41,6 +43,7 @@ class RegisterTeamController extends GetxController {
     super.onInit();
     final args = Get.arguments;
     code = (args is Map ? args['code'] as String? : null) ?? '';
+    invite = (args is Map ? args['invite'] as String? : null) ?? '';
     utrCtrl.addListener(() => _tick.value++);
     load();
   }
@@ -54,7 +57,7 @@ class RegisterTeamController extends GetxController {
   Future<void> load() async {
     error.value = null;
     try {
-      final res = await _api.getRegistrationOptions(code);
+      final res = await _api.getRegistrationOptions(code, invite: invite);
       if (res['success'] != true) {
         error.value = res['message']?.toString() ?? 'Could not load registration.';
         return;
@@ -244,6 +247,7 @@ class RegisterTeamController extends GetxController {
       final res = await _api.registerTeam(isWeb
           ? {
               'tournament_code': code,
+              'invite_code': invite,
               'team_code': teamCode.value,
               'division_id': divisionId.value,
               'member_ids': const <int>[],
@@ -255,6 +259,7 @@ class RegisterTeamController extends GetxController {
             }
           : {
               'tournament_code': code,
+              'invite_code': invite,
               'team_code': teamCode.value,
               'division_id': divisionId.value,
               'member_ids': picked.toList(),

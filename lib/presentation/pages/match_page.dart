@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../widgets/match_awards.dart';
 import '../../config/app_colors.dart';
 import '../../data/models/match.dart';
 import '../../utils/helpers/size_config.dart';
@@ -68,6 +69,7 @@ class MatchPage extends GetView<MatchController> {
                       ] else if (showScore) ...[
                         LiveScoreHeader(live: live, teamName: m.teamName, fill: m.fill),
                         gapH(14),
+                        if (m.status == 'COMPLETED') ...[MatchAwards(m: m), gapH(14)],
                         Row(children: [
                           for (final l in const [(0, 'Live'), (1, 'Scorecard'), (2, 'Commentary')])
                             Padding(

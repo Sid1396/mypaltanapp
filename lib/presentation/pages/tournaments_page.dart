@@ -12,6 +12,7 @@ import '../widgets/form_widgets.dart';
 import '../widgets/tournament_form_widgets.dart';
 import '../widgets/tournament_media_editors.dart' show SmallButtonLarge;
 import '../widgets/home_widgets.dart';
+import '../widgets/all_tournaments.dart';
 
 class TournamentsPage extends StatefulWidget {
   const TournamentsPage({super.key});
@@ -25,6 +26,7 @@ class _TournamentsPageState extends State<TournamentsPage> {
 
   final _mine = Get.put(MyTournamentsController());
   final _quick = Get.put(MyQuickMatchesController());
+  final _all = Get.put(AllTournamentsController());
 
   List<Widget> _quickMatches() {
     final q = _quick;
@@ -105,7 +107,7 @@ class _TournamentsPageState extends State<TournamentsPage> {
         bottom: false,
         child: RefreshIndicator(
           color: AppColors.primary,
-          onRefresh: () => switch (_tab) { 0 => c.load(), 1 => _mine.load(), _ => _quick.load() },
+          onRefresh: () => switch (_tab) { 0 => _all.load(), 1 => c.load(), 2 => _mine.load(), _ => _quick.load() },
           child: Obx(() => ListView(
                 key: const ValueKey('tournaments-list'),
                 padding: EdgeInsets.only(bottom: SizeConfig.h(120)),
@@ -145,17 +147,19 @@ class _TournamentsPageState extends State<TournamentsPage> {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(20)),
                     child: _Segmented(
-                      labels: const ['Upcoming', 'My tournaments', 'Quick matches'],
+                      labels: const ['All', 'Upcoming', 'Mine', 'Quick'],
                       index: _tab,
                       onChanged: (i) {
                         setState(() => _tab = i);
-                        if (i == 1) _mine.ensureLoaded();
-                        if (i == 2) _quick.ensureLoaded();
+                        if (i == 2) _mine.ensureLoaded();
+                        if (i == 3) _quick.ensureLoaded();
                       },
                     ),
                   ),
                   SizedBox(height: SizeConfig.h(16)),
-                  if (_tab == 0) ...[
+                  if (_tab == 0)
+                    ...allTournaments(_all)
+                  else if (_tab == 1) ...[
                     if (c.isLoading.value && c.tournaments.isEmpty)
                       Padding(
                         padding: EdgeInsets.only(top: SizeConfig.h(60)),
@@ -170,7 +174,7 @@ class _TournamentsPageState extends State<TournamentsPage> {
                           padding: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(14)),
                           child: TournamentCard(t: t),
                         ),
-                  ] else if (_tab == 1)
+                  ] else if (_tab == 2)
                     ..._myTournaments()
                   else
                     ..._quickMatches(),
