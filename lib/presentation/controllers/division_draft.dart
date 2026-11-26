@@ -36,6 +36,8 @@ class DivisionDraft {
   final wideRuns = 1.obs;
   final noBallRuns = 1.obs;
   final freeHit = true.obs;
+  final boxOut = false.obs; // box cricket: out if the ball hits the roof
+  final tieRule = 'TIE'.obs; // if scores are level: TIE, SUPER_OVER or BAT_FIRST_WINS
   // Football
   final footballPlayers = 7.obs;
   final halfMinutes = 20.obs;
@@ -151,6 +153,8 @@ class DivisionDraft {
     wideRuns.value = o.wideRuns.value;
     noBallRuns.value = o.noBallRuns.value;
     freeHit.value = o.freeHit.value;
+    boxOut.value = o.boxOut.value;
+    tieRule.value = o.tieRule.value;
     footballPlayers.value = o.footballPlayers.value;
     halfMinutes.value = o.halfMinutes.value;
     rollingSubs.value = o.rollingSubs.value;
@@ -218,6 +222,8 @@ class DivisionDraft {
             'wide_runs': wideRuns.value,
             'no_ball_runs': noBallRuns.value,
             'free_hit': freeHit.value,
+            'box_out': boxOut.value,
+            'tie_rule': tieRule.value,
             if (matchType.value != 'TEST') ...{
               'overs': overs.value,
               'overs_per_bowler': oversPerBowler.value,
@@ -290,6 +296,8 @@ class DivisionDraft {
       wideRuns.value = ri('wide_runs', 1);
       noBallRuns.value = ri('no_ball_runs', 1);
       freeHit.value = rb('free_hit', true);
+      boxOut.value = rb('box_out', false);
+      tieRule.value = r['tie_rule']?.toString() ?? (r['no_tie'] == true ? 'SUPER_OVER' : 'TIE');
     } else if (sport == 'FOOTBALL') {
       footballPlayers.value = ri('players_per_side', 7);
       halfMinutes.value = ri('half_minutes', 20);

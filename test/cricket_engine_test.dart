@@ -151,6 +151,26 @@ void main() {
     expect(b.byes, 1);
   });
 
+  test('scores level: tie, super over, or the team batting first wins', () {
+    const one = CricketRules(overs: 1, playersPerSide: 6, oversPerBowler: 1);
+    final level = [start(11, 12, 21), ball(4, four: true), ball(0), ball(0), ball(0), ball(0), ball(0),
+      start(21, 22, 11), ball(4, four: true), ball(0), ball(0), ball(0), ball(0), ball(0)];
+    CricketState withRule(Map<String, dynamic> r) => play(level, r: CricketRules.fromJson({'overs': 1, 'players_per_side': 6, 'overs_per_bowler': 1, ...r}));
+    expect(play(level, r: one).outcome, 'TIE');
+    expect(withRule({'tie_rule': 'TIE'}).outcome, 'TIE');
+    expect(withRule({'tie_rule': 'SUPER_OVER'}).tieNeedsDecision, true);
+    expect(withRule({'no_tie': true}).tieNeedsDecision, true); // older rules
+    final bf = withRule({'tie_rule': 'BAT_FIRST_WINS'});
+    expect(bf.finished, true);
+    expect(bf.winner, 1);
+    expect(bf.outcome, 'WIN');
+    expect(bf.result, '{1} won (scores level: the team batting first wins)');
+    // In a knockout too: the rule decides, no super over.
+    expect(play(level, r: CricketRules.fromJson({'overs': 1, 'players_per_side': 6, 'overs_per_bowler': 1, 'tie_rule': 'BAT_FIRST_WINS'}),
+            st: const CricketSetup(homeEntry: 1, awayEntry: 2, tossWinner: 1, tossDecision: 'BAT', players: {1: a, 2: b}, knockout: true))
+        .winner, 1);
+  });
+
   test('a bowler cannot bowl consecutive overs or more than the limit', () {
     final over = [ball(0), ball(0), ball(0), ball(0), ball(0), ball(0)];
     final events = [start(11, 12, 21), ...over];

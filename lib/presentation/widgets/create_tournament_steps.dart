@@ -700,9 +700,18 @@ class RulesStep extends GetView<CreateTournamentController> {
                     value: d.freeHit.value,
                     onChanged: (v) => d.freeHit.value = v,
                   ),
+                  SwitchRow(
+                    label: 'Box out',
+                    hint: 'Box cricket: the batter is out if the ball hits the roof or net.',
+                    value: d.boxOut.value,
+                    onChanged: (v) => d.boxOut.value = v,
+                  ),
                 ],
               )),
         ),
+        gapH(20),
+        const FormLabel('If scores are level', hint: 'Team batting first wins: the chasing team has to beat the target.'),
+        Obx(() => ChoiceChips(options: tieRuleOptions, selected: d.tieRule.value, onSelected: (v) => d.tieRule.value = v)),
       ];
 
   List<Widget> _football(CreateTournamentController c) => [

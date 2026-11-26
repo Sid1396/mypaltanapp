@@ -34,6 +34,7 @@ class CricketRules {
   final bool lastManStands;
   final bool boxOut; // box cricket: the batter is out if the ball hits the roof
   final bool noTie; // compulsory result: a tie in any match goes to a super over, not only in knockouts
+  final bool batFirstWinsTie; // scores level: the team batting first wins (the chase has to beat the target)
 
   const CricketRules({
     required this.overs,
@@ -45,6 +46,7 @@ class CricketRules {
     this.lastManStands = false,
     this.boxOut = false,
     this.noTie = false,
+    this.batFirstWinsTie = false,
   });
 
   /// The same rules for a match cut to [n] overs (no bowler may bowl more than the whole innings).
@@ -58,6 +60,7 @@ class CricketRules {
         lastManStands: lastManStands,
         boxOut: boxOut,
         noTie: noTie,
+        batFirstWinsTie: batFirstWinsTie,
       );
 
   /// Wickets that end an innings (with last man stands the last batter bats alone).
@@ -75,7 +78,9 @@ class CricketRules {
       freeHit: r['free_hit'] != false,
       lastManStands: r['last_man_stands'] == true || r['last_batter'] == true,
       boxOut: r['box_out'] == true,
-      noTie: r['no_tie'] == true,
+      // "If scores are level": TIE (default), SUPER_OVER or BAT_FIRST_WINS; older rules only had no_tie (super over).
+      noTie: r['tie_rule'] == 'SUPER_OVER' || (r['tie_rule'] == null && r['no_tie'] == true),
+      batFirstWinsTie: r['tie_rule'] == 'BAT_FIRST_WINS',
     );
   }
 }
@@ -807,7 +812,12 @@ class CricketEngine {
       s.finished = true;
       s.outcome = 'WIN';
     } else if (second.runs == target - 1) {
-      if (s.setup.knockout || s.rules.noTie) {
+      if (s.rules.batFirstWinsTie) {
+        s.winner = first.batting;
+        s.result = '{${first.batting}} won (scores level: the team batting first wins)';
+        s.finished = true;
+        s.outcome = 'WIN';
+      } else if (s.setup.knockout || s.rules.noTie) {
         s.tieNeedsDecision = true;
         s.result = 'Scores level. Play a super over and record the winner.';
       } else {

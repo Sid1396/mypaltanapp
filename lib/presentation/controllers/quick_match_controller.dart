@@ -33,6 +33,9 @@ class CreateQuickMatchController extends GetxController {
   final lastManStands = false.obs;
   final freeHit = false.obs; // free hit after a no-ball
   final boxOut = false.obs; // box cricket: out if the ball hits the roof
+  final wideRuns = 1.obs;
+  final noBallRuns = 1.obs;
+  final tieRule = 'TIE'.obs; // if scores are level: TIE, SUPER_OVER or BAT_FIRST_WINS
   final halfMinutes = 10.obs;
   final racketEvent = 'DOUBLES'.obs;
   final pointsPerGame = 21.obs;
@@ -79,6 +82,9 @@ class CreateQuickMatchController extends GetxController {
             'last_batter': lastManStands.value,
             'free_hit': freeHit.value,
             'box_out': boxOut.value,
+            'wide_runs': wideRuns.value,
+            'no_ball_runs': noBallRuns.value,
+            'tie_rule': tieRule.value,
           },
         'FOOTBALL' => {'half_minutes': halfMinutes.value},
         _ => {'event': racketEvent.value, 'points_per_game': pointsPerGame.value, 'games': games.value},
@@ -255,6 +261,8 @@ class QuickMatchController extends GetxController with LoggerMixin {
     final overs = r('overs', 6).obs, opb = r('overs_per_bowler', 2).obs, half = r('half_minutes', 10).obs;
     final ppg = r('points_per_game', 21).obs, games = r('games', 1).obs, lastMan = (m.rules['last_batter'] == true).obs;
     final freeHit = (m.rules['free_hit'] == true).obs, boxOut = (m.rules['box_out'] == true).obs;
+    final wide = r('wide_runs', 1).obs, nb = r('no_ball_runs', 1).obs;
+    final tie = (m.rules['tie_rule']?.toString() ?? (m.rules['no_tie'] == true ? 'SUPER_OVER' : 'TIE')).obs;
     Get.bottomSheet(
       Builder(
           builder: (sheet) => Obx(() => SheetFrame(title: 'Match ${m.matchNo + 1}', children: [
@@ -277,6 +285,11 @@ class QuickMatchController extends GetxController with LoggerMixin {
                       SwitchRow(label: 'Last man stands', value: lastMan.value, onChanged: (v) => lastMan.value = v),
                       SwitchRow(label: 'Free hit after a no-ball', value: freeHit.value, onChanged: (v) => freeHit.value = v),
                       SwitchRow(label: 'Box out', hint: 'Out if the ball hits the roof', value: boxOut.value, onChanged: (v) => boxOut.value = v),
+                      NumberStepper(label: 'Runs for a wide', value: wide.value, min: 0, max: 5, onChanged: (v) => wide.value = v),
+                      NumberStepper(label: 'Runs for a no-ball', value: nb.value, min: 0, max: 5, onChanged: (v) => nb.value = v),
+                      const Align(alignment: Alignment.centerLeft, child: FormLabel('If scores are level')),
+                      ChoiceChips(options: tieRuleOptions, selected: tie.value, onSelected: (v) => tie.value = v),
+                      gapH(8),
                     ] else if (m.sport == 'FOOTBALL')
                       NumberStepper(label: 'Each half', hint: 'Minutes', value: half.value, min: 1, max: 45, onChanged: (v) => half.value = v)
                     else ...[
@@ -302,6 +315,9 @@ class QuickMatchController extends GetxController with LoggerMixin {
                                       'last_batter': lastMan.value,
                                       'free_hit': freeHit.value,
                                       'box_out': boxOut.value,
+                                      'wide_runs': wide.value,
+                                      'no_ball_runs': nb.value,
+                                      'tie_rule': tie.value,
                                     },
                                   'FOOTBALL' => {'half_minutes': half.value},
                                   _ => {'points_per_game': ppg.value, 'games': games.value},

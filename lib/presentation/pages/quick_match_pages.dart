@@ -154,6 +154,12 @@ class CreateQuickMatchPage extends GetView<CreateQuickMatchController> {
             value: c.boxOut.value,
             onChanged: (v) => c.boxOut.value = v,
           ),
+          NumberStepper(label: 'Runs for a wide', value: c.wideRuns.value, min: 0, max: 5, onChanged: (v) => c.wideRuns.value = v),
+          NumberStepper(label: 'Runs for a no-ball', value: c.noBallRuns.value, min: 0, max: 5, onChanged: (v) => c.noBallRuns.value = v),
+          gapH(8),
+          const Align(alignment: Alignment.centerLeft, child: FormLabel('If scores are level')),
+          ChoiceChips(options: tieRuleOptions, selected: c.tieRule.value, onSelected: (v) => c.tieRule.value = v),
+          gapH(8),
         ];
       case 'FOOTBALL':
         return [

@@ -40,6 +40,9 @@ class FormLabel extends StatelessWidget {
 }
 
 /// Single-choice chips that wrap onto new lines.
+/// Cricket, "If scores are level": the same choices for tournaments and quick matches.
+const tieRuleOptions = [('TIE', 'Tie'), ('SUPER_OVER', 'Super over'), ('BAT_FIRST_WINS', 'Team batting first wins')];
+
 class ChoiceChips extends StatelessWidget {
   final List<(String, String)> options;
   final String selected;
