@@ -39,6 +39,9 @@ class AppUser {
   final List<SportRole> sports;
   final String? memberSince;
   final bool profileComplete;
+  final String? foodPref; // VEG, NON_VEG, JAIN, EGG
+  final String? pincode; // current address
+  final String? block, district, city, state; // from the pincode (India Post)
 
   const AppUser({
     required this.phone,
@@ -53,7 +56,22 @@ class AppUser {
     this.sports = const [],
     this.memberSince,
     this.profileComplete = false,
+    this.foodPref,
+    this.pincode,
+    this.block,
+    this.district,
+    this.city,
+    this.state,
   });
+
+  /// "Kandivali West, Mumbai" from the pincode, or null.
+  String? get locationText {
+    final parts = <String>[];
+    for (final p in [block, city ?? district]) {
+      if (p != null && p.isNotEmpty && !parts.contains(p)) parts.add(p);
+    }
+    return parts.isEmpty ? null : parts.join(', ');
+  }
 
   String get firstName => (name ?? '').trim().split(' ').first;
 
@@ -79,5 +97,11 @@ class AppUser {
             .toList(),
         memberSince: json['member_since']?.toString(),
         profileComplete: json['profile_complete'] == true,
+        foodPref: json['food_pref']?.toString(),
+        pincode: json['pincode']?.toString(),
+        block: (json['location'] as Map?)?['block']?.toString(),
+        district: (json['location'] as Map?)?['district']?.toString(),
+        city: (json['location'] as Map?)?['city']?.toString(),
+        state: (json['location'] as Map?)?['state']?.toString(),
       );
 }

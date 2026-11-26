@@ -11,6 +11,8 @@ import '../widgets/onboarding_widgets.dart';
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
+  static const _foods = {'VEG': 'Veg', 'NON_VEG': 'Non-veg', 'EGG': 'Eggetarian', 'JAIN': 'Jain'};
+
   @override
   Widget build(BuildContext context) {
     ProfileBinding().dependencies();
@@ -73,6 +75,19 @@ class ProfilePage extends StatelessWidget {
                     title: 'Sports & roles',
                     onEdit: () => controller.edit('sports'),
                     child: Column(children: user.sports.map((s) => _SportRow(role: s)).toList()),
+                  ),
+                  SizedBox(height: SizeConfig.h(16)),
+                  // Pincode area and food preference live in "About you"; editing opens that step.
+                  _Section(
+                    title: 'Area & food',
+                    onEdit: () => controller.edit('about'),
+                    child: Column(
+                      children: [
+                        _InfoRow(label: 'Area', value: user.locationText ?? 'Add your pincode'),
+                        if (user.pincode != null) _InfoRow(label: 'Pincode', value: user.pincode!),
+                        _InfoRow(label: 'Food', value: _foods[user.foodPref] ?? 'Not set'),
+                      ],
+                    ),
                   ),
                   SizedBox(height: SizeConfig.h(16)),
                   _Section(

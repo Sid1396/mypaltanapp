@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../config/sports.dart';
 import '../../utils/helpers/size_config.dart';
@@ -14,6 +15,13 @@ class OnboardingAboutStep extends GetView<OnboardingController> {
     'FEMALE': Icons.woman_rounded,
     'UNDISCLOSED': Icons.shield_rounded,
   };
+
+  static const _foods = [
+    ('VEG', 'Veg', Icons.eco_rounded),
+    ('NON_VEG', 'Non-veg', Icons.set_meal_rounded),
+    ('EGG', 'Eggetarian', Icons.egg_rounded),
+    ('JAIN', 'Jain', Icons.spa_rounded),
+  ];
 
   static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -69,6 +77,40 @@ class OnboardingAboutStep extends GetView<OnboardingController> {
                       icon: _genderIcons[code]!,
                       selected: controller.gender.value == code,
                       onTap: () => controller.gender.value = code,
+                    ),
+                  );
+                }).toList(),
+              )),
+          SizedBox(height: SizeConfig.h(10)),
+          const FieldLabel('Current address pincode'),
+          SizedBox(height: SizeConfig.h(8)),
+          FieldTextInput(
+            controller: controller.pincodeController,
+            hint: 'e.g. 400067',
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          ),
+          Obx(() {
+            final u = controller.savedLocation;
+            return Text(
+              u ?? 'Used to show where you rank in your area. Only your area is shown to others, never the pincode.',
+              style: TextStyle(fontFamily: 'Gilroy', fontSize: SizeConfig.sp(12), color: Colors.white.withAlpha(u == null ? 110 : 170)),
+            );
+          }),
+          SizedBox(height: SizeConfig.h(20)),
+          const FieldLabel('Food preference'),
+          SizedBox(height: SizeConfig.h(8)),
+          Obx(() => Column(
+                children: _foods.map((f) {
+                  final (code, label, icon) = f;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: SizeConfig.h(10)),
+                    child: ChoiceCard(
+                      label: label,
+                      icon: icon,
+                      selected: controller.foodPref.value == code,
+                      onTap: () => controller.foodPref.value = code,
                     ),
                   );
                 }).toList(),

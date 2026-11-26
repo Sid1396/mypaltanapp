@@ -31,11 +31,14 @@ class OnboardingController extends GetxController with LoggerMixin {
   final nameController = TextEditingController();
   final jerseyNameController = TextEditingController();
   final jerseyNumberController = TextEditingController();
+  final pincodeController = TextEditingController();
 
   final steps = <String>[].obs;
   final _index = 0.obs;
   final birthdate = Rx<DateTime?>(null);
   final gender = ''.obs;
+  final foodPref = ''.obs; // VEG, NON_VEG, JAIN, EGG
+  final pincode = ''.obs; // current address
   final name = ''.obs;
   final jerseyName = ''.obs;
   final jerseyNumber = ''.obs;
@@ -51,6 +54,12 @@ class OnboardingController extends GetxController with LoggerMixin {
   String? editSection;
 
   bool get isEditing => editSection != null;
+
+  /// "Kandivali West, Mumbai" when the pincode in the field is the one saved on the profile.
+  String? get savedLocation {
+    final u = _session.user.value;
+    return u != null && u.pincode != null && u.pincode == pincode.value ? u.locationText : null;
+  }
   int get index => _index.value;
   String get currentStep => steps.isEmpty ? 'done' : steps[_index.value];
   int get dataStepCount => steps.where((s) => s != 'done').length;
@@ -66,6 +75,7 @@ class OnboardingController extends GetxController with LoggerMixin {
     nameController.addListener(() => name.value = nameController.text);
     jerseyNameController.addListener(() => jerseyName.value = jerseyNameController.text);
     jerseyNumberController.addListener(() => jerseyNumber.value = jerseyNumberController.text);
+    pincodeController.addListener(() => pincode.value = pincodeController.text.trim());
 
     final args = Get.arguments;
     editSection = args is Map ? args['edit'] as String? : null;
@@ -84,6 +94,8 @@ class OnboardingController extends GetxController with LoggerMixin {
     nameController.text = u.name ?? '';
     birthdate.value = u.birthdate;
     gender.value = u.gender ?? '';
+    foodPref.value = u.foodPref ?? '';
+    pincodeController.text = u.pincode ?? '';
     jerseyNameController.text = u.jerseyName ?? '';
     jerseyNumberController.text = u.jerseyNumber?.toString() ?? '';
     jerseySize.value = u.jerseySize ?? '';
@@ -98,6 +110,7 @@ class OnboardingController extends GetxController with LoggerMixin {
   void onClose() {
     pageController.dispose();
     nameController.dispose();
+    pincodeController.dispose();
     jerseyNameController.dispose();
     jerseyNumberController.dispose();
     super.onClose();
@@ -179,6 +192,8 @@ class OnboardingController extends GetxController with LoggerMixin {
         if (birthdate.value == null) return 'Select your date of birth.';
         if (ageOf(birthdate.value!) < 13) return 'You must be 13 or older to use MyPaltan.';
         if (gender.value.isEmpty) return 'Choose a gender option.';
+        if (!RegExp(r'^[1-9]\d{5}$').hasMatch(pincode.value)) return 'Enter the 6-digit pincode of your current address.';
+        if (foodPref.value.isEmpty) return 'Choose your food preference.';
         return null;
       case 'jersey':
         final j = jerseyName.value.trim();
@@ -301,7 +316,13 @@ class OnboardingController extends GetxController with LoggerMixin {
   Map<String, dynamic> _fieldsFor(String step) {
     switch (step) {
       case 'about':
-        return {'name': name.value.trim(), 'birthdate': _dob(birthdate.value!), 'gender': gender.value};
+        return {
+          'name': name.value.trim(),
+          'birthdate': _dob(birthdate.value!),
+          'gender': gender.value,
+          'pincode': pincode.value,
+          'food_pref': foodPref.value,
+        };
       case 'jersey':
         return {
           'jersey_name': jerseyName.value.trim().toUpperCase(),
