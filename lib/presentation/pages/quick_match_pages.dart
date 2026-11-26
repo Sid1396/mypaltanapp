@@ -9,6 +9,7 @@ import '../widgets/form_widgets.dart';
 import '../widgets/onboarding_widgets.dart';
 import '../widgets/tournament_form_widgets.dart';
 import '../widgets/tournament_media_editors.dart' show SmallButtonLarge;
+import '../widgets/tournament_stats.dart' show PlayerStatsView;
 
 Widget _topButton(IconData icon, VoidCallback onTap, {Key? key}) => GestureDetector(
       key: key,
@@ -399,6 +400,13 @@ class QuickMatchPage extends GetView<QuickMatchController> {
                 ),
               ),
             ),
+        // Player stats for the whole session, the same as a tournament's: Player of the Session and the leaderboards.
+        if (m.sport == 'CRICKET' || m.sport == 'FOOTBALL') ...[
+          gapH(12),
+          Text('STATS', style: tfStyle(12, weight: FontWeight.w800, color: Colors.white.withAlpha(140))),
+          gapH(8),
+          Obx(() => PlayerStatsView(stats: c.stats.value, loading: c.statsLoading.value, sport: m.sport, session: true)),
+        ],
       ],
 
       // "I'm in" list: the creator puts each person in a team (or shuffles); everyone else sees who's where.

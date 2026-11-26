@@ -34,77 +34,98 @@ class StatsTabBody extends GetView<TournamentController> {
   final Tournament t;
   const StatsTabBody({super.key, required this.t});
 
+  // Opening the tab loads the stats (TournamentController watches the tab).
+  @override
+  Widget build(BuildContext context) => Obx(() => PlayerStatsView(
+        stats: controller.stats.value,
+        loading: controller.statsLoading.value,
+        sport: t.sport,
+        division: controller.statsDivision.value,
+        onDivision: (id) => controller.statsDivision.value = id,
+      ));
+}
+
+/// Player stats for a tournament or a quick match session (the same server stats): Player of the Series / Tournament,
+/// then the leaderboards. [session] names the award for a quick match session.
+class PlayerStatsView extends StatelessWidget {
+  final Map<String, dynamic>? stats;
+  final bool loading;
+  final String sport;
+  final int? division;
+  final ValueChanged<int>? onDivision;
+  final bool session;
+  const PlayerStatsView(
+      {super.key, required this.stats, required this.loading, required this.sport, this.division, this.onDivision, this.session = false});
+
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final s = controller.stats.value;
-      // Opening the tab loads the stats (TournamentController watches the tab).
-      if (controller.statsLoading.value || s == null) {
-        return Padding(padding: EdgeInsets.only(top: SizeConfig.h(30)), child: const Center(child: CircularProgressIndicator(color: AppColors.primary)));
-      }
-      if (t.sport != 'CRICKET' && t.sport != 'FOOTBALL') return _note('Player stats for ${t.sport.toLowerCase()} are coming soon.');
-      final football = t.sport == 'FOOTBALL';
-      final divisions = _maps(s['divisions']);
-      if (divisions.every((d) => (d['matches'] as num? ?? 0) == 0)) {
-        return _note('Stats appear here once the first match is scored: top run-scorers, wicket-takers and more.');
-      }
-      final teams = {for (final x in _maps(s['teams'])) x['entry_id'] as int: x};
-      final mine = {...(s['my_entry_ids'] as List? ?? []).map((v) => v as int)};
-      final selected = divisions.firstWhereOrNull((d) => d['id'] == controller.statsDivision.value) ?? divisions.first;
-      final leaders = Map<String, dynamic>.from(selected['leaders'] as Map? ?? {});
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (divisions.length > 1) ...[
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(children: [
-                for (final d in divisions)
-                  Padding(
-                    padding: EdgeInsets.only(right: SizeConfig.w(8)),
-                    child: GestureDetector(
-                      onTap: () => controller.statsDivision.value = d['id'] as int,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(14), vertical: SizeConfig.h(7)),
-                        decoration: BoxDecoration(
-                          color: d == selected ? AppColors.primary.withAlpha(40) : const Color(0xFF1A1A1A),
-                          borderRadius: BorderRadius.circular(SizeConfig.r(100)),
-                          border: Border.all(color: d == selected ? AppColors.primary : Colors.white.withAlpha(20)),
-                        ),
-                        child: Text('${d['name']}', style: tfStyle(12.5, weight: FontWeight.w700)),
+    final s = stats;
+    if (loading || s == null) {
+      return Padding(padding: EdgeInsets.only(top: SizeConfig.h(30)), child: const Center(child: CircularProgressIndicator(color: AppColors.primary)));
+    }
+    if (sport != 'CRICKET' && sport != 'FOOTBALL') return _note('Player stats for ${sport.toLowerCase()} are coming soon.');
+    final football = sport == 'FOOTBALL';
+    final divisions = _maps(s['divisions']);
+    if (divisions.isEmpty || divisions.every((d) => (d['matches'] as num? ?? 0) == 0)) {
+      return _note('Stats appear here once the first match is scored: top run-scorers, wicket-takers and more.');
+    }
+    final teams = {for (final x in _maps(s['teams'])) x['entry_id'] as int: x};
+    final mine = {...(s['my_entry_ids'] as List? ?? []).map((v) => v as int)};
+    final selected = divisions.firstWhereOrNull((d) => d['id'] == division) ?? divisions.first;
+    final leaders = Map<String, dynamic>.from(selected['leaders'] as Map? ?? {});
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (divisions.length > 1) ...[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final d in divisions)
+                Padding(
+                  padding: EdgeInsets.only(right: SizeConfig.w(8)),
+                  child: GestureDetector(
+                    onTap: () => onDivision?.call(d['id'] as int),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(14), vertical: SizeConfig.h(7)),
+                      decoration: BoxDecoration(
+                        color: d == selected ? AppColors.primary.withAlpha(40) : const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(SizeConfig.r(100)),
+                        border: Border.all(color: d == selected ? AppColors.primary : Colors.white.withAlpha(20)),
                       ),
+                      child: Text('${d['name']}', style: tfStyle(12.5, weight: FontWeight.w700)),
                     ),
                   ),
-              ]),
+                ),
+            ]),
+          ),
+          gapH(14),
+        ],
+        if (selected['player_of_tournament'] is Map) ...[
+          _AwardCard(p: Map<String, dynamic>.from(selected['player_of_tournament'] as Map), teams: teams, football: football, session: session),
+          gapH(12),
+        ],
+        for (final (key, title, value, detail) in football ? _footballBoards : _boards)
+          if (_maps(leaders[key]).isNotEmpty) ...[
+            _Board(
+              key: ValueKey('stats-$key'),
+              title: session && key == 'series_points' ? 'Player of the Session race' : title,
+              rows: _maps(leaders[key]),
+              value: value,
+              detail: detail,
+              teams: teams,
+              mine: mine,
             ),
-            gapH(14),
-          ],
-          if (selected['player_of_tournament'] is Map) ...[
-            _AwardCard(p: Map<String, dynamic>.from(selected['player_of_tournament'] as Map), teams: teams, football: football),
             gapH(12),
           ],
-          for (final (key, title, value, detail) in football ? _footballBoards : _boards)
-            if (_maps(leaders[key]).isNotEmpty) ...[
-              _Board(
-                key: ValueKey('stats-$key'),
-                title: title,
-                rows: _maps(leaders[key]),
-                value: value,
-                detail: detail,
-                teams: teams,
-                mine: mine,
-              ),
-              gapH(12),
-            ],
-          Text(
-            football
-                ? 'MVP points: goal 3, assist 2, clean sheet 3, Player of the Match 3, yellow −1, red −3.'
-                : 'Series points: run 1, wicket 20, catch / stumping / run out 10. Strike rate needs 10 balls faced; economy needs 2 overs bowled.',
-            style: tfStyle(11.5, color: Colors.white.withAlpha(120), height: 1.4),
-          ),
-        ],
-      );
-    });
+        Text(
+          football
+              ? 'MVP points: goal 3, assist 2, clean sheet 3, Player of the Match 3, yellow −1, red −3.'
+              : 'Points: runs, plus a bonus for scoring faster than the average; 4 a wicket, plus a bonus for a tighter over than '
+                  'the average; 1 a catch / stumping / run out. Strike rate needs 10 balls faced; economy needs 2 overs bowled.',
+          style: tfStyle(11.5, color: Colors.white.withAlpha(120), height: 1.4),
+        ),
+      ],
+    );
   }
 
   Widget _note(String text) => FormCard(
@@ -122,8 +143,8 @@ class StatsTabBody extends GetView<TournamentController> {
 class _AwardCard extends StatelessWidget {
   final Map<String, dynamic> p;
   final Map<int, Map<String, dynamic>> teams;
-  final bool football;
-  const _AwardCard({required this.p, required this.teams, required this.football});
+  final bool football, session;
+  const _AwardCard({required this.p, required this.teams, required this.football, this.session = false});
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +166,9 @@ class _AwardCard extends StatelessWidget {
             Text(
                 football
                     ? (official ? 'PLAYER OF THE TOURNAMENT' : 'MVP RACE · LEADING NOW')
-                    : (official ? 'PLAYER OF THE SERIES' : 'PLAYER OF THE SERIES · LEADING NOW'),
+                    : session
+                        ? (official ? 'PLAYER OF THE SESSION' : 'PLAYER OF THE SESSION · LEADING NOW')
+                        : (official ? 'PLAYER OF THE SERIES' : 'PLAYER OF THE SERIES · LEADING NOW'),
                 style: tfStyle(11, weight: FontWeight.w800, color: AppColors.primary).copyWith(letterSpacing: 0.6)),
             gapH(2),
             Text('${p['name']}', style: tfStyle(18, weight: FontWeight.w900)),

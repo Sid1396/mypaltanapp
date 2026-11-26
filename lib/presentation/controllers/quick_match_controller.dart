@@ -171,6 +171,8 @@ class QuickMatchController extends GetxController with LoggerMixin {
   final isLoading = true.obs;
   final error = Rx<String?>(null);
   final busy = false.obs;
+  final stats = Rx<Map<String, dynamic>?>(null);
+  final statsLoading = false.obs;
   Timer? _refresh;
 
   @override
@@ -201,6 +203,7 @@ class QuickMatchController extends GetxController with LoggerMixin {
       final res = await _api.getQuickMatch(code);
       if (res['success'] == true && res['match'] is Map) {
         match.value = QuickMatch.fromJson(Map<String, dynamic>.from(res['match'] as Map));
+        if (match.value!.anyPlayed) loadStats();
       } else if (!quiet) {
         error.value = res['message']?.toString() ?? 'Could not load this match.';
       }
@@ -208,6 +211,19 @@ class QuickMatchController extends GetxController with LoggerMixin {
       if (!quiet && match.value == null) error.value = e.message;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// The session's player stats (the tournament stats, all games together): Player of the Session and the leaderboards.
+  Future<void> loadStats() async {
+    statsLoading.value = stats.value == null;
+    try {
+      final res = await _api.getTournamentStats(code);
+      if (res['success'] == true) stats.value = res;
+    } on ApiException catch (e) {
+      logError('Stats failed', e);
+    } finally {
+      statsLoading.value = false;
     }
   }
 
