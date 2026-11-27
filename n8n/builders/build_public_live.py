@@ -253,6 +253,8 @@ return [{ json: { ok: true, phone: '', id, slug, light: false, _q: { slug, id } 
     [("WHERE m.id = $2", "WHERE m.id = $2 AND t.id = (SELECT l.tournament_id FROM tournament_web_links l WHERE l.slug = $3)")],
     "={{ [$json.phone, $json.id, $json.slug] }}")
 
+from add_b2_cache import add_b2_cache  # reuse B2 image links for 20 h (see add_b2_cache.py)
 for k, w in out.items():
+    add_b2_cache(w)
     json.dump(w, open(os.path.join(OUT, f'{k}.json'), 'w'), indent=2)
     print(k, w['id'], len(w['id']), len(w['nodes']), 'nodes')

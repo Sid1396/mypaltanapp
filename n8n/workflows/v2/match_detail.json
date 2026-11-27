@@ -152,7 +152,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\nreturn [{ json: { ...{}, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: $input.first().binary }];"
+        "jsCode": "// Fresh saved B2 links (add_b2_cache.py): skip the B2 calls.\nconst saved = $getWorkflowStaticData('global').b2;\nconst b2Fresh = !!(saved && Date.now() - saved.at < 20 * 3600e3 && [\"Team Link\", \"Photo Link\"].every(n => saved.links && saved.links[n]));\nreturn [{ json: { basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64'), b2Fresh } }];"
       }
     },
     {
@@ -222,7 +222,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst m = $('Check Found').first().json, r = $('Check Request').first().json;\nconst canScore = Number(m.can_score) === 1;\nconst lockedBy = m.scorer_user_id && Number(m.scorer_idle) < 180 && Number(m.scorer_user_id) !== Number(m.viewer_id) ? (m.scorer_name || 'Someone') : null;\nconst team = (id, name, short, logo, squad) => id ? { entry_id: id, name, short, logo_url: signWith(logo, 'Team Link'),\n  squad: r.light ? undefined : (parseJ(squad) || []).sort((a, b) => String(a.name).localeCompare(String(b.name))) } : null;\n// Catches and run outs per player (the match awards' best fielder), from the ball-by-ball with UNDO applied.\nconst fielding = (() => {\n  if (m.sport !== 'CRICKET') return [];\n  const kept = [];\n  for (const e of (parseJ(m.events) || []).sort((a, b) => a.seq - b.seq)) { if (e.type === 'UNDO') kept.pop(); else kept.push(e); }\n  const by = new Map();\n  let bowler = null;\n  for (const e of kept) {\n    const d = parseJ(e.data) || {};\n    if (e.type === 'START_INNINGS') bowler = d.bowler ?? null;\n    if (e.type === 'NEW_BOWLER') bowler = d.id ?? null;\n    const w = e.type === 'BALL' ? d.wicket : null;\n    if (!w || !['CAUGHT', 'STUMPED', 'RUN_OUT'].includes(w.how)) continue;\n    const id = w.fielder ?? (w.how === 'CAUGHT' ? bowler : null);\n    if (id == null) continue;\n    const x = by.get(id) || { member_id: id, catches: 0, run_outs: 0 };\n    if (w.how === 'CAUGHT') x.catches++; else x.run_outs++;\n    by.set(id, x);\n  }\n  return [...by.values()];\n})();\nconst body = { success: true, match: {\n  id: m.id, tournament_code: m.code, tournament_name: m.tname, sport: m.sport, division: m.division, format: m.format, match_rules: parseJ(m.match_rules) || {},\n  stage: m.stage, label: m.label, group_no: m.group_no, round_no: m.round_no, match_no: m.match_no, pitch: m.pitch, scheduled_at: m.scheduled_at,\n  status: m.status, toss_winner_entry_id: m.toss_winner_entry_id, toss_decision: m.toss_decision, result_text: m.result_text, winner_entry_id: m.winner_entry_id,\n  home: team(m.home_entry_id, m.home_name, m.home_short, m.home_logo, m.home_squad), away: team(m.away_entry_id, m.away_name, m.away_short, m.away_logo, m.away_squad),\n  lineups: r.light ? undefined : (parseJ(m.lineups) || []).map(({ photo_key, ...p }) => ({ ...p, captain: !!Number(p.captain), keeper: !!Number(p.keeper),\n    photo_url: signWith(photo_key, 'Photo Link') })),\n  fielding: r.light ? undefined : fielding,\n  live: parseJ(m.live), event_count: Number(m.event_count || 0),\n  is_owner: Number(m.is_owner) === 1, can_score: canScore, scoring_locked_by: lockedBy,\n  events: canScore && !r.light ? (parseJ(m.events) || []).sort((a, b) => a.seq - b.seq).map(e => ({ client_id: e.client_id, type: e.type, data: parseJ(e.data) || {} })) : undefined,\n} };\nreturn [{ json: { status: 200, body } }];"
+        "jsCode": "const __b2 = $('B2 Ready').first().json; // B2 links, saved or fresh (add_b2_cache.py)\nconst __$ = n => n === 'Authorize B2' || __b2.links[n] ? (j => ({ isExecuted: true, first: () => ({ json: j }), all: () => [{ json: j }] }))(n === 'Authorize B2' ? __b2.acct : __b2.links[n]) : $(n);\n\nconst b2 = __$('Authorize B2').isExecuted ? __$('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return __$(node).isExecuted ? __$(node).first().json.authorizationToken : null; } catch { return null; } };\nconst signWith = (key, node) => { const t = tokenOf(node); return key && dl && t ? `${dl}/file/mypaltan-profile-photos/${key.split('/').map(encodeURIComponent).join('/')}?Authorization=${t}` : null; };\nconst parseJ = v => { if (v === null || v === undefined) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };\n\nconst m = __$('Check Found').first().json, r = __$('Check Request').first().json;\nconst canScore = Number(m.can_score) === 1;\nconst lockedBy = m.scorer_user_id && Number(m.scorer_idle) < 180 && Number(m.scorer_user_id) !== Number(m.viewer_id) ? (m.scorer_name || 'Someone') : null;\nconst team = (id, name, short, logo, squad) => id ? { entry_id: id, name, short, logo_url: signWith(logo, 'Team Link'),\n  squad: r.light ? undefined : (parseJ(squad) || []).sort((a, b) => String(a.name).localeCompare(String(b.name))) } : null;\n// Catches and run outs per player (the match awards' best fielder), from the ball-by-ball with UNDO applied.\nconst fielding = (() => {\n  if (m.sport !== 'CRICKET') return [];\n  const kept = [];\n  for (const e of (parseJ(m.events) || []).sort((a, b) => a.seq - b.seq)) { if (e.type === 'UNDO') kept.pop(); else kept.push(e); }\n  const by = new Map();\n  let bowler = null;\n  for (const e of kept) {\n    const d = parseJ(e.data) || {};\n    if (e.type === 'START_INNINGS') bowler = d.bowler ?? null;\n    if (e.type === 'NEW_BOWLER') bowler = d.id ?? null;\n    const w = e.type === 'BALL' ? d.wicket : null;\n    if (!w || !['CAUGHT', 'STUMPED', 'RUN_OUT'].includes(w.how)) continue;\n    const id = w.fielder ?? (w.how === 'CAUGHT' ? bowler : null);\n    if (id == null) continue;\n    const x = by.get(id) || { member_id: id, catches: 0, run_outs: 0 };\n    if (w.how === 'CAUGHT') x.catches++; else x.run_outs++;\n    by.set(id, x);\n  }\n  return [...by.values()];\n})();\nconst body = { success: true, match: {\n  id: m.id, tournament_code: m.code, tournament_name: m.tname, sport: m.sport, division: m.division, format: m.format, match_rules: parseJ(m.match_rules) || {},\n  stage: m.stage, label: m.label, group_no: m.group_no, round_no: m.round_no, match_no: m.match_no, pitch: m.pitch, scheduled_at: m.scheduled_at,\n  status: m.status, toss_winner_entry_id: m.toss_winner_entry_id, toss_decision: m.toss_decision, result_text: m.result_text, winner_entry_id: m.winner_entry_id,\n  home: team(m.home_entry_id, m.home_name, m.home_short, m.home_logo, m.home_squad), away: team(m.away_entry_id, m.away_name, m.away_short, m.away_logo, m.away_squad),\n  lineups: r.light ? undefined : (parseJ(m.lineups) || []).map(({ photo_key, ...p }) => ({ ...p, captain: !!Number(p.captain), keeper: !!Number(p.keeper),\n    photo_url: signWith(photo_key, 'Photo Link') })),\n  fielding: r.light ? undefined : fielding,\n  live: parseJ(m.live), event_count: Number(m.event_count || 0),\n  is_owner: Number(m.is_owner) === 1, can_score: canScore, scoring_locked_by: lockedBy,\n  events: canScore && !r.light ? (parseJ(m.events) || []).sort((a, b) => a.seq - b.seq).map(e => ({ client_id: e.client_id, type: e.type, data: parseJ(e.data) || {} })) : undefined,\n} };\nreturn [{ json: { status: 200, body } }];"
       }
     },
     {
@@ -273,6 +273,53 @@
         "jsonBody": "={{ JSON.stringify({ bucketId: '57d8ff72a9534e199bf30918', fileNamePrefix: 'profile_photos/', validDurationInSeconds: 86400 }) }}"
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "282e7d3f-713a-42a2-b1d3-d17bf2fa4252",
+              "leftValue": "={{ $json.b2Fresh }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "B2 Fresh?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1430,
+        80
+      ],
+      "id": "c83b37d4-73b6-4700-92c7-4bf19442671e"
+    },
+    {
+      "parameters": {
+        "jsCode": "// The B2 links: saved ones while fresh, else the ones just fetched (saved for next time when all succeeded).\nconst store = $getWorkflowStaticData('global');\nif ($('B2 Credentials').first().json.b2Fresh) return [{ json: { acct: store.b2.acct, links: store.b2.links } }];\nconst a = $('Authorize B2').first().json;\nconst acct = { apiInfo: a.apiInfo, authorizationToken: a.authorizationToken };\nconst links = {};\nfor (const n of [\"Team Link\", \"Photo Link\"]) { try { const t = $(n).first().json.authorizationToken; if (t) links[n] = { authorizationToken: t }; } catch {} }\nif (acct.authorizationToken && acct.apiInfo && Object.keys(links).length === 2) store.b2 = { at: Date.now(), acct, links };\nreturn [{ json: { acct, links } }];"
+      },
+      "name": "B2 Ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2030,
+        80
+      ],
+      "id": "f459a689-4160-4eaa-93ea-6c77ede645db"
     }
   ],
   "connections": {
@@ -298,7 +345,7 @@
       "main": [
         [
           {
-            "node": "Authorize B2",
+            "node": "B2 Fresh?",
             "type": "main",
             "index": 0
           }
@@ -401,6 +448,35 @@
       ]
     },
     "Photo Link": {
+      "main": [
+        [
+          {
+            "node": "B2 Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Fresh?": {
+      "main": [
+        [
+          {
+            "node": "B2 Ready",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Authorize B2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Ready": {
       "main": [
         [
           {

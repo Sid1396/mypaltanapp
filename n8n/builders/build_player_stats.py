@@ -242,5 +242,7 @@ link(c, "Load", "B2 Credentials"); link(c, "B2 Credentials", "Authorize B2"); li
 link(c, "Build Response", "Respond")
 w = workflow("PlayerStats026mP", "MyPaltan v2 - Player Stats", n, c)
 w["settings"]["saveDataSuccessExecution"] = "none"
+from add_b2_cache import add_b2_cache  # reuse B2 image links for 20 h (see add_b2_cache.py)
+add_b2_cache(w)
 json.dump(w, open(os.path.join(OUT, 'player_stats.json'), 'w'), indent=2)
 print('player_stats', w['id'], len(w['nodes']), 'nodes')

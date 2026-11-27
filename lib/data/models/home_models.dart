@@ -56,6 +56,7 @@ class FeaturedTournament {
   final String status;
   final bool interested; // the viewer tapped "Notify me when registration opens"
   final List<({String team, String? logoUrl, String? division})> champions; // completed: each division's final winner
+  final String entryType; // OPEN (any team) or IN_HOUSE (invited teams only)
 
   const FeaturedTournament({
     required this.slug,
@@ -70,6 +71,7 @@ class FeaturedTournament {
     this.status = 'COMING_SOON',
     this.interested = false,
     this.champions = const [],
+    this.entryType = 'OPEN',
   });
 
   static const _statusLabels = {
@@ -82,7 +84,11 @@ class FeaturedTournament {
   };
   static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  String get statusLabel => _statusLabels[status] ?? status;
+  /// "Registrations open soon", with " · Invite only" for in-house ones while registration is (about to be) open.
+  String get statusLabel {
+    final label = _statusLabels[status] ?? status;
+    return entryType == 'IN_HOUSE' && (status == 'COMING_SOON' || status == 'REGISTRATION_OPEN') ? '$label · Invite only' : label;
+  }
   String get location => [if (area != null && area!.isNotEmpty) area!, city].join(', ');
   String? get dayLabel => startDate?.day.toString().padLeft(2, '0');
   String? get monthLabel => startDate == null ? null : _months[startDate!.month - 1];
@@ -93,6 +99,7 @@ class FeaturedTournament {
           for (final c in (j['champions'] as List? ?? []).whereType<Map>())
             (team: c['team']?.toString() ?? '', logoUrl: c['logo_url']?.toString(), division: c['division']?.toString()),
         ],
+        entryType: j['entry_type']?.toString() ?? 'OPEN',
         slug: j['slug']?.toString() ?? '',
         code: j['code']?.toString(),
         name: j['name']?.toString() ?? '',

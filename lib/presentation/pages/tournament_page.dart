@@ -71,7 +71,7 @@ class TournamentPage extends GetView<TournamentController> {
                           2 => FixturesTabBody(t: t),
                           3 => StatsTabBody(t: t),
                           4 => _SponsorsTab(t: t),
-                          6 when t.streamUrl != null => TournamentLiveTab(url: t.streamUrl!),
+                          6 when t.streamUrl != null => TournamentLiveTab(url: t.streamUrl!, code: t.code, name: t.name),
                           _ => _DocumentsTab(t: t),
                         },
                       ),
@@ -625,7 +625,8 @@ class _StreamCard extends GetView<TournamentController> {
         GestureDetector(
           key: const ValueKey('overlay-copy'),
           onTap: () {
-            Clipboard.setData(ClipboardData(text: 'https://mypaltan.com/overlay/${t.code}?delay=15'));
+            // No delay: the streaming app puts the bar and the camera into the stream together, so YouTube delays both.
+            Clipboard.setData(ClipboardData(text: 'https://mypaltan.com/overlay/${t.code}'));
             AppSnackbar.success('Score overlay link copied',
                 'In Prism Live / OBS add it as a web (browser) source, full width. Open it with ?demo=1 to place it before the match.');
           },

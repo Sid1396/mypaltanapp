@@ -355,6 +355,21 @@ class TournamentCard extends StatelessWidget {
                             child: Text('COMING SOON', style: _gilroy(10, weight: FontWeight.w700)),
                           ),
                   ),
+                  // Who can register: Open (any team) or In-house (invited teams only).
+                  Positioned(
+                    top: SizeConfig.r(10),
+                    right: SizeConfig.r(10),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: SizeConfig.w(8), vertical: SizeConfig.h(5)),
+                      decoration: BoxDecoration(color: Colors.black.withAlpha(200), borderRadius: BorderRadius.circular(SizeConfig.r(8))),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(t.entryType == 'IN_HOUSE' ? Icons.lock_rounded : Icons.public_rounded,
+                            size: SizeConfig.r(12), color: t.entryType == 'IN_HOUSE' ? const Color(0xFFFFC94D) : AppColors.positive),
+                        SizedBox(width: SizeConfig.w(4)),
+                        Text(t.entryType == 'IN_HOUSE' ? 'IN-HOUSE' : 'OPEN', style: _gilroy(10, weight: FontWeight.w800)),
+                      ]),
+                    ),
+                  ),
                 ],
               ),
             ),

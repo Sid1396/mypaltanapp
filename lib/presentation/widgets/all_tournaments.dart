@@ -17,6 +17,7 @@ class AllTournamentsController extends GetxController with LoggerMixin {
   final sport = 'ALL'.obs;
   final status = 'ALL'.obs; // ALL | LIVE | OPEN | DONE
   final items = <Map<String, dynamic>>[].obs;
+  final featured = <FeaturedTournament>[].obs; // "Registrations open soon" leagues (first page, any status)
   final isLoading = true.obs;
   final isLoadingMore = false.obs;
   final error = Rx<String?>(null);
@@ -47,6 +48,7 @@ class AllTournamentsController extends GetxController with LoggerMixin {
       if (seq != _seq) return;
       if (res['success'] == true) {
         items.assignAll((res['tournaments'] as List? ?? []).whereType<Map>().map((m) => Map<String, dynamic>.from(m)));
+        featured.assignAll((res['featured'] as List? ?? []).whereType<Map>().map((m) => FeaturedTournament.fromJson(Map<String, dynamic>.from(m))));
         _next = (res['next_offset'] as num?)?.toInt();
       } else {
         error.value = res['message']?.toString() ?? 'Could not load tournaments.';
@@ -119,14 +121,16 @@ List<Widget> allTournaments(AllTournamentsController a) {
       Padding(padding: EdgeInsets.only(top: SizeConfig.h(60)), child: const Center(child: CircularProgressIndicator(color: AppColors.primary)))
     else if (a.error.value != null && a.items.isEmpty)
       Padding(padding: pad, child: EmptyCard(icon: Icons.cloud_off_rounded, title: 'Could not load', message: a.error.value!))
-    else if (a.items.isEmpty)
+    else if (a.items.isEmpty && a.featured.isEmpty)
       Padding(
         padding: pad,
         child: const EmptyCard(icon: Icons.emoji_events_rounded, title: 'No tournaments', message: 'No tournaments match these filters yet.'),
       )
     else ...[
-      for (final t in a.items)
-        Padding(padding: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(14)), child: TournamentCard(t: _card(t))),
+      // Live and upcoming, then the leagues opening soon, then completed.
+      for (final t in a.items.where((t) => t['stage'] != 'COMPLETED')) _cardRow(TournamentCard(t: _card(t))),
+      for (final f in a.featured) _cardRow(TournamentCard(t: f)),
+      for (final t in a.items.where((t) => t['stage'] == 'COMPLETED')) _cardRow(TournamentCard(t: _card(t))),
       if (a.hasMore)
         Center(
           child: TextButton(
@@ -197,7 +201,9 @@ void _filters(AllTournamentsController a) {
   );
 }
 
-/// The Upcoming tab's card for an All-tab row: same look, with format, in-house and team count as its tags.
+Widget _cardRow(Widget card) => Padding(padding: EdgeInsets.fromLTRB(SizeConfig.w(20), 0, SizeConfig.w(20), SizeConfig.h(14)), child: card);
+
+/// The Upcoming tab's card for an All-tab row: same look, with format and team count as its tags.
 FeaturedTournament _card(Map<String, dynamic> t) {
   final teams = (t['teams'] as num?)?.toInt() ?? 0;
   return FeaturedTournament.fromJson({
@@ -205,7 +211,6 @@ FeaturedTournament _card(Map<String, dynamic> t) {
     'slug': t['code'],
     'tags': [
       if (t['format'] != null) t['format'],
-      if (t['entry_type'] == 'IN_HOUSE') 'In-house',
       if (teams > 0) '$teams teams',
     ],
   });

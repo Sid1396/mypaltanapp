@@ -5,7 +5,8 @@
 GET v2/public/overlay?code=VPLS07[&match=91]: no login. The tournament's match that is on now (LIVE first, else the most
 recently finished one, so the bar shows the result between matches), or the given match, in a small shape for the bar:
 teams (name, short, logo), each innings' score, the batters at the crease, the bowler, this over, runs needed and
-balls left, and the result / Player of the Match once it ends. Only scores, which are public on the live pages anyway.
+balls left, and the result / Player of the Match once it ends. Also the tournament's YouTube link (?preview=1 shows
+the bar over it). Only scores, which are public on the live pages anyway.
 """
 import json
 import os
@@ -24,7 +25,7 @@ return [{ json: { ok: true, code, match } }];
 """
 
 LOAD_SQL = (
-    "SELECT t.name AS tname, t.logo_key AS tlogo, t.sport, m.id, m.status, m.label, m.live, "
+    "SELECT t.name AS tname, t.logo_key AS tlogo, t.stream_url, t.sport, m.id, m.status, m.label, m.live, "
     "eh.id AS hid, th.name AS hname, th.short_name AS hshort, th.logo_key AS hlogo, "
     "ea.id AS aid, ta.name AS aname, ta.short_name AS ashort, ta.logo_key AS alogo "
     "FROM tournaments t JOIN tournament_matches m ON m.tournament_id = t.id "
@@ -52,7 +53,7 @@ const bat = b => b ? { name: b.name, runs: b.runs, balls: b.balls } : null;
 const c = live.current || null;
 const match = {
   id: r.id, status: r.status, label: r.label || null, sport: r.sport,
-  tournament: { name: r.tname, logo_url: sign(r.tlogo) },
+  tournament: { name: r.tname, logo_url: sign(r.tlogo), stream_url: r.stream_url || null },
   home: team(r.hid, r.hname, r.hshort, r.hlogo), away: team(r.aid, r.aname, r.ashort, r.alogo),
   overs_limit: live.overs_limit ?? null,
   innings: (live.innings || []).map(i => ({ no: i.no, batting: i.batting_entry_id, runs: i.runs, wickets: i.wickets, overs: i.overs,
@@ -93,5 +94,7 @@ link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
 link(c, "Load", "B2 Credentials"); link(c, "B2 Credentials", "Authorize B2"); link(c, "Authorize B2", "Assets Link")
 link(c, "Assets Link", "Team Link"); link(c, "Team Link", "Build Response"); link(c, "Build Response", "Respond")
 w = workflow("PubOverlay026mP", "MyPaltan v2 - Public Overlay", n, c)
+from add_b2_cache import add_b2_cache  # reuse B2 image links for 20 h (see add_b2_cache.py)
+add_b2_cache(w)
 json.dump(w, open(os.path.join(OUT, 'public_overlay.json'), 'w'), indent=2)
 print('public_overlay', w['id'], len(w['nodes']), 'nodes')

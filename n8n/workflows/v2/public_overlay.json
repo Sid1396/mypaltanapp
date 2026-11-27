@@ -19,8 +19,8 @@
         0,
         0
       ],
-      "id": "2d2236be-ce74-4afe-b455-65993106884d",
-      "webhookId": "7f8cbdf8-831e-42da-be36-c23071eeec2c"
+      "id": "d1d3e59a-d332-4102-b158-bcdf12490bb8",
+      "webhookId": "0ebd0997-ddf1-4d8e-9ef4-b846c9f5e502"
     },
     {
       "parameters": {
@@ -33,7 +33,7 @@
         220,
         0
       ],
-      "id": "fd8fde6e-240a-4d88-b805-680f2219bfb0"
+      "id": "055cc661-f0cc-4f86-b17a-360ac9a32771"
     },
     {
       "parameters": {
@@ -46,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "862d6e6e-078c-44bb-b8e4-3d9acbdf4a97",
+              "id": "c3734804-43f4-497a-a816-0273ab7c46ea",
               "leftValue": "={{ $json.ok }}",
               "rightValue": "",
               "operator": {
@@ -67,12 +67,12 @@
         440,
         0
       ],
-      "id": "22eeed74-da61-4265-b706-ea25baaed069"
+      "id": "fcae2ecd-aa37-4acd-9b76-f64c0e26a139"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT t.name AS tname, t.logo_key AS tlogo, t.sport, m.id, m.status, m.label, m.live, eh.id AS hid, th.name AS hname, th.short_name AS hshort, th.logo_key AS hlogo, ea.id AS aid, ta.name AS aname, ta.short_name AS ashort, ta.logo_key AS alogo FROM tournaments t JOIN tournament_matches m ON m.tournament_id = t.id LEFT JOIN tournament_entries eh ON eh.id = m.home_entry_id LEFT JOIN teams th ON th.id = eh.team_id LEFT JOIN tournament_entries ea ON ea.id = m.away_entry_id LEFT JOIN teams ta ON ta.id = ea.team_id WHERE t.code = $1 AND t.status <> 'DRAFT' AND m.live IS NOT NULL AND (($2 = 0 AND m.status IN ('LIVE', 'COMPLETED')) OR m.id = $2) ORDER BY (m.status = 'LIVE') DESC, m.updated_at DESC LIMIT 1",
+        "query": "SELECT t.name AS tname, t.logo_key AS tlogo, t.stream_url, t.sport, m.id, m.status, m.label, m.live, eh.id AS hid, th.name AS hname, th.short_name AS hshort, th.logo_key AS hlogo, ea.id AS aid, ta.name AS aname, ta.short_name AS ashort, ta.logo_key AS alogo FROM tournaments t JOIN tournament_matches m ON m.tournament_id = t.id LEFT JOIN tournament_entries eh ON eh.id = m.home_entry_id LEFT JOIN teams th ON th.id = eh.team_id LEFT JOIN tournament_entries ea ON ea.id = m.away_entry_id LEFT JOIN teams ta ON ta.id = ea.team_id WHERE t.code = $1 AND t.status <> 'DRAFT' AND m.live IS NOT NULL AND (($2 = 0 AND m.status IN ('LIVE', 'COMPLETED')) OR m.id = $2) ORDER BY (m.status = 'LIVE') DESC, m.updated_at DESC LIMIT 1",
         "options": {
           "queryReplacement": "={{ [$json.code, $json.match] }}"
         }
@@ -84,7 +84,7 @@
         660,
         -100
       ],
-      "id": "0a15dde0-1cce-494c-81a9-5218e5435a6c",
+      "id": "78d4f222-d4c4-4000-ae19-f3829699cd1c",
       "credentials": {
         "mySql": {
           "id": "cJO42PjVTTGgCHL1",
@@ -95,7 +95,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const $in = $input.first().json;\nreturn $input.all().map(i => ({ json: { ...i.json, basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64') }, binary: i.binary }));"
+        "jsCode": "// Fresh saved B2 links (add_b2_cache.py): skip the B2 calls.\nconst saved = $getWorkflowStaticData('global').b2;\nconst b2Fresh = !!(saved && Date.now() - saved.at < 20 * 3600e3 && [\"Assets Link\", \"Team Link\"].every(n => saved.links && saved.links[n]));\nreturn [{ json: { basicAuth: 'Basic ' + Buffer.from(`${$env.B2_KEY_ID}:${$env.B2_APPLICATION_KEY}`).toString('base64'), b2Fresh } }];"
       },
       "name": "B2 Credentials",
       "type": "n8n-nodes-base.code",
@@ -104,7 +104,7 @@
         880,
         -100
       ],
-      "id": "4f767e1d-e9e7-4b11-9927-daa77d3da456"
+      "id": "87be3c4b-670b-4143-8a6c-9a243d2b54b7"
     },
     {
       "parameters": {
@@ -128,7 +128,7 @@
         1100,
         -100
       ],
-      "id": "8212737b-9cad-401a-990a-3e4fa09e35da",
+      "id": "ead31b37-e778-4023-95a4-054a197310ce",
       "onError": "continueRegularOutput"
     },
     {
@@ -160,7 +160,7 @@
         1320,
         -100
       ],
-      "id": "892f7cfc-a854-403c-b5e9-936ac924566a",
+      "id": "ca023c49-f4ac-430e-a133-0f6b09084eb4",
       "onError": "continueRegularOutput"
     },
     {
@@ -192,12 +192,12 @@
         1320,
         60
       ],
-      "id": "3d9c1d2c-dee8-40ce-a614-ce4ff01818ad",
+      "id": "c1c14b5a-33d5-4858-822c-5d8d3f699054",
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "\nconst r = $('Load').all().map(i => i.json).find(x => x && x.id);\nif (!r) return [{ json: { status: 200, body: { success: true, match: null } } }];\nconst b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };\nconst tokens = { 'tournament_assets/': tokenOf('Assets Link'), 'team_assets/': tokenOf('Team Link') };\nconst sign = k => {\n  const tok = k && tokens[Object.keys(tokens).find(p => k.startsWith(p))];\n  return dl && tok ? `${dl}/file/mypaltan-profile-photos/${k.split('/').map(encodeURIComponent).join('/')}?Authorization=${tok}` : null;\n};\nconst live = typeof r.live === 'string' ? JSON.parse(r.live) : (r.live || {});\nconst team = (id, name, short, logo) => id ? { entry_id: id, name, short: short || String(name || '').slice(0, 3).toUpperCase(), logo_url: sign(logo) } : null;\nconst bat = b => b ? { name: b.name, runs: b.runs, balls: b.balls } : null;\nconst c = live.current || null;\nconst match = {\n  id: r.id, status: r.status, label: r.label || null, sport: r.sport,\n  tournament: { name: r.tname, logo_url: sign(r.tlogo) },\n  home: team(r.hid, r.hname, r.hshort, r.hlogo), away: team(r.aid, r.aname, r.ashort, r.alogo),\n  overs_limit: live.overs_limit ?? null,\n  innings: (live.innings || []).map(i => ({ no: i.no, batting: i.batting_entry_id, runs: i.runs, wickets: i.wickets, overs: i.overs,\n    target: i.target ?? null, run_rate: i.run_rate ?? null, complete: !!i.complete })),\n  current: c ? {\n    innings: c.innings, striker: bat(c.striker), non_striker: bat(c.non_striker),\n    bowler: c.bowler ? { name: c.bowler.name, wickets: c.bowler.wickets, runs: c.bowler.runs, overs: c.bowler.overs } : null,\n    this_over: c.this_over || [], free_hit: !!c.free_hit, need: c.need ?? null, balls_left: c.balls_left ?? null, required_rate: c.required_rate ?? null,\n  } : null,\n  last: (live.commentary || [])[0] ? { symbol: live.commentary[0].symbol, text: live.commentary[0].text } : null,\n  result: live.result || null,\n  potm: live.potm ? { name: live.potm.name, reason: live.potm.reason || null } : null,\n  // Football: the score line (the bar shows it when the sport is football).\n  score: live.score || null, phase: live.phase || null,\n};\nreturn [{ json: { status: 200, body: { success: true, match } } }];\n"
+        "jsCode": "const __b2 = $('B2 Ready').first().json; // B2 links, saved or fresh (add_b2_cache.py)\nconst __$ = n => n === 'Authorize B2' || __b2.links[n] ? (j => ({ isExecuted: true, first: () => ({ json: j }), all: () => [{ json: j }] }))(n === 'Authorize B2' ? __b2.acct : __b2.links[n]) : $(n);\n\nconst r = __$('Load').all().map(i => i.json).find(x => x && x.id);\nif (!r) return [{ json: { status: 200, body: { success: true, match: null } } }];\nconst b2 = __$('Authorize B2').isExecuted ? __$('Authorize B2').first().json : {};\nconst dl = b2?.apiInfo?.storageApi?.downloadUrl;\nconst tokenOf = node => { try { return __$(node).isExecuted ? __$(node).first().json.authorizationToken : null; } catch { return null; } };\nconst tokens = { 'tournament_assets/': tokenOf('Assets Link'), 'team_assets/': tokenOf('Team Link') };\nconst sign = k => {\n  const tok = k && tokens[Object.keys(tokens).find(p => k.startsWith(p))];\n  return dl && tok ? `${dl}/file/mypaltan-profile-photos/${k.split('/').map(encodeURIComponent).join('/')}?Authorization=${tok}` : null;\n};\nconst live = typeof r.live === 'string' ? JSON.parse(r.live) : (r.live || {});\nconst team = (id, name, short, logo) => id ? { entry_id: id, name, short: short || String(name || '').slice(0, 3).toUpperCase(), logo_url: sign(logo) } : null;\nconst bat = b => b ? { name: b.name, runs: b.runs, balls: b.balls } : null;\nconst c = live.current || null;\nconst match = {\n  id: r.id, status: r.status, label: r.label || null, sport: r.sport,\n  tournament: { name: r.tname, logo_url: sign(r.tlogo), stream_url: r.stream_url || null },\n  home: team(r.hid, r.hname, r.hshort, r.hlogo), away: team(r.aid, r.aname, r.ashort, r.alogo),\n  overs_limit: live.overs_limit ?? null,\n  innings: (live.innings || []).map(i => ({ no: i.no, batting: i.batting_entry_id, runs: i.runs, wickets: i.wickets, overs: i.overs,\n    target: i.target ?? null, run_rate: i.run_rate ?? null, complete: !!i.complete })),\n  current: c ? {\n    innings: c.innings, striker: bat(c.striker), non_striker: bat(c.non_striker),\n    bowler: c.bowler ? { name: c.bowler.name, wickets: c.bowler.wickets, runs: c.bowler.runs, overs: c.bowler.overs } : null,\n    this_over: c.this_over || [], free_hit: !!c.free_hit, need: c.need ?? null, balls_left: c.balls_left ?? null, required_rate: c.required_rate ?? null,\n  } : null,\n  last: (live.commentary || [])[0] ? { symbol: live.commentary[0].symbol, text: live.commentary[0].text } : null,\n  result: live.result || null,\n  potm: live.potm ? { name: live.potm.name, reason: live.potm.reason || null } : null,\n  // Football: the score line (the bar shows it when the sport is football).\n  score: live.score || null, phase: live.phase || null,\n};\nreturn [{ json: { status: 200, body: { success: true, match } } }];\n"
       },
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
@@ -206,7 +206,7 @@
         1540,
         -100
       ],
-      "id": "8d377ae1-8a87-4d3f-a3ea-62d969d4cd11"
+      "id": "a6d8c02b-8fb6-4fc8-8d64-675a40c1ce28"
     },
     {
       "parameters": {
@@ -223,7 +223,54 @@
         1760,
         0
       ],
-      "id": "30e8df83-b778-4615-b3aa-57dac884bf09"
+      "id": "325fae31-8140-46e7-95a8-c78582514d87"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e18dfc21-9600-4d98-9906-907c2d9fd8f7",
+              "leftValue": "={{ $json.b2Fresh }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "B2 Fresh?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        990,
+        80
+      ],
+      "id": "074fc3b2-babc-43ba-a660-e82eb33d9c11"
+    },
+    {
+      "parameters": {
+        "jsCode": "// The B2 links: saved ones while fresh, else the ones just fetched (saved for next time when all succeeded).\nconst store = $getWorkflowStaticData('global');\nif ($('B2 Credentials').first().json.b2Fresh) return [{ json: { acct: store.b2.acct, links: store.b2.links } }];\nconst a = $('Authorize B2').first().json;\nconst acct = { apiInfo: a.apiInfo, authorizationToken: a.authorizationToken };\nconst links = {};\nfor (const n of [\"Assets Link\", \"Team Link\"]) { try { const t = $(n).first().json.authorizationToken; if (t) links[n] = { authorizationToken: t }; } catch {} }\nif (acct.authorizationToken && acct.apiInfo && Object.keys(links).length === 2) store.b2 = { at: Date.now(), acct, links };\nreturn [{ json: { acct, links } }];"
+      },
+      "name": "B2 Ready",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1430,
+        240
+      ],
+      "id": "edbea0dd-e908-49f1-b8c7-f91ae0093b9f"
     }
   ],
   "connections": {
@@ -282,7 +329,7 @@
       "main": [
         [
           {
-            "node": "Authorize B2",
+            "node": "B2 Fresh?",
             "type": "main",
             "index": 0
           }
@@ -315,7 +362,7 @@
       "main": [
         [
           {
-            "node": "Build Response",
+            "node": "B2 Ready",
             "type": "main",
             "index": 0
           }
@@ -327,6 +374,35 @@
         [
           {
             "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Fresh?": {
+      "main": [
+        [
+          {
+            "node": "B2 Ready",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Authorize B2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2 Ready": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
             "type": "main",
             "index": 0
           }

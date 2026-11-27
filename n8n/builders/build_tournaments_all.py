@@ -4,7 +4,8 @@
 
 GET v2/tournaments/all?sport=ALL|CRICKET|…&status=ALL|LIVE|OPEN|DONE&offset=0: every listed (approved, PUBLIC)
 tournament of any status: live first, then upcoming (soonest first), then completed (most recent first). 20 a page.
-Quick matches, drafts and unlisted tournaments are left out.
+Quick matches, drafts and unlisted tournaments are left out. The first page (status ALL) also has the featured leagues
+("Registrations open soon" cards, as on Home) in `featured`.
 """
 import json
 import os
@@ -24,7 +25,7 @@ const status = String(q.status || 'ALL').toUpperCase();
 if (!['ALL', 'CRICKET', 'FOOTBALL', 'BADMINTON', 'PICKLEBALL', 'VOLLEYBALL', 'KABADDI', 'BASKETBALL', 'TENNIS', 'BOX_CRICKET'].includes(sport) || !['ALL', 'LIVE', 'OPEN', 'DONE'].includes(status))
   return [{ json: { ok: false, status: 422, body: { success: false, message: 'Unknown filter.' } } }];
 const offset = Math.max(0, Math.min(5000, parseInt(q.offset, 10) || 0));
-return [{ json: { ok: true, sport, status, offset } }];
+return [{ json: { ok: true, phone: auth.phone, sport, status, offset } }];
 """
 
 # Stage: 0 live, 1 upcoming / registration, 2 completed. Upcoming soonest first; completed latest first.
@@ -53,14 +54,22 @@ LOAD_SQL = (
 )
 # The offset is a whole number checked in Check Request (0-5000), so it goes straight into the query.
 LOAD_SQL = "=" + LOAD_SQL + "{{ $json.offset }}"
+# Featured leagues ("Registrations open soon" cards the MyPaltan team adds, as on Home), with the first page of All.
+LOAD_SQL += (
+    "; SELECT 'featured' AS _set, f.slug, f.name, f.sport, f.logo_url, f.logo_key, DATE_FORMAT(f.start_date, '%Y-%m-%d') AS start_date, "
+    "f.area, f.city, f.tags, f.status, f.entry_type, (SELECT COUNT(*) FROM featured_interest fi JOIN app_users iu ON iu.id = fi.user_id "
+    "WHERE fi.slug = f.slug AND iu.phone = $3) AS interested FROM featured_tournaments f "
+    "WHERE f.is_active = 1 AND ($1 = 'ALL' OR f.sport = $1) AND $2 = 'ALL' AND {{ $json.offset }} = 0 ORDER BY f.sort_order, f.id"
+)
 
 BUILD_JS = r"""
-const rows = $('Load').all().map(i => i.json).filter(r => r && r.code);
+const all = $('Load').all().map(i => i.json).filter(Boolean);
+const rows = all.filter(r => r.code && r._set !== 'featured');
 const r0 = $('Check Request').first().json;
 const b2 = $('Authorize B2').isExecuted ? $('Authorize B2').first().json : {};
 const dl = b2?.apiInfo?.storageApi?.downloadUrl;
 const tokenOf = node => { try { return $(node).isExecuted ? $(node).first().json.authorizationToken : null; } catch { return null; } };
-const tokens = { 'tournament_assets/': tokenOf('Assets Link'), 'team_assets/': tokenOf('Team Link') };
+const tokens = { 'tournament_assets/': tokenOf('Assets Link'), 'team_assets/': tokenOf('Team Link'), 'league_logos/': tokenOf('League Link') };
 const sign = k => {
   const tok = k && tokens[Object.keys(tokens).find(p => k.startsWith(p))];
   return dl && tok ? `${dl}/file/mypaltan-profile-photos/${k.split('/').map(encodeURIComponent).join('/')}?Authorization=${tok}` : null;
@@ -73,14 +82,20 @@ const tournaments = rows.slice(0, PAGE).map(r => ({
   area: r.area || null, city: r.city || null, start_date: r.start_date, end_date: r.end_date, teams: Number(r.teams || 0), format: r.format_tag || null,
   champions: Number(r.stage) === 2 ? (parseJ(r.champions) || []).map(x => ({ division: x.division, team: x.team, logo_url: sign(x.logo_key) })) : [],
 }));
-return [{ json: { status: 200, body: { success: true, tournaments, next_offset: rows.length > PAGE ? r0.offset + PAGE : null } } }];
+const tagsOf = t => { if (Array.isArray(t)) return t; try { return JSON.parse(t || '[]'); } catch { return []; } };
+const featured = all.filter(r => r._set === 'featured').map(r => ({
+  slug: r.slug, code: null, name: r.name, sport: r.sport, logo_url: sign(r.logo_key) || r.logo_url || null, start_date: r.start_date || null,
+  area: r.area || null, city: r.city, tags: tagsOf(r.tags), status: r.status, interested: Number(r.interested || 0) > 0,
+  entry_type: r.entry_type || 'OPEN',
+}));
+return [{ json: { status: 200, body: { success: true, tournaments, featured, next_offset: rows.length > PAGE ? r0.offset + PAGE : null } } }];
 """
 
 n, c = [], {}
 n.append(webhook("v2/tournaments/all", "GET"))
 n.append(code("Check Request", CHECK_JS, [220, 0]))
 n.append(iff("Valid?", "={{ $json.ok }}", [440, 0]))
-n.append(mysql("Load", LOAD_SQL, "={{ [$json.sport, $json.status] }}", [660, -100], always=True))
+n.append(mysql("Load", LOAD_SQL, "={{ [$json.sport, $json.status, $json.phone] }}", [660, -100], always=True))
 n.append(code("B2 Credentials", B2_AUTH, [880, -100]))
 au = http("Authorize B2", "GET", "https://api.backblazeb2.com/b2api/v4/b2_authorize_account", [("Authorization", "={{ $json.basicAuth }}")], [1100, -100])
 au["onError"] = "continueRegularOutput"
@@ -95,12 +110,19 @@ tl = http("Team Link", "POST", "={{ $('Authorize B2').first().json.apiInfo.stora
           json_body="={{ JSON.stringify({ bucketId: '" + BUCKET_ID + "', fileNamePrefix: 'team_assets/', validDurationInSeconds: 86400 }) }}")
 tl["onError"] = "continueRegularOutput"
 n.append(tl)
+ll = http("League Link", "POST", "={{ $('Authorize B2').first().json.apiInfo.storageApi.apiUrl }}/b2api/v4/b2_get_download_authorization",
+          [("Authorization", "={{ $('Authorize B2').first().json.authorizationToken }}"), ("Content-Type", "application/json")], [1430, 220],
+          json_body="={{ JSON.stringify({ bucketId: '" + BUCKET_ID + "', fileNamePrefix: 'league_logos/', validDurationInSeconds: 86400 }) }}")
+ll["onError"] = "continueRegularOutput"
+n.append(ll)
 n.append(node("Build Response", "n8n-nodes-base.code", 2, [1540, -100], {"jsCode": BUILD_JS}))
 n.append(respond([1760, 0]))
 link(c, "Webhook", "Check Request"); link(c, "Check Request", "Valid?")
 link(c, "Valid?", "Load", 0); link(c, "Valid?", "Respond", 1)
-link(c, "Load", "B2 Credentials"); link(c, "B2 Credentials", "Authorize B2"); link(c, "Authorize B2", "Assets Link"); link(c, "Assets Link", "Team Link"); link(c, "Team Link", "Build Response")
+link(c, "Load", "B2 Credentials"); link(c, "B2 Credentials", "Authorize B2"); link(c, "Authorize B2", "Assets Link"); link(c, "Assets Link", "Team Link"); link(c, "Team Link", "League Link"); link(c, "League Link", "Build Response")
 link(c, "Build Response", "Respond")
 w = workflow("TourAll2026mPx", "MyPaltan v2 - Tournaments All", n, c)
+from add_b2_cache import add_b2_cache  # reuse B2 image links for 20 h (see add_b2_cache.py)
+add_b2_cache(w)
 json.dump(w, open(os.path.join(OUT, 'tournaments_all.json'), 'w'), indent=2)
 print('tournaments_all', w['id'], len(w['nodes']), 'nodes')
